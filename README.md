@@ -4,6 +4,16 @@ Calynda is a compiled functional systems programming language.
 
 The first public edition ships an end-to-end compiler pipeline, a native Linux x86_64 backend, a portable bytecode emitter, a runtime layer for dynamic language features, and a command-line tool that can build and run `.cal` programs.
 
+## Repository Layout
+
+This is a monorepo. The packages are:
+
+| Package | Description |
+|---|---|
+| [`compiler/`](compiler/) | C compiler, runtime, and CLI |
+| [`mcp-server/`](mcp-server/) | MCP server for AI assistant integration |
+| [`vscode-calynda/`](vscode-calynda/) | VS Code syntax highlighting extension |
+
 ## Status
 
 Calynda is currently at 0.1.0.
@@ -15,7 +25,7 @@ What is in this first edition:
 - Lowering through AST, HIR, MIR, LIR, codegen planning, machine emission, and assembly emission.
 - Native compilation for Linux x86_64 SysV ELF.
 - Portable `portable-v1` bytecode emission.
-- A small VS Code syntax extension in [vscode-calynda/README.md](/home/codewriter3000/Coding/calynda-lang/vscode-calynda/README.md).
+- A small VS Code syntax extension in [vscode-calynda/README.md](vscode-calynda/README.md).
 
 What is not in this edition:
 
@@ -23,20 +33,20 @@ What is not in this edition:
 - No bytecode executor yet.
 - No full language server yet.
 
-More detail is in [RELEASE_NOTES.md](/home/codewriter3000/Coding/calynda-lang/RELEASE_NOTES.md).
+More detail is in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
 ## Installation
 
 For a normal user install:
 
 ```sh
-sh ./install.sh
+sh ./compiler/install.sh
 ```
 
 For a custom prefix:
 
 ```sh
-sh ./install.sh --prefix /usr/local
+sh ./compiler/install.sh --prefix /usr/local
 ```
 
 The installer builds Calynda and installs:
@@ -58,13 +68,13 @@ Requirements:
 To build the CLI locally:
 
 ```sh
-make calynda
+make -C compiler calynda
 ```
 
 The resulting compiler binary is:
 
 ```text
-build/calynda
+compiler/build/calynda
 ```
 
 ## Quick Start
@@ -120,7 +130,7 @@ What they do:
 
 ## Language Snapshot
 
-The grammar lives in [calynda.ebnf](/home/codewriter3000/Coding/calynda-lang/calynda.ebnf).
+The grammar lives in [compiler/calynda.ebnf](compiler/calynda.ebnf).
 
 Current language surface includes:
 
@@ -144,41 +154,40 @@ Current backend split:
 - native: AST -> HIR -> MIR -> LIR -> CodegenPlan -> MachineProgram -> x86_64 assembly -> linked executable
 - bytecode: AST -> HIR -> MIR -> BytecodeProgram `portable-v1`
 
-The backend direction is described in [backend_strategy.md](/home/codewriter3000/Coding/calynda-lang/backend_strategy.md), and the current bytecode shape is described in [bytecode_isa.md](/home/codewriter3000/Coding/calynda-lang/bytecode_isa.md).
+The backend direction is described in [backend_strategy.md](backend_strategy.md), and the current bytecode shape is described in [bytecode_isa.md](bytecode_isa.md).
 
 ## Development
 
 Run the full test suite:
 
 ```sh
-./run_tests.sh
+./compiler/run_tests.sh
 ```
 
-Useful build targets:
+Or via the root Makefile:
 
 ```sh
-make calynda
-make build_native
-make emit_asm
-make emit_bytecode
 make test
-make clean
 ```
 
-The local VS Code syntax extension lives under [vscode-calynda/README.md](/home/codewriter3000/Coding/calynda-lang/vscode-calynda/README.md).
+Useful compiler build targets:
+
+```sh
+make -C compiler calynda
+make -C compiler build_native
+make -C compiler emit_asm
+make -C compiler emit_bytecode
+make -C compiler test
+make -C compiler clean
+```
+
+The local VS Code syntax extension lives under [vscode-calynda/README.md](vscode-calynda/README.md).
 
 ## MCP Server
 
 An [MCP (Model Context Protocol)](mcp-server/README.md) server is included that enables AI assistants to deeply understand and work with Calynda. It provides code analysis, type validation, syntax explanation, code completion, examples, and formatting tools.
 
 See [mcp-server/README.md](mcp-server/README.md) for installation and configuration instructions.
-
-## Repository Layout
-
-- `src/`: compiler, runtime, backend, and CLI sources
-- `tests/`: regression tests for front-end, semantic, IR, backend, runtime, and CLI behavior
-- `build/`: local build output
-- `vscode-calynda/`: syntax highlighting and language configuration for `.cal` files
 
 ## Current Limits
 
@@ -189,4 +198,4 @@ See [mcp-server/README.md](mcp-server/README.md) for installation and configurat
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](/home/codewriter3000/Coding/calynda-lang/LICENSE).
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
