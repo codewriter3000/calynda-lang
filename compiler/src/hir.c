@@ -876,6 +876,8 @@ static HirStatement *lower_statement(HirBuildContext *context,
         break;
     case AST_STMT_EXIT:
         break;
+    case AST_STMT_MANUAL:
+        break;
     }
 
     return hir_statement;
@@ -1322,7 +1324,7 @@ bool hir_build_program(HirProgram *program,
 
         if (!import_symbol) {
             hir_set_error(&context,
-                          ast_program->imports[i].tail_span,
+                          ast_program->imports[i].module_name.tail_span,
                           NULL,
                           "Internal error: missing import symbol during HIR lowering.");
             return false;
@@ -1330,10 +1332,10 @@ bool hir_build_program(HirProgram *program,
 
         memset(&import_entry, 0, sizeof(import_entry));
         import_entry.symbol = import_symbol;
-        import_entry.name = ast_copy_text(ast_program->imports[i].segments[
-            ast_program->imports[i].count - 1]);
-        import_entry.qualified_name = qualified_name_to_string(&ast_program->imports[i]);
-        import_entry.source_span = ast_program->imports[i].tail_span;
+        import_entry.name = ast_copy_text(ast_program->imports[i].module_name.segments[
+            ast_program->imports[i].module_name.count - 1]);
+        import_entry.qualified_name = qualified_name_to_string(&ast_program->imports[i].module_name);
+        import_entry.source_span = ast_program->imports[i].module_name.tail_span;
         if (!import_entry.name || !import_entry.qualified_name ||
             !append_named_symbol(&program->imports,
                                  &program->import_count,
@@ -1341,7 +1343,7 @@ bool hir_build_program(HirProgram *program,
                                  import_entry)) {
             free_named_symbol(&import_entry);
             hir_set_error(&context,
-                          ast_program->imports[i].tail_span,
+                          ast_program->imports[i].module_name.tail_span,
                           NULL,
                           "Out of memory while lowering HIR imports.");
             return false;
@@ -1351,6 +1353,11 @@ bool hir_build_program(HirProgram *program,
     for (i = 0; i < ast_program->top_level_count; i++) {
         const AstTopLevelDecl *ast_decl = ast_program->top_level_decls[i];
         HirTopLevelDecl *hir_decl;
+
+        /* Skip union declarations for now — not yet lowered to HIR */
+        if (ast_decl->kind == AST_TOP_LEVEL_UNION) {
+            continue;
+        }
 
         if (ast_decl->kind == AST_TOP_LEVEL_BINDING) {
             const Scope *root_scope = symbol_table_root_scope(symbols);

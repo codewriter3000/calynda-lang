@@ -122,6 +122,17 @@ static const Keyword keywords[] = {
     {"true",     TOK_TRUE},
     {"false",    TOK_FALSE},
     {"null",     TOK_NULL},
+    {"export",   TOK_EXPORT},
+    {"as",       TOK_AS},
+    {"internal", TOK_INTERNAL},
+    {"static",   TOK_STATIC},
+    {"union",    TOK_UNION},
+    {"manual",   TOK_MANUAL},
+    {"arr",      TOK_ARR},
+    {"malloc",   TOK_MALLOC},
+    {"calloc",   TOK_CALLOC},
+    {"realloc",  TOK_REALLOC},
+    {"free",     TOK_FREE},
     {"int8",     TOK_INT8},
     {"int16",    TOK_INT16},
     {"int32",    TOK_INT32},
@@ -135,6 +146,15 @@ static const Keyword keywords[] = {
     {"bool",     TOK_BOOL},
     {"char",     TOK_CHAR},
     {"string",   TOK_STRING},
+    {"byte",     TOK_BYTE},
+    {"sbyte",    TOK_SBYTE},
+    {"short",    TOK_SHORT},
+    {"int",      TOK_INT},
+    {"long",     TOK_LONG},
+    {"ulong",    TOK_ULONG},
+    {"uint",     TOK_UINT},
+    {"float",    TOK_FLOAT},
+    {"double",   TOK_DOUBLE},
     {NULL, TOK_EOF}
 };
 
@@ -157,6 +177,9 @@ static Token scan_identifier(Tokenizer *t, const char *start,
     while (!is_at_end(t) && (isalnum((unsigned char)peek(t)) || peek(t) == '_'))
         advance(t);
     size_t len = (size_t)(t->current - start);
+    /* A standalone '_' is the discard token, not an identifier. */
+    if (len == 1 && start[0] == '_')
+        return make_token(t, TOK_UNDERSCORE, start, line, col);
     TokenType type = check_keyword(start, len);
     return make_token(t, type, start, line, col);
 }
@@ -397,18 +420,26 @@ Token tokenizer_next(Tokenizer *t) {
     case ']': return make_token(t, TOK_RBRACKET,  start, line, col);
     case ';': return make_token(t, TOK_SEMICOLON, start, line, col);
     case ',': return make_token(t, TOK_COMMA,     start, line, col);
-    case '.': return make_token(t, TOK_DOT,       start, line, col);
+    case '.':
+        if (peek(t) == '.' && peek_next(t) == '.') {
+            advance(t); /* second . */
+            advance(t); /* third .  */
+            return make_token(t, TOK_ELLIPSIS, start, line, col);
+        }
+        return make_token(t, TOK_DOT,       start, line, col);
     case '?': return make_token(t, TOK_QUESTION,  start, line, col);
     case ':': return make_token(t, TOK_COLON,     start, line, col);
 
-    /* - and -> */
+    /* - -> -- -= */
     case '-':
         if (match(t, '>')) return make_token(t, TOK_ARROW,        start, line, col);
+        if (match(t, '-')) return make_token(t, TOK_MINUS_MINUS,  start, line, col);
         if (match(t, '=')) return make_token(t, TOK_MINUS_ASSIGN, start, line, col);
         return make_token(t, TOK_MINUS, start, line, col);
 
-    /* + */
+    /* + ++ += */
     case '+':
+        if (match(t, '+')) return make_token(t, TOK_PLUS_PLUS,   start, line, col);
         if (match(t, '=')) return make_token(t, TOK_PLUS_ASSIGN, start, line, col);
         return make_token(t, TOK_PLUS, start, line, col);
 
@@ -546,6 +577,17 @@ const char *token_type_name(TokenType type) {
     case TOK_TRUE:           return "TRUE";
     case TOK_FALSE:          return "FALSE";
     case TOK_NULL:           return "NULL";
+    case TOK_EXPORT:         return "EXPORT";
+    case TOK_AS:             return "AS";
+    case TOK_INTERNAL:       return "INTERNAL";
+    case TOK_STATIC:         return "STATIC";
+    case TOK_UNION:          return "UNION";
+    case TOK_MANUAL:         return "MANUAL";
+    case TOK_ARR:            return "ARR";
+    case TOK_MALLOC:         return "MALLOC";
+    case TOK_CALLOC:         return "CALLOC";
+    case TOK_REALLOC:        return "REALLOC";
+    case TOK_FREE:           return "FREE";
     case TOK_INT8:           return "INT8";
     case TOK_INT16:          return "INT16";
     case TOK_INT32:          return "INT32";
@@ -559,6 +601,15 @@ const char *token_type_name(TokenType type) {
     case TOK_BOOL:           return "BOOL";
     case TOK_CHAR:           return "CHAR";
     case TOK_STRING:         return "STRING";
+    case TOK_BYTE:           return "BYTE";
+    case TOK_SBYTE:          return "SBYTE";
+    case TOK_SHORT:          return "SHORT";
+    case TOK_INT:            return "INT";
+    case TOK_LONG:           return "LONG";
+    case TOK_ULONG:          return "ULONG";
+    case TOK_UINT:           return "UINT";
+    case TOK_FLOAT:          return "FLOAT";
+    case TOK_DOUBLE:         return "DOUBLE";
     case TOK_LPAREN:         return "LPAREN";
     case TOK_RPAREN:         return "RPAREN";
     case TOK_LBRACE:         return "LBRACE";
@@ -568,9 +619,11 @@ const char *token_type_name(TokenType type) {
     case TOK_SEMICOLON:      return "SEMICOLON";
     case TOK_COMMA:          return "COMMA";
     case TOK_DOT:            return "DOT";
+    case TOK_ELLIPSIS:       return "ELLIPSIS";
     case TOK_ARROW:          return "ARROW";
     case TOK_QUESTION:       return "QUESTION";
     case TOK_COLON:          return "COLON";
+    case TOK_UNDERSCORE:     return "UNDERSCORE";
     case TOK_DOLLAR_LBRACE:  return "DOLLAR_LBRACE";
     case TOK_ASSIGN:         return "ASSIGN";
     case TOK_PLUS_ASSIGN:    return "PLUS_ASSIGN";
@@ -600,7 +653,9 @@ const char *token_type_name(TokenType type) {
     case TOK_LSHIFT:         return "LSHIFT";
     case TOK_RSHIFT:         return "RSHIFT";
     case TOK_PLUS:           return "PLUS";
+    case TOK_PLUS_PLUS:      return "PLUS_PLUS";
     case TOK_MINUS:          return "MINUS";
+    case TOK_MINUS_MINUS:    return "MINUS_MINUS";
     case TOK_STAR:           return "STAR";
     case TOK_SLASH:          return "SLASH";
     case TOK_PERCENT:        return "PERCENT";

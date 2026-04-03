@@ -207,6 +207,12 @@ static const char *modifier_name(AstModifier modifier) {
         return "private";
     case AST_MODIFIER_FINAL:
         return "final";
+    case AST_MODIFIER_EXPORT:
+        return "export";
+    case AST_MODIFIER_STATIC:
+        return "static";
+    case AST_MODIFIER_INTERNAL:
+        return "internal";
     }
 
     return "unknown";
@@ -240,9 +246,25 @@ static const char *primitive_type_name(AstPrimitiveType primitive) {
         return "char";
     case AST_PRIMITIVE_STRING:
         return "string";
-    }
-
-    return "unknown";
+    case AST_PRIMITIVE_BYTE:
+        return "byte";
+    case AST_PRIMITIVE_SBYTE:
+        return "sbyte";
+    case AST_PRIMITIVE_SHORT:
+        return "short";
+    case AST_PRIMITIVE_INT:
+        return "int";
+    case AST_PRIMITIVE_LONG:
+        return "long";
+    case AST_PRIMITIVE_ULONG:
+        return "ulong";
+    case AST_PRIMITIVE_UINT:
+        return "uint";
+    case AST_PRIMITIVE_FLOAT:
+        return "float";
+    case AST_PRIMITIVE_DOUBLE:
+        return "double";
+    }    return "unknown";
 }
 
 static const char *assignment_operator_name(AstAssignmentOperator operator) {
@@ -331,9 +353,15 @@ static const char *unary_operator_name(AstUnaryOperator operator) {
         return "-";
     case AST_UNARY_OP_PLUS:
         return "+";
-    }
-
-    return "?";
+    case AST_UNARY_OP_PRE_INCREMENT:
+        return "++";
+    case AST_UNARY_OP_PRE_DECREMENT:
+        return "--";
+    case AST_UNARY_OP_DEREF:
+        return "*";
+    case AST_UNARY_OP_ADDRESS_OF:
+        return "&";
+    }    return "?";
 }
 
 static bool dump_qualified_name(AstDumpBuilder *builder, const AstQualifiedName *name) {
@@ -705,6 +733,22 @@ static bool dump_expression_node(AstDumpBuilder *builder,
                builder_append(builder, "GroupingExpr") && builder_finish_line(builder) &&
                dump_expression_label(builder, indent + 1, "Expression",
                                      expression->as.grouping.inner);
+
+    case AST_EXPR_DISCARD:
+        return builder_start_line(builder, indent) &&
+               builder_append(builder, "DiscardExpr") && builder_finish_line(builder);
+
+    case AST_EXPR_POST_INCREMENT:
+        return builder_start_line(builder, indent) &&
+               builder_append(builder, "PostIncrementExpr") && builder_finish_line(builder) &&
+               dump_expression_label(builder, indent + 1, "Operand",
+                                     expression->as.post_increment.operand);
+
+    case AST_EXPR_POST_DECREMENT:
+        return builder_start_line(builder, indent) &&
+               builder_append(builder, "PostDecrementExpr") && builder_finish_line(builder) &&
+               dump_expression_label(builder, indent + 1, "Operand",
+                                     expression->as.post_decrement.operand);
     }
 
     return false;
@@ -765,6 +809,10 @@ static bool dump_statement(AstDumpBuilder *builder, const AstStatement *statemen
                builder_append(builder, "ExpressionStmt") && builder_finish_line(builder) &&
                dump_expression_label(builder, indent + 1, "Expression",
                                      statement->as.expression);
+
+    case AST_STMT_MANUAL:
+        return builder_start_line(builder, indent) &&
+               builder_append(builder, "ManualStmt") && builder_finish_line(builder);
     }
 
     return false;
@@ -833,6 +881,13 @@ static bool dump_top_level_decl(AstDumpBuilder *builder, const AstTopLevelDecl *
 
         return dump_expression_label(builder, indent + 1, "Initializer",
                                      decl->as.binding_decl.initializer);
+
+    case AST_TOP_LEVEL_UNION:
+        return builder_start_line(builder, indent) &&
+               builder_append(builder, "UnionDecl name=") &&
+               builder_append(builder,
+                              decl->as.union_decl.name ? decl->as.union_decl.name : "<null>") &&
+               builder_finish_line(builder);
     }
 
     return false;
@@ -863,7 +918,7 @@ static bool dump_program_node(AstDumpBuilder *builder, const AstProgram *program
     for (i = 0; i < program->import_count; i++) {
         if (!(builder_start_line(builder, indent + 1) &&
               builder_append(builder, "ImportDecl: ") &&
-              dump_qualified_name(builder, &program->imports[i]) &&
+              dump_qualified_name(builder, &program->imports[i].module_name) &&
               builder_finish_line(builder))) {
             return false;
         }

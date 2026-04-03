@@ -120,7 +120,7 @@ static AstParameter make_parameter(AstPrimitiveType primitive, const char *name)
 static void test_program_structure(void) {
     AstProgram program;
     AstQualifiedName package_name;
-    AstQualifiedName import_name;
+    AstImportDecl import_decl;
     AstTopLevelDecl *binding_decl;
     AstTopLevelDecl *start_decl;
     AstParameter args_parameter;
@@ -141,20 +141,22 @@ static void test_program_structure(void) {
     REQUIRE_TRUE(ast_program_set_package(&program, &package_name),
                  "set package name");
 
-    ast_qualified_name_init(&import_name);
-    REQUIRE_TRUE(ast_qualified_name_append(&import_name, "io"),
+    ast_import_decl_init(&import_decl);
+    import_decl.kind = AST_IMPORT_PLAIN;
+    REQUIRE_TRUE(ast_qualified_name_append(&import_decl.module_name, "io"),
                  "append import segment io");
-    REQUIRE_TRUE(ast_qualified_name_append(&import_name, "stdlib"),
+    REQUIRE_TRUE(ast_qualified_name_append(&import_decl.module_name, "stdlib"),
                  "append import segment stdlib");
-    REQUIRE_TRUE(ast_program_add_import(&program, &import_name),
+    REQUIRE_TRUE(ast_program_add_import(&program, &import_decl),
                  "add io.stdlib import");
 
-    ast_qualified_name_init(&import_name);
-    REQUIRE_TRUE(ast_qualified_name_append(&import_name, "math"),
+    ast_import_decl_init(&import_decl);
+    import_decl.kind = AST_IMPORT_PLAIN;
+    REQUIRE_TRUE(ast_qualified_name_append(&import_decl.module_name, "math"),
                  "append import segment math");
-    REQUIRE_TRUE(ast_qualified_name_append(&import_name, "core"),
+    REQUIRE_TRUE(ast_qualified_name_append(&import_decl.module_name, "core"),
                  "append import segment core");
-    REQUIRE_TRUE(ast_program_add_import(&program, &import_name),
+    REQUIRE_TRUE(ast_program_add_import(&program, &import_decl),
                  "add math.core import");
 
     binding_decl = ast_top_level_decl_new(AST_TOP_LEVEL_BINDING);
@@ -230,7 +232,7 @@ static void test_program_structure(void) {
     ASSERT_EQ_STR("example", program.package_name.segments[1],
                   "package middle segment");
     ASSERT_EQ_INT(2, program.import_count, "import count");
-    ASSERT_EQ_STR("stdlib", program.imports[0].segments[1], "first import tail");
+    ASSERT_EQ_STR("stdlib", program.imports[0].module_name.segments[1], "first import tail");
     ASSERT_EQ_INT(2, program.top_level_count, "top-level declaration count");
     ASSERT_EQ_INT(AST_TOP_LEVEL_BINDING, program.top_level_decls[0]->kind,
                   "first top-level declaration kind");

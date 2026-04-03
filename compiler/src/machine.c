@@ -1195,6 +1195,11 @@ static bool emit_unary(MachineBuildContext *context,
         ok = append_line(context, block, "cmp %s, bool(false)", work_reg) &&
              append_line(context, block, "sete %s", work_reg);
         break;
+    case AST_UNARY_OP_PRE_INCREMENT:
+    case AST_UNARY_OP_PRE_DECREMENT:
+    case AST_UNARY_OP_DEREF:
+    case AST_UNARY_OP_ADDRESS_OF:
+        break;
     }
 
     if (ok) {

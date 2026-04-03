@@ -43,6 +43,17 @@ typedef enum {
     TOK_TRUE,
     TOK_FALSE,
     TOK_NULL,
+    TOK_EXPORT,
+    TOK_AS,
+    TOK_INTERNAL,
+    TOK_STATIC,
+    TOK_UNION,
+    TOK_MANUAL,
+    TOK_ARR,
+    TOK_MALLOC,
+    TOK_CALLOC,
+    TOK_REALLOC,
+    TOK_FREE,
 
     /* Primitive type keywords */
     TOK_INT8,
@@ -58,6 +69,15 @@ typedef enum {
     TOK_BOOL,
     TOK_CHAR,
     TOK_STRING,
+    TOK_BYTE,
+    TOK_SBYTE,
+    TOK_SHORT,
+    TOK_INT,
+    TOK_LONG,
+    TOK_ULONG,
+    TOK_UINT,
+    TOK_FLOAT,
+    TOK_DOUBLE,
 
     /* Punctuation */
     TOK_LPAREN,           /* (   */
@@ -69,9 +89,11 @@ typedef enum {
     TOK_SEMICOLON,        /* ;   */
     TOK_COMMA,            /* ,   */
     TOK_DOT,              /* .   */
+    TOK_ELLIPSIS,         /* ... */
     TOK_ARROW,            /* ->  */
     TOK_QUESTION,         /* ?   */
     TOK_COLON,            /* :   */
+    TOK_UNDERSCORE,       /* _   */
     TOK_DOLLAR_LBRACE,    /* ${  */
 
     /* Assignment operators */
@@ -113,7 +135,9 @@ typedef enum {
 
     /* Arithmetic */
     TOK_PLUS,             /* +   */
+    TOK_PLUS_PLUS,        /* ++  */
     TOK_MINUS,            /* -   */
+    TOK_MINUS_MINUS,      /* --  */
     TOK_STAR,             /* *   */
     TOK_SLASH,            /* /   */
     TOK_PERCENT,          /* %   */

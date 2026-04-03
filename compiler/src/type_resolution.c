@@ -252,6 +252,24 @@ static const char *primitive_type_name(AstPrimitiveType primitive) {
         return "char";
     case AST_PRIMITIVE_STRING:
         return "string";
+    case AST_PRIMITIVE_BYTE:
+        return "byte";
+    case AST_PRIMITIVE_SBYTE:
+        return "sbyte";
+    case AST_PRIMITIVE_SHORT:
+        return "short";
+    case AST_PRIMITIVE_INT:
+        return "int";
+    case AST_PRIMITIVE_LONG:
+        return "long";
+    case AST_PRIMITIVE_ULONG:
+        return "ulong";
+    case AST_PRIMITIVE_UINT:
+        return "uint";
+    case AST_PRIMITIVE_FLOAT:
+        return "float";
+    case AST_PRIMITIVE_DOUBLE:
+        return "double";
     }
 
     return "unknown";
@@ -550,6 +568,9 @@ static bool resolve_statement(TypeResolver *resolver, const AstStatement *statem
 
     case AST_STMT_EXPRESSION:
         return resolve_expression(resolver, statement->as.expression);
+
+    case AST_STMT_MANUAL:
+        return true;
     }
 
     return false;
@@ -644,6 +665,15 @@ static bool resolve_expression(TypeResolver *resolver, const AstExpression *expr
 
     case AST_EXPR_GROUPING:
         return resolve_expression(resolver, expression->as.grouping.inner);
+
+    case AST_EXPR_DISCARD:
+        return true;
+
+    case AST_EXPR_POST_INCREMENT:
+        return resolve_expression(resolver, expression->as.post_increment.operand);
+
+    case AST_EXPR_POST_DECREMENT:
+        return resolve_expression(resolver, expression->as.post_decrement.operand);
     }
 
     return false;

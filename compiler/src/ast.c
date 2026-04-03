@@ -130,6 +130,14 @@ void ast_type_init_primitive(AstType *type, AstPrimitiveType primitive) {
     type->primitive = primitive;
 }
 
+void ast_type_init_arr(AstType *type) {
+    if (!type) {
+        return;
+    }
+    memset(type, 0, sizeof(*type));
+    type->kind = AST_TYPE_ARR;
+}
+
 void ast_type_free(AstType *type) {
     size_t i;
 
@@ -142,7 +150,43 @@ void ast_type_free(AstType *type) {
     }
 
     free(type->dimensions);
+    ast_generic_arg_list_free(&type->generic_args);
     memset(type, 0, sizeof(*type));
+}
+
+bool ast_type_add_generic_arg(AstType *type, AstGenericArg *arg) {
+    if (!type || !arg) {
+        return false;
+    }
+
+    if (!reserve_items((void **)&type->generic_args.items,
+                       &type->generic_args.capacity,
+                       type->generic_args.count + 1,
+                       sizeof(*type->generic_args.items))) {
+        return false;
+    }
+
+    type->generic_args.items[type->generic_args.count++] = *arg;
+    memset(arg, 0, sizeof(*arg));
+    return true;
+}
+
+void ast_generic_arg_list_free(AstGenericArgList *list) {
+    size_t i;
+
+    if (!list) {
+        return;
+    }
+
+    for (i = 0; i < list->count; i++) {
+        if (list->items[i].type) {
+            ast_type_free(list->items[i].type);
+            free(list->items[i].type);
+        }
+    }
+
+    free(list->items);
+    memset(list, 0, sizeof(*list));
 }
 
 bool ast_type_add_dimension(AstType *type, bool has_size, const char *size_literal) {
@@ -451,6 +495,14 @@ void ast_expression_free(AstExpression *expression) {
     case AST_EXPR_GROUPING:
         ast_expression_free(expression->as.grouping.inner);
         break;
+    case AST_EXPR_DISCARD:
+        break;
+    case AST_EXPR_POST_INCREMENT:
+        ast_expression_free(expression->as.post_increment.operand);
+        break;
+    case AST_EXPR_POST_DECREMENT:
+        ast_expression_free(expression->as.post_decrement.operand);
+        break;
     }
 
     free(expression);
@@ -502,6 +554,10 @@ void ast_statement_free(AstStatement *statement) {
     case AST_STMT_EXPRESSION:
         ast_expression_free(statement->as.expression);
         break;
+    case AST_STMT_MANUAL:
+        ast_parameter_list_free(&statement->as.manual.parameters);
+        ast_block_free(statement->as.manual.body);
+        break;
     }
 
     free(statement);
@@ -532,6 +588,8 @@ AstTopLevelDecl *ast_top_level_decl_new(AstTopLevelDeclKind kind) {
         ast_lambda_body_init(&decl->as.start_decl.body);
     } else if (kind == AST_TOP_LEVEL_BINDING) {
         ast_type_init_void(&decl->as.binding_decl.declared_type);
+    } else if (kind == AST_TOP_LEVEL_UNION) {
+        memset(&decl->as.union_decl, 0, sizeof(decl->as.union_decl));
     }
 
     return decl;
@@ -549,6 +607,9 @@ void ast_top_level_decl_free(AstTopLevelDecl *decl) {
         break;
     case AST_TOP_LEVEL_BINDING:
         ast_binding_decl_free_fields(&decl->as.binding_decl);
+        break;
+    case AST_TOP_LEVEL_UNION:
+        ast_union_decl_free_fields(&decl->as.union_decl);
         break;
     }
 
@@ -586,7 +647,7 @@ void ast_program_free(AstProgram *program) {
     ast_qualified_name_free(&program->package_name);
 
     for (i = 0; i < program->import_count; i++) {
-        ast_qualified_name_free(&program->imports[i]);
+        ast_import_decl_free(&program->imports[i]);
     }
     free(program->imports);
 
@@ -610,8 +671,8 @@ bool ast_program_set_package(AstProgram *program, AstQualifiedName *package_name
     return true;
 }
 
-bool ast_program_add_import(AstProgram *program, AstQualifiedName *import_name) {
-    if (!program || !import_name) {
+bool ast_program_add_import(AstProgram *program, AstImportDecl *import_decl) {
+    if (!program || !import_decl) {
         return false;
     }
 
@@ -620,8 +681,8 @@ bool ast_program_add_import(AstProgram *program, AstQualifiedName *import_name) 
         return false;
     }
 
-    program->imports[program->import_count++] = *import_name;
-    ast_qualified_name_init(import_name);
+    program->imports[program->import_count++] = *import_decl;
+    memset(import_decl, 0, sizeof(*import_decl));
     return true;
 }
 
@@ -638,5 +699,116 @@ bool ast_program_add_top_level_decl(AstProgram *program, AstTopLevelDecl *decl) 
     }
 
     program->top_level_decls[program->top_level_count++] = decl;
+    return true;
+}
+
+void ast_import_decl_init(AstImportDecl *decl) {
+    if (!decl) {
+        return;
+    }
+    memset(decl, 0, sizeof(*decl));
+}
+
+void ast_import_decl_free(AstImportDecl *decl) {
+    size_t i;
+
+    if (!decl) {
+        return;
+    }
+
+    ast_qualified_name_free(&decl->module_name);
+    free(decl->alias);
+
+    for (i = 0; i < decl->selected_count; i++) {
+        free(decl->selected_names[i]);
+    }
+    free(decl->selected_names);
+
+    memset(decl, 0, sizeof(*decl));
+}
+
+bool ast_import_decl_add_selected(AstImportDecl *decl, const char *name) {
+    char *copy;
+
+    if (!decl || !name) {
+        return false;
+    }
+
+    copy = ast_copy_text(name);
+    if (!copy) {
+        return false;
+    }
+
+    if (!reserve_items((void **)&decl->selected_names, &decl->selected_capacity,
+                       decl->selected_count + 1, sizeof(*decl->selected_names))) {
+        free(copy);
+        return false;
+    }
+
+    decl->selected_names[decl->selected_count++] = copy;
+    return true;
+}
+
+void ast_union_decl_free_fields(AstUnionDecl *decl) {
+    size_t i;
+
+    if (!decl) {
+        return;
+    }
+
+    free(decl->modifiers);
+    free(decl->name);
+
+    for (i = 0; i < decl->generic_param_count; i++) {
+        free(decl->generic_params[i]);
+    }
+    free(decl->generic_params);
+
+    for (i = 0; i < decl->variant_count; i++) {
+        free(decl->variants[i].name);
+        if (decl->variants[i].payload_type) {
+            ast_type_free(decl->variants[i].payload_type);
+            free(decl->variants[i].payload_type);
+        }
+    }
+    free(decl->variants);
+
+    memset(decl, 0, sizeof(*decl));
+}
+
+bool ast_union_decl_add_generic_param(AstUnionDecl *decl, const char *param) {
+    char *copy;
+
+    if (!decl || !param) {
+        return false;
+    }
+
+    copy = ast_copy_text(param);
+    if (!copy) {
+        return false;
+    }
+
+    if (!reserve_items((void **)&decl->generic_params, &decl->generic_param_capacity,
+                       decl->generic_param_count + 1, sizeof(*decl->generic_params))) {
+        free(copy);
+        return false;
+    }
+
+    decl->generic_params[decl->generic_param_count++] = copy;
+    return true;
+}
+
+bool ast_union_decl_add_variant(AstUnionDecl *decl, AstUnionVariant *variant) {
+    if (!decl || !variant) {
+        return false;
+    }
+
+    if (!reserve_items((void **)&decl->variants, &decl->variant_capacity,
+                       decl->variant_count + 1, sizeof(*decl->variants))) {
+        return false;
+    }
+
+    decl->variants[decl->variant_count++] = *variant;
+    memset(variant, 0, sizeof(*variant));
     return true;
 }
