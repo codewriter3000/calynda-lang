@@ -761,6 +761,9 @@ static bool analyze_top_level_decl(SymbolTable *table,
         return analyze_start_decl(table, &decl->as.start_decl, scope);
     case AST_TOP_LEVEL_BINDING:
         return analyze_expression(table, decl->as.binding_decl.initializer, scope);
+
+    case AST_TOP_LEVEL_UNION:
+        return true;
     }
 
     return false;
@@ -850,6 +853,9 @@ static bool analyze_statement(SymbolTable *table, const AstStatement *statement,
 
     case AST_STMT_EXPRESSION:
         return analyze_expression(table, statement->as.expression, scope);
+
+    case AST_STMT_MANUAL:
+        return true;
     }
 
     return false;
@@ -942,6 +948,15 @@ static bool analyze_expression(SymbolTable *table, const AstExpression *expressi
 
     case AST_EXPR_GROUPING:
         return analyze_expression(table, expression->as.grouping.inner, scope);
+
+    case AST_EXPR_DISCARD:
+        return true;
+
+    case AST_EXPR_POST_INCREMENT:
+        return analyze_expression(table, expression->as.post_increment.operand, scope);
+
+    case AST_EXPR_POST_DECREMENT:
+        return analyze_expression(table, expression->as.post_decrement.operand, scope);
     }
 
     return false;

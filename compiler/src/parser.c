@@ -1708,6 +1708,15 @@ static bool is_primitive_type_token(TokenType type) {
     case TOK_BOOL:
     case TOK_CHAR:
     case TOK_STRING:
+    case TOK_BYTE:
+    case TOK_SBYTE:
+    case TOK_SHORT:
+    case TOK_INT:
+    case TOK_LONG:
+    case TOK_ULONG:
+    case TOK_UINT:
+    case TOK_FLOAT:
+    case TOK_DOUBLE:
         return true;
     default:
         return false;
@@ -1810,6 +1819,15 @@ static AstPrimitiveType primitive_type_from_token(TokenType type) {
     case TOK_FLOAT64: return AST_PRIMITIVE_FLOAT64;
     case TOK_BOOL: return AST_PRIMITIVE_BOOL;
     case TOK_CHAR: return AST_PRIMITIVE_CHAR;
+    case TOK_BYTE: return AST_PRIMITIVE_BYTE;
+    case TOK_SBYTE: return AST_PRIMITIVE_SBYTE;
+    case TOK_SHORT: return AST_PRIMITIVE_SHORT;
+    case TOK_INT: return AST_PRIMITIVE_INT;
+    case TOK_LONG: return AST_PRIMITIVE_LONG;
+    case TOK_ULONG: return AST_PRIMITIVE_ULONG;
+    case TOK_UINT: return AST_PRIMITIVE_UINT;
+    case TOK_FLOAT: return AST_PRIMITIVE_FLOAT;
+    case TOK_DOUBLE: return AST_PRIMITIVE_DOUBLE;
     default: return AST_PRIMITIVE_STRING;
     }
 }

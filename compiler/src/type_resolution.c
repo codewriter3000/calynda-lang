@@ -573,6 +573,9 @@ static bool resolve_statement(TypeResolver *resolver, const AstStatement *statem
         return true;
     }
 
+    return false;
+}
+
 static bool resolve_expression(TypeResolver *resolver, const AstExpression *expression) {
     size_t i;
 

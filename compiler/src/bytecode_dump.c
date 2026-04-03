@@ -467,6 +467,14 @@ static const char *unary_operator_name_text(AstUnaryOperator operator) {
         return "-";
     case AST_UNARY_OP_PLUS:
         return "+";
+    case AST_UNARY_OP_PRE_INCREMENT:
+        return "++";
+    case AST_UNARY_OP_PRE_DECREMENT:
+        return "--";
+    case AST_UNARY_OP_DEREF:
+        return "*";
+    case AST_UNARY_OP_ADDRESS_OF:
+        return "&";
     }
 
     return "?";

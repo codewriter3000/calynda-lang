@@ -2184,6 +2184,10 @@ static const TypeCheckInfo *check_expression(TypeChecker *checker,
 
             case AST_UNARY_OP_NEGATE:
             case AST_UNARY_OP_PLUS:
+            case AST_UNARY_OP_PRE_INCREMENT:
+            case AST_UNARY_OP_PRE_DECREMENT:
+            case AST_UNARY_OP_DEREF:
+            case AST_UNARY_OP_ADDRESS_OF:
                 if (!checked_type_is_numeric(operand_type)) {
                     checked_type_to_string(operand_type, operand_text, sizeof(operand_text));
                     type_checker_set_error_at(checker,

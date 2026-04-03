@@ -876,6 +876,8 @@ static HirStatement *lower_statement(HirBuildContext *context,
         break;
     case AST_STMT_EXIT:
         break;
+    case AST_STMT_MANUAL:
+        break;
     }
 
     return hir_statement;
@@ -1351,6 +1353,11 @@ bool hir_build_program(HirProgram *program,
     for (i = 0; i < ast_program->top_level_count; i++) {
         const AstTopLevelDecl *ast_decl = ast_program->top_level_decls[i];
         HirTopLevelDecl *hir_decl;
+
+        /* Skip union declarations for now — not yet lowered to HIR */
+        if (ast_decl->kind == AST_TOP_LEVEL_UNION) {
+            continue;
+        }
 
         if (ast_decl->kind == AST_TOP_LEVEL_BINDING) {
             const Scope *root_scope = symbol_table_root_scope(symbols);

@@ -202,6 +202,24 @@ static const char *primitive_type_name(AstPrimitiveType primitive) {
         return "char";
     case AST_PRIMITIVE_STRING:
         return "string";
+    case AST_PRIMITIVE_BYTE:
+        return "byte";
+    case AST_PRIMITIVE_SBYTE:
+        return "sbyte";
+    case AST_PRIMITIVE_SHORT:
+        return "short";
+    case AST_PRIMITIVE_INT:
+        return "int";
+    case AST_PRIMITIVE_LONG:
+        return "long";
+    case AST_PRIMITIVE_ULONG:
+        return "ulong";
+    case AST_PRIMITIVE_UINT:
+        return "uint";
+    case AST_PRIMITIVE_FLOAT:
+        return "float";
+    case AST_PRIMITIVE_DOUBLE:
+        return "double";
     }
 
     return "unknown";
@@ -255,6 +273,11 @@ static bool append_ast_type(SemanticDumpBuilder *builder,
         break;
     case AST_TYPE_PRIMITIVE:
         if (!builder_append(builder, primitive_type_name(type->primitive))) {
+            return false;
+        }
+        break;
+    case AST_TYPE_ARR:
+        if (!builder_append(builder, "arr")) {
             return false;
         }
         break;
