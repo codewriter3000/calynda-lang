@@ -217,11 +217,19 @@
       "patterns": [
         {
           "name": "keyword.control.calynda",
-          "match": "\\b(?:package|import|start|return|exit|throw)\\b"
+          "match": "\\b(?:package|import|start|return|exit|throw|union|manual|malloc|calloc|realloc|free)\\b"
         },
         {
           "name": "storage.modifier.calynda",
-          "match": "\\b(?:public|private|final|var)\\b"
+          "match": "\\b(?:export|public|private|final|static|internal|var)\\b"
+        },
+        {
+          "name": "keyword.other.calynda",
+          "match": "\\b(?:as|arr)\\b"
+        },
+        {
+          "name": "variable.language.discard.calynda",
+          "match": "\\b_\\b"
         }
       ]
     },
@@ -229,7 +237,7 @@
       "patterns": [
         {
           "name": "storage.type.primitive.calynda",
-          "match": "\\b(?:void|int8|int16|int32|int64|uint8|uint16|uint32|uint64|float32|float64|bool|char|string)\\b"
+          "match": "\\b(?:void|int8|int16|int32|int64|uint8|uint16|uint32|uint64|float32|float64|bool|char|string|byte|sbyte|short|int|long|ulong|uint|float|double)\\b"
         }
       ]
     },
@@ -257,7 +265,7 @@
         },
         {
           "name": "entity.name.namespace.import.calynda",
-          "match": "(?<=\\bimport\\s)[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*"
+          "match": "(?<=\\bimport\\s)[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*(?:\\.\\*|\\.[{][^}]*[}])?"
         },
         {
           "captures": {
@@ -268,7 +276,7 @@
               "name": "entity.name.variable.calynda"
             }
           },
-          "match": "\\b(void|int8|int16|int32|int64|uint8|uint16|uint32|uint64|float32|float64|bool|char|string|var)\\b(?:\\s*\\[[^\\]\\r\\n]*\\])*\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?==)"
+          "match": "\\b(void|int8|int16|int32|int64|uint8|uint16|uint32|uint64|float32|float64|bool|char|string|byte|sbyte|short|int|long|ulong|uint|float|double|var)\\b(?:\\s*\\[[^\\]\\r\\n]*\\])*\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?==)"
         },
         {
           "captures": {
@@ -279,7 +287,7 @@
               "name": "variable.parameter.calynda"
             }
           },
-          "match": "(?<=\\(|,)\\s*((?:void|int8|int16|int32|int64|uint8|uint16|uint32|uint64|float32|float64|bool|char|string)(?:\\s*\\[[^\\]\\r\\n]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)"
+          "match": "(?<=\\(|,)\\s*((?:void|int8|int16|int32|int64|uint8|uint16|uint32|uint64|float32|float64|bool|char|string|byte|sbyte|short|int|long|ulong|uint|float|double)(?:\\s*\\[[^\\]\\r\\n]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)"
         }
       ]
     },
@@ -300,6 +308,14 @@
         {
           "name": "keyword.operator.arrow.calynda",
           "match": "->"
+        },
+        {
+          "name": "keyword.operator.increment-decrement.calynda",
+          "match": "(?:\\+\\+|--)"
+        },
+        {
+          "name": "keyword.operator.spread.calynda",
+          "match": "\\.\\.\\."
         },
         {
           "name": "keyword.operator.logical.calynda",

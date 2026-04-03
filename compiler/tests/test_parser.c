@@ -321,6 +321,267 @@ static void test_parse_errors(void) {
     parser_free(&parser);
 }
 
+/* ------------------------------------------------------------------ */
+/* V2 feature: prefix and postfix ++/--                               */
+/* ------------------------------------------------------------------ */
+static void test_parse_prefix_increment_decrement(void) {
+    Parser parser;
+    AstExpression *expression;
+
+    parser_init(&parser, "++x");
+    expression = parser_parse_expression(&parser);
+    REQUIRE_TRUE(expression != NULL, "parse prefix increment");
+    ASSERT_EQ_INT(AST_EXPR_UNARY, expression->kind, "prefix ++ is unary expression");
+    ASSERT_EQ_INT(AST_UNARY_OP_PRE_INCREMENT, expression->as.unary.operator,
+                  "prefix ++ operator");
+    ASSERT_EQ_STR("x", expression->as.unary.operand->as.identifier,
+                  "prefix ++ operand");
+    ast_expression_free(expression);
+    parser_free(&parser);
+
+    parser_init(&parser, "--y");
+    expression = parser_parse_expression(&parser);
+    REQUIRE_TRUE(expression != NULL, "parse prefix decrement");
+    ASSERT_EQ_INT(AST_EXPR_UNARY, expression->kind, "prefix -- is unary expression");
+    ASSERT_EQ_INT(AST_UNARY_OP_PRE_DECREMENT, expression->as.unary.operator,
+                  "prefix -- operator");
+    ASSERT_EQ_STR("y", expression->as.unary.operand->as.identifier,
+                  "prefix -- operand");
+    ast_expression_free(expression);
+    parser_free(&parser);
+}
+
+static void test_parse_postfix_increment_decrement(void) {
+    Parser parser;
+    AstExpression *expression;
+
+    parser_init(&parser, "x++");
+    expression = parser_parse_expression(&parser);
+    REQUIRE_TRUE(expression != NULL, "parse postfix increment");
+    ASSERT_EQ_INT(AST_EXPR_POST_INCREMENT, expression->kind,
+                  "postfix ++ expression kind");
+    ASSERT_EQ_STR("x", expression->as.post_increment.operand->as.identifier,
+                  "postfix ++ operand");
+    ast_expression_free(expression);
+    parser_free(&parser);
+
+    parser_init(&parser, "y--");
+    expression = parser_parse_expression(&parser);
+    REQUIRE_TRUE(expression != NULL, "parse postfix decrement");
+    ASSERT_EQ_INT(AST_EXPR_POST_DECREMENT, expression->kind,
+                  "postfix -- expression kind");
+    ASSERT_EQ_STR("y", expression->as.post_decrement.operand->as.identifier,
+                  "postfix -- operand");
+    ast_expression_free(expression);
+    parser_free(&parser);
+}
+
+/* ------------------------------------------------------------------ */
+/* V2 feature: discard expression _                                   */
+/* ------------------------------------------------------------------ */
+static void test_parse_discard_expression(void) {
+    Parser parser;
+    AstExpression *expression;
+
+    parser_init(&parser, "_ = foo()");
+    expression = parser_parse_expression(&parser);
+    REQUIRE_TRUE(expression != NULL, "parse discard assignment");
+    ASSERT_EQ_INT(AST_EXPR_ASSIGNMENT, expression->kind,
+                  "discard assignment kind");
+    ASSERT_EQ_INT(AST_EXPR_DISCARD, expression->as.assignment.target->kind,
+                  "discard target kind");
+    ASSERT_EQ_INT(AST_EXPR_CALL, expression->as.assignment.value->kind,
+                  "discard value kind");
+    ast_expression_free(expression);
+    parser_free(&parser);
+}
+
+/* ------------------------------------------------------------------ */
+/* V2 feature: varargs parameter (Type... name)                       */
+/* ------------------------------------------------------------------ */
+static void test_parse_varargs_parameter(void) {
+    const char *source = "int32 sum = (int32... nums) -> 0;\n";
+    Parser parser;
+    AstProgram program;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse varargs binding");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for varargs");
+    ASSERT_EQ_INT(1, program.top_level_count, "one top-level decl");
+    ASSERT_EQ_INT(AST_EXPR_LAMBDA,
+                  program.top_level_decls[0]->as.binding_decl.initializer->kind,
+                  "initializer is lambda");
+    ASSERT_EQ_INT(1,
+                  program.top_level_decls[0]->as.binding_decl.initializer
+                      ->as.lambda.parameters.count,
+                  "lambda parameter count");
+    ASSERT_TRUE(program.top_level_decls[0]->as.binding_decl.initializer
+                    ->as.lambda.parameters.items[0].is_varargs,
+                "parameter is varargs");
+    ASSERT_EQ_STR("nums",
+                  program.top_level_decls[0]->as.binding_decl.initializer
+                      ->as.lambda.parameters.items[0].name,
+                  "varargs parameter name");
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+/* ------------------------------------------------------------------ */
+/* V2 feature: export / static / internal modifiers                   */
+/* ------------------------------------------------------------------ */
+static void test_parse_v2_modifiers(void) {
+    const char *source =
+        "export int32 x = 5;\n"
+        "static final int32 y = 10;\n"
+        "internal int32 z = 15;\n";
+    Parser parser;
+    AstProgram program;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse v2 modifiers");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for v2 modifiers");
+    ASSERT_EQ_INT(3, program.top_level_count, "three top-level decls");
+
+    ASSERT_EQ_INT(1, program.top_level_decls[0]->as.binding_decl.modifier_count,
+                  "export decl modifier count");
+    ASSERT_EQ_INT(AST_MODIFIER_EXPORT,
+                  program.top_level_decls[0]->as.binding_decl.modifiers[0],
+                  "export modifier");
+
+    ASSERT_EQ_INT(2, program.top_level_decls[1]->as.binding_decl.modifier_count,
+                  "static final decl modifier count");
+    ASSERT_EQ_INT(AST_MODIFIER_STATIC,
+                  program.top_level_decls[1]->as.binding_decl.modifiers[0],
+                  "static modifier");
+    ASSERT_EQ_INT(AST_MODIFIER_FINAL,
+                  program.top_level_decls[1]->as.binding_decl.modifiers[1],
+                  "final modifier on static decl");
+
+    ASSERT_EQ_INT(1, program.top_level_decls[2]->as.binding_decl.modifier_count,
+                  "internal decl modifier count");
+    ASSERT_EQ_INT(AST_MODIFIER_INTERNAL,
+                  program.top_level_decls[2]->as.binding_decl.modifiers[0],
+                  "internal modifier");
+
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+/* ------------------------------------------------------------------ */
+/* V2 feature: import alias, wildcard, selective                      */
+/* ------------------------------------------------------------------ */
+static void test_parse_import_alias(void) {
+    const char *source = "import io.stdlib as std;\nint32 x = 0;\n";
+    Parser parser;
+    AstProgram program;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse import alias");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for import alias");
+    ASSERT_EQ_INT(1, program.import_count, "one import");
+    ASSERT_EQ_INT(AST_IMPORT_ALIAS, program.imports[0].kind, "import alias kind");
+    ASSERT_EQ_STR("std", program.imports[0].alias, "import alias name");
+    ASSERT_EQ_INT(2, program.imports[0].module_name.count, "import module segments");
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+static void test_parse_import_wildcard(void) {
+    const char *source = "import io.stdlib.*;\nint32 x = 0;\n";
+    Parser parser;
+    AstProgram program;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse import wildcard");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for import wildcard");
+    ASSERT_EQ_INT(1, program.import_count, "one import");
+    ASSERT_EQ_INT(AST_IMPORT_WILDCARD, program.imports[0].kind, "import wildcard kind");
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+static void test_parse_import_selective(void) {
+    const char *source = "import io.stdlib.{print, readLine};\nint32 x = 0;\n";
+    Parser parser;
+    AstProgram program;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse import selective");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for import selective");
+    ASSERT_EQ_INT(1, program.import_count, "one import");
+    ASSERT_EQ_INT(AST_IMPORT_SELECTIVE, program.imports[0].kind,
+                  "import selective kind");
+    ASSERT_EQ_INT(2, program.imports[0].selected_count, "selective import count");
+    ASSERT_EQ_STR("print", program.imports[0].selected_names[0],
+                  "first selective import name");
+    ASSERT_EQ_STR("readLine", program.imports[0].selected_names[1],
+                  "second selective import name");
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+/* ------------------------------------------------------------------ */
+/* V2 feature: Java-style primitive aliases                           */
+/* ------------------------------------------------------------------ */
+static void test_parse_java_primitive_aliases(void) {
+    const char *source =
+        "int x = 5;\n"
+        "double pi = 3.14;\n"
+        "byte b = 0;\n";
+    Parser parser;
+    AstProgram program;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse java aliases");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for java aliases");
+    ASSERT_EQ_INT(3, program.top_level_count, "three top-level decls");
+    ASSERT_EQ_INT(AST_PRIMITIVE_INT,
+                  program.top_level_decls[0]->as.binding_decl.declared_type.primitive,
+                  "int alias primitive type");
+    ASSERT_EQ_INT(AST_PRIMITIVE_DOUBLE,
+                  program.top_level_decls[1]->as.binding_decl.declared_type.primitive,
+                  "double alias primitive type");
+    ASSERT_EQ_INT(AST_PRIMITIVE_BYTE,
+                  program.top_level_decls[2]->as.binding_decl.declared_type.primitive,
+                  "byte alias primitive type");
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+/* ------------------------------------------------------------------ */
+/* V2 feature: tagged union declaration                               */
+/* ------------------------------------------------------------------ */
+static void test_parse_union_declaration(void) {
+    const char *source = "union Option<T> { Some(int32), None };\n";
+    Parser parser;
+    AstProgram program;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse union decl");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for union");
+    ASSERT_EQ_INT(1, program.top_level_count, "one top-level decl");
+    ASSERT_EQ_INT(AST_TOP_LEVEL_UNION, program.top_level_decls[0]->kind,
+                  "union kind");
+    ASSERT_EQ_STR("Option", program.top_level_decls[0]->as.union_decl.name,
+                  "union name");
+    ASSERT_EQ_INT(1, program.top_level_decls[0]->as.union_decl.generic_param_count,
+                  "union generic param count");
+    ASSERT_EQ_INT(2, program.top_level_decls[0]->as.union_decl.variant_count,
+                  "union variant count");
+    ASSERT_EQ_STR("Some",
+                  program.top_level_decls[0]->as.union_decl.variants[0].name,
+                  "first variant name");
+    ASSERT_TRUE(program.top_level_decls[0]->as.union_decl.variants[0].payload_type != NULL,
+                "first variant has payload");
+    ASSERT_EQ_STR("None",
+                  program.top_level_decls[0]->as.union_decl.variants[1].name,
+                  "second variant name");
+    ASSERT_TRUE(program.top_level_decls[0]->as.union_decl.variants[1].payload_type == NULL,
+                "second variant has no payload");
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 int main(void) {
     printf("Running parser tests...\n\n");
 
@@ -329,6 +590,16 @@ int main(void) {
     RUN_TEST(test_parse_assignment_and_ternary);
     RUN_TEST(test_parse_template_literal);
     RUN_TEST(test_parse_errors);
+    RUN_TEST(test_parse_prefix_increment_decrement);
+    RUN_TEST(test_parse_postfix_increment_decrement);
+    RUN_TEST(test_parse_discard_expression);
+    RUN_TEST(test_parse_varargs_parameter);
+    RUN_TEST(test_parse_v2_modifiers);
+    RUN_TEST(test_parse_import_alias);
+    RUN_TEST(test_parse_import_wildcard);
+    RUN_TEST(test_parse_import_selective);
+    RUN_TEST(test_parse_java_primitive_aliases);
+    RUN_TEST(test_parse_union_declaration);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

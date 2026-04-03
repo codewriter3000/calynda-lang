@@ -1,16 +1,10 @@
-export const CALYNDA_GRAMMAR = `(* ===================================================================== *)
-(* Calynda — EBNF Grammar Specification                                  *)
-(* A functional systems programming language                              *)
+export const CALYNDA_GRAMMAR = `
+(* ===================================================================== *)
+(* Calynda V2 — EBNF Grammar Specification                               *)
+(* Cloned from compiler/calynda.ebnf on 2026-04-02                       *)
 (*                                                                        *)
-(* Key properties:                                                        *)
-(*   - All functions are lambdas (first-class, Java-style arrow syntax)   *)
-(*   - Lambda types collapse to their return type                         *)
-(*   - No built-in control flow (if/else, loops) — provided by libraries  *)
-(*   - throw is a keyword; tryCatch is a library function                 *)
-(*   - exit; is sugar for return null; in void-typed lambdas              *)
-(*   - void functions implicitly return null                              *)
-(*   - start() is the entry point, returns int32 (exit code)             *)
-(*   - Garbage-collected memory                                           *)
+(* This file is the isolated V2 grammar sandbox. V1 remains canonical     *)
+(* until V2 changes are intentionally designed, implemented, and adopted. *)
 (* ===================================================================== *)
 
 
@@ -29,7 +23,14 @@ PackageDecl
     ;
 
 ImportDecl
-    = "import" QualifiedName ";"
+    = "import" QualifiedName ";"                              (* plain import *)
+    | "import" QualifiedName "as" Identifier ";"              (* module alias *)
+    | "import" QualifiedName "." "*" ";"                      (* wildcard — direct exports only *)
+    | "import" QualifiedName "." "{" ImportNameList "}" ";"   (* selective import *)
+    ;
+
+ImportNameList
+    = Identifier { "," Identifier }
     ;
 
 QualifiedName
@@ -44,6 +45,7 @@ QualifiedName
 TopLevelDecl
     = StartDecl
     | BindingDecl
+    | UnionDecl
     ;
 
 (* Entry point — implicitly returns int32 (exit code).              *)
@@ -63,9 +65,36 @@ BindingDecl
     ;
 
 Modifier
-    = "public"
+    = "export"
+    | "public"
     | "private"
     | "final"
+    | "static"
+    | "internal"
+    ;
+
+(* Tagged union declaration with optional generic parameters.       *)
+(* Examples:                                                        *)
+(*   union Option<T> { Some(T), None };                             *)
+(*   export union Result<T, E> { Ok(T), Err(E) };                  *)
+UnionDecl
+    = { Modifier } "union" Identifier [ GenericParams ] "{" UnionVariantList "}" ";"
+    ;
+
+GenericParams
+    = "<" GenericParamList ">"
+    ;
+
+GenericParamList
+    = Identifier { "," Identifier }
+    ;
+
+UnionVariantList
+    = UnionVariant { "," UnionVariant }
+    ;
+
+UnionVariant
+    = Identifier [ "(" Type ")" ]
     ;
 
 
@@ -73,8 +102,13 @@ Modifier
 (* 3. TYPES                                                         *)
 (* ================================================================ *)
 
+(* Note: GenericArgs are syntactically optional on any PrimitiveType *)
+(* but semantic analysis rejects meaningless combinations such as   *)
+(* int32<T>. In practice, generics apply to user-defined container  *)
+(* types (resolved via Identifier) and the built-in arr<T> form.    *)
 Type
-    = PrimitiveType { ArrayDimension }
+    = PrimitiveType [ GenericArgs ] { ArrayDimension }
+    | "arr" GenericArgs                                        (* heterogeneous array *)
     | "void"
     ;
 
@@ -85,11 +119,28 @@ PrimitiveType
     | "bool"
     | "char"
     | "string"
+    (* Java-style aliases *)
+    | "byte" | "sbyte" | "short" | "int" | "long" | "ulong"
+    | "uint" | "float" | "double"
     ;
 
 (* Unsized [] or sized [IntegerLiteral] array dimensions.           *)
 ArrayDimension
     = "[" [ IntegerLiteral ] "]"
+    ;
+
+(* Generic type arguments — e.g. <int32>, <string, ?>.             *)
+GenericArgs
+    = "<" GenericArgList ">"
+    ;
+
+GenericArgList
+    = GenericArg { "," GenericArg }
+    ;
+
+GenericArg
+    = "?"                                                      (* wildcard *)
+    | Type
     ;
 
 
@@ -106,6 +157,7 @@ Statement
     | ReturnStatement
     | ExitStatement
     | ThrowStatement
+    | ManualStatement
     | ExpressionStatement
     ;
 
@@ -132,6 +184,50 @@ ExpressionStatement
     = Expression ";"
     ;
 
+(* Manual memory boundary — enters unmanaged (GC-free) scope.      *)
+(* Inside a manual block, malloc/calloc/realloc/free are available  *)
+(* and pointer operators * (deref) and & (address-of) are legal.    *)
+(* malloc accepts any Type, including array types such as           *)
+(* int32[size], since Type already includes ArrayDimension.         *)
+(* Example:                                                         *)
+(*   manual (int32 size) -> {                                       *)
+(*       int32[] buf = malloc int32[size];                          *)
+(*       free buf;                                                  *)
+(*   };                                                             *)
+ManualStatement
+    = "manual" "(" [ ParameterList ] ")" "->" ManualBody ";"
+    ;
+
+ManualBody
+    = "{" { ManualStatementItem } "}"
+    ;
+
+ManualStatementItem
+    = Statement
+    | MallocStatement
+    | CallocStatement
+    | ReallocStatement
+    | FreeStatement
+    ;
+
+MallocStatement
+    = "malloc" Type ";"
+    ;
+
+CallocStatement
+    = "calloc" Expression "," Expression ";"
+    | "calloc" Expression ";"
+    ;
+
+ReallocStatement
+    = "realloc" Expression "," Expression ";"
+    | "realloc" Expression ";"
+    ;
+
+FreeStatement
+    = "free" Expression ";"
+    ;
+
 
 (* ================================================================ *)
 (* 5. EXPRESSIONS — Precedence (lowest to highest)                  *)
@@ -151,10 +247,10 @@ ExpressionStatement
 (* 12. Shift               <<  >>                                   *)
 (* 13. Additive            +  -                                     *)
 (* 14. Multiplicative      *  /  %                                  *)
-(* 15. Unary prefix        !  ~  -  +                               *)
-(* 16. Postfix             ()  []  .                                *)
-(* 17. Primary             literals, identifiers, parens, lambdas,  *)
-(*                          casts                                   *)
+(* 15. Unary prefix        !  ~  -  +  *  &  ++  --                 *)
+(* 16. Postfix             ()  []  .  ++  --                         *)
+(* 17. Primary             literals, identifiers, _, parens,        *)
+(*                          lambdas, casts                          *)
 (* ================================================================ *)
 
 Expression
@@ -181,7 +277,8 @@ ParameterList
     ;
 
 Parameter
-    = Type Identifier
+    = Type "..." Identifier                                    (* varargs — must be last *)
+    | Type Identifier
     ;
 
 (* --- Assignment (right-associative) ----------------------------- *)
@@ -274,9 +371,13 @@ MultiplicativeExpression
     ;
 
 (* --- Unary prefix ----------------------------------------------- *)
+(* Note: * (dereference) and & (address-of) are parsed everywhere  *)
+(* but semantic analysis restricts them to manual{} blocks.        *)
 
 UnaryExpression
-    = ( "!" | "~" | "-" | "+" ) UnaryExpression
+    = ( "!" | "~" | "-" | "+" | "*" | "&" ) UnaryExpression
+    | "++" UnaryExpression                                     (* prefix increment *)
+    | "--" UnaryExpression                                     (* prefix decrement *)
     | PostfixExpression
     ;
 
@@ -288,9 +389,11 @@ PostfixExpression
     ;
 
 PostfixOp
-    = "(" [ ArgumentList ] ")"       (* function call *)
-    | "[" Expression "]"              (* array index   *)
-    | "." Identifier                  (* member access *)
+    = "(" [ ArgumentList ] ")"       (* function call      *)
+    | "[" Expression "]"              (* array index        *)
+    | "." Identifier                  (* member access      *)
+    | "++"                            (* postfix increment  *)
+    | "--"                            (* postfix decrement  *)
     ;
 
 ArgumentList
@@ -305,9 +408,17 @@ ArgumentList
 PrimaryExpression
     = Literal
     | Identifier
-    | "(" Expression ")"              (* parenthesized expression *)
-    | CastExpression                   (* type conversion          *)
-    | ArrayLiteral                     (* array literal [1, 2, 3]  *)
+    | DiscardExpression                (* _ discard / wildcard      *)
+    | "(" Expression ")"              (* parenthesized expression  *)
+    | CastExpression                   (* type conversion           *)
+    | ArrayLiteral                     (* array literal [1, 2, 3]   *)
+    ;
+
+(* The discard expression _ can be used as an assignment target     *)
+(* to explicitly ignore a value.                                    *)
+(* Example: _ = computeSomething();                                 *)
+DiscardExpression
+    = "_"
     ;
 
 (* Function-style cast — the callee is a type keyword, so the      *)
@@ -434,8 +545,8 @@ NullLiteral
 (* --- Escape sequences ------------------------------------------- *)
 
 EscapeSequence
-    = "\" ( "n" | "t" | "r" | "\" | "'" | '"' | "\`" | "$" | "0" )
-    | "\" "u" HexDigit HexDigit HexDigit HexDigit
+    = "\\" ( "n" | "t" | "r" | "\\" | "'" | '"' | "\`" | "$" | "0" )
+    | "\\" "u" HexDigit HexDigit HexDigit HexDigit
     ;
 
 
@@ -507,11 +618,14 @@ HexDigit
 (* The following identifiers are reserved and cannot be used as     *)
 (* variable or function names:                                      *)
 (*                                                                  *)
-(*   package  import  public  private  final  var  start            *)
-(*   return   exit    throw   null     true   false  void           *)
+(*   package  import  export  public  private  final  var  start    *)
+(*   return   exit    throw   null    true     false  void          *)
+(*   static   internal  as  union  manual  arr                      *)
+(*   malloc  calloc  realloc  free                                  *)
 (*                                                                  *)
 (*   int8  int16  int32  int64  uint8  uint16  uint32  uint64       *)
 (*   float32  float64  bool  char  string                           *)
+(*   byte  sbyte  short  int  long  ulong  uint  float  double      *)
 (*                                                                  *)
 (* ================================================================ *)
 `;

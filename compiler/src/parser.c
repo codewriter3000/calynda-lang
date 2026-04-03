@@ -25,6 +25,7 @@ typedef struct {
 static AstTopLevelDecl *parse_top_level_decl(Parser *parser);
 static AstTopLevelDecl *parse_start_decl(Parser *parser);
 static AstTopLevelDecl *parse_binding_decl(Parser *parser);
+static AstTopLevelDecl *parse_union_decl(Parser *parser);
 static AstBlock *parse_block(Parser *parser);
 static AstStatement *parse_statement(Parser *parser);
 static AstExpression *parse_expression_node(Parser *parser);
@@ -250,6 +251,56 @@ bool parser_parse_program(Parser *parser, AstProgram *program) {
             ast_import_decl_free(&import_decl);
             ast_program_free(program);
             return false;
+        }
+
+        if (parser_match(parser, TOK_AS)) {
+            /* import foo.bar as baz; */
+            import_decl.kind = AST_IMPORT_ALIAS;
+            import_decl.alias =
+                parser_consume_identifier(parser, "Expected alias name after 'as'.");
+            if (!import_decl.alias) {
+                ast_import_decl_free(&import_decl);
+                ast_program_free(program);
+                return false;
+            }
+        } else if (parser_match(parser, TOK_DOT)) {
+            if (parser_match(parser, TOK_STAR)) {
+                /* import foo.bar.*; */
+                import_decl.kind = AST_IMPORT_WILDCARD;
+            } else if (parser_match(parser, TOK_LBRACE)) {
+                /* import foo.bar.{a, b, c}; */
+                import_decl.kind = AST_IMPORT_SELECTIVE;
+                do {
+                    char *selected = parser_consume_identifier(
+                        parser, "Expected identifier in selective import.");
+                    if (!selected) {
+                        ast_import_decl_free(&import_decl);
+                        ast_program_free(program);
+                        return false;
+                    }
+                    if (!ast_import_decl_add_selected(&import_decl, selected)) {
+                        free(selected);
+                        parser_set_oom_error(parser);
+                        ast_import_decl_free(&import_decl);
+                        ast_program_free(program);
+                        return false;
+                    }
+                    free(selected);
+                } while (parser_match(parser, TOK_COMMA));
+
+                if (!parser_consume(parser, TOK_RBRACE,
+                                    "Expected '}' after selective import list.")) {
+                    ast_import_decl_free(&import_decl);
+                    ast_program_free(program);
+                    return false;
+                }
+            } else {
+                parser_set_error(parser, *parser_current_token(parser),
+                                 "Expected '*' or '{' after '.' in import declaration.");
+                ast_import_decl_free(&import_decl);
+                ast_program_free(program);
+                return false;
+            }
         }
 
         if (!parser_consume(parser, TOK_SEMICOLON,
@@ -605,9 +656,17 @@ static bool parser_parse_qualified_name(Parser *parser, AstQualifiedName *name) 
         }
 
         parser_advance(parser);
-        if (!parser_match(parser, TOK_DOT)) {
+        if (!parser_check(parser, TOK_DOT)) {
             break;
         }
+        /* Stop before '.' if followed by '*' or '{' (import wildcard / selective). */
+        {
+            const Token *after_dot = parser_token_at(parser, parser->current + 1);
+            if (after_dot->type == TOK_STAR || after_dot->type == TOK_LBRACE) {
+                break;
+            }
+        }
+        parser_advance(parser); /* consume the '.' */
     }
 
     return true;
@@ -701,6 +760,10 @@ static bool parser_parse_parameter_list(Parser *parser, AstParameterList *list,
             return false;
         }
 
+        if (parser_match(parser, TOK_ELLIPSIS)) {
+            parameter.is_varargs = true;
+        }
+
         name_token = parser_current_token(parser);
         parameter.name = parser_consume_identifier(parser, "Expected parameter name.");
         if (!parameter.name) {
@@ -713,6 +776,10 @@ static bool parser_parse_parameter_list(Parser *parser, AstParameterList *list,
         if (!parser_add_parameter(parser, list, &parameter)) {
             ast_parameter_list_free(list);
             return false;
+        }
+
+        if (parameter.is_varargs) {
+            break;
         }
 
         if (!parser_match(parser, TOK_COMMA)) {
@@ -766,9 +833,15 @@ static AstTopLevelDecl *parse_top_level_decl(Parser *parser) {
     }
 
     if (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
-        parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_VAR) ||
+        parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_EXPORT) ||
+        parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL) ||
+        parser_check(parser, TOK_VAR) ||
         is_type_start_token(parser_current_token(parser)->type)) {
         return parse_binding_decl(parser);
+    }
+
+    if (parser_check(parser, TOK_UNION)) {
+        return parse_union_decl(parser);
     }
 
     parser_set_error(parser, *parser_current_token(parser),
@@ -810,7 +883,8 @@ static AstTopLevelDecl *parse_binding_decl(Parser *parser) {
     }
 
     while (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
-           parser_check(parser, TOK_FINAL)) {
+           parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_EXPORT) ||
+           parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL)) {
         AstModifier modifier;
 
         switch (parser_current_token(parser)->type) {
@@ -819,6 +893,15 @@ static AstTopLevelDecl *parse_binding_decl(Parser *parser) {
             break;
         case TOK_PRIVATE:
             modifier = AST_MODIFIER_PRIVATE;
+            break;
+        case TOK_EXPORT:
+            modifier = AST_MODIFIER_EXPORT;
+            break;
+        case TOK_STATIC:
+            modifier = AST_MODIFIER_STATIC;
+            break;
+        case TOK_INTERNAL:
+            modifier = AST_MODIFIER_INTERNAL;
             break;
         default:
             modifier = AST_MODIFIER_FINAL;
@@ -860,6 +943,126 @@ static AstTopLevelDecl *parse_binding_decl(Parser *parser) {
     }
 
     if (!parser_consume(parser, TOK_SEMICOLON, "Expected ';' after binding declaration.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    return decl;
+}
+
+static AstTopLevelDecl *parse_union_decl(Parser *parser) {
+    AstTopLevelDecl *decl = ast_top_level_decl_new(AST_TOP_LEVEL_UNION);
+    const Token *name_token;
+
+    if (!decl) {
+        parser_set_oom_error(parser);
+        return NULL;
+    }
+
+    if (!parser_consume(parser, TOK_UNION, "Expected 'union'.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    name_token = parser_current_token(parser);
+    decl->as.union_decl.name =
+        parser_consume_identifier(parser, "Expected union name.");
+    if (!decl->as.union_decl.name) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+    decl->as.union_decl.name_span = parser_source_span(name_token);
+
+    /* Optional generic parameters: <T, E> */
+    if (parser_match(parser, TOK_LT)) {
+        do {
+            char *param = parser_consume_identifier(
+                parser, "Expected generic parameter name.");
+            if (!param) {
+                ast_top_level_decl_free(decl);
+                return NULL;
+            }
+            if (!ast_union_decl_add_generic_param(&decl->as.union_decl, param)) {
+                free(param);
+                parser_set_oom_error(parser);
+                ast_top_level_decl_free(decl);
+                return NULL;
+            }
+            free(param);
+        } while (parser_match(parser, TOK_COMMA));
+
+        if (!parser_consume(parser, TOK_GT,
+                            "Expected '>' after generic parameters.")) {
+            ast_top_level_decl_free(decl);
+            return NULL;
+        }
+    }
+
+    if (!parser_consume(parser, TOK_LBRACE,
+                        "Expected '{' to start union variants.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    /* Parse variant list: Name [ "(" Type ")" ] { "," ... } */
+    do {
+        AstUnionVariant variant;
+        char *variant_name;
+
+        memset(&variant, 0, sizeof(variant));
+        variant_name = parser_consume_identifier(
+            parser, "Expected union variant name.");
+        if (!variant_name) {
+            ast_top_level_decl_free(decl);
+            return NULL;
+        }
+        variant.name = variant_name;
+
+        if (parser_match(parser, TOK_LPAREN)) {
+            AstType *payload = calloc(1, sizeof(*payload));
+            if (!payload) {
+                free(variant_name);
+                parser_set_oom_error(parser);
+                ast_top_level_decl_free(decl);
+                return NULL;
+            }
+            if (!parser_parse_type(parser, payload)) {
+                free(payload);
+                free(variant_name);
+                ast_top_level_decl_free(decl);
+                return NULL;
+            }
+            if (!parser_consume(parser, TOK_RPAREN,
+                                "Expected ')' after variant payload type.")) {
+                ast_type_free(payload);
+                free(payload);
+                free(variant_name);
+                ast_top_level_decl_free(decl);
+                return NULL;
+            }
+            variant.payload_type = payload;
+        }
+
+        if (!ast_union_decl_add_variant(&decl->as.union_decl, &variant)) {
+            if (variant.payload_type) {
+                ast_type_free(variant.payload_type);
+                free(variant.payload_type);
+            }
+            free(variant_name);
+            parser_set_oom_error(parser);
+            ast_top_level_decl_free(decl);
+            return NULL;
+        }
+    } while (parser_match(parser, TOK_COMMA));
+
+    if (!parser_consume(parser, TOK_RBRACE,
+                        "Expected '}' after union variants.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    if (!parser_consume(parser, TOK_SEMICOLON,
+                        "Expected ';' after union declaration.")) {
         ast_top_level_decl_free(decl);
         return NULL;
     }
@@ -1258,6 +1461,34 @@ static AstExpression *parse_multiplicative_expression(Parser *parser) {
 static AstExpression *parse_unary_expression(Parser *parser) {
     size_t i;
 
+    /* Prefix increment / decrement */
+    if (parser_check(parser, TOK_PLUS_PLUS) || parser_check(parser, TOK_MINUS_MINUS)) {
+        AstUnaryOperator op = parser_check(parser, TOK_PLUS_PLUS)
+                                  ? AST_UNARY_OP_PRE_INCREMENT
+                                  : AST_UNARY_OP_PRE_DECREMENT;
+        const Token *operator_token = parser_current_token(parser);
+        AstExpression *expression = ast_expression_new(AST_EXPR_UNARY);
+        AstExpression *operand;
+
+        parser_advance(parser);
+
+        if (!expression) {
+            parser_set_oom_error(parser);
+            return NULL;
+        }
+
+        operand = parse_unary_expression(parser);
+        if (!operand) {
+            ast_expression_free(expression);
+            return NULL;
+        }
+
+        expression->source_span = parser_source_span(operator_token);
+        expression->as.unary.operator = op;
+        expression->as.unary.operand = operand;
+        return expression;
+    }
+
     for (i = 0; i < sizeof(unary_operators) / sizeof(unary_operators[0]); i++) {
         if (parser_match(parser, unary_operators[i].token_type)) {
             AstExpression *expression = ast_expression_new(AST_EXPR_UNARY);
@@ -1380,6 +1611,36 @@ static AstExpression *parse_postfix_expression(Parser *parser) {
             continue;
         }
 
+        if (parser_match(parser, TOK_PLUS_PLUS)) {
+            AstExpression *post_inc = ast_expression_new(AST_EXPR_POST_INCREMENT);
+
+            if (!post_inc) {
+                parser_set_oom_error(parser);
+                ast_expression_free(expression);
+                return NULL;
+            }
+
+            post_inc->source_span = expression->source_span;
+            post_inc->as.post_increment.operand = expression;
+            expression = post_inc;
+            continue;
+        }
+
+        if (parser_match(parser, TOK_MINUS_MINUS)) {
+            AstExpression *post_dec = ast_expression_new(AST_EXPR_POST_DECREMENT);
+
+            if (!post_dec) {
+                parser_set_oom_error(parser);
+                ast_expression_free(expression);
+                return NULL;
+            }
+
+            post_dec->source_span = expression->source_span;
+            post_dec->as.post_decrement.operand = expression;
+            expression = post_dec;
+            continue;
+        }
+
         break;
     }
 
@@ -1476,6 +1737,16 @@ static AstExpression *parse_primary_expression(Parser *parser) {
             ast_expression_free(expression);
             return NULL;
         }
+        return expression;
+
+    case TOK_UNDERSCORE:
+        expression = ast_expression_new(AST_EXPR_DISCARD);
+        if (!expression) {
+            parser_set_oom_error(parser);
+            return NULL;
+        }
+        expression->source_span = parser_source_span(token);
+        parser_advance(parser);
         return expression;
 
     case TOK_LBRACKET:
@@ -1768,6 +2039,11 @@ static bool looks_like_lambda_expression(const Parser *parser) {
     for (;;) {
         if (!scan_type_pattern(parser, &index)) {
             return false;
+        }
+
+        /* skip optional varargs ellipsis between type and name */
+        if (parser_token_at(parser, index)->type == TOK_ELLIPSIS) {
+            index++;
         }
 
         if (parser_token_at(parser, index)->type != TOK_IDENTIFIER) {

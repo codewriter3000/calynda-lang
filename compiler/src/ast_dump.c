@@ -916,11 +916,55 @@ static bool dump_program_node(AstDumpBuilder *builder, const AstProgram *program
     }
 
     for (i = 0; i < program->import_count; i++) {
+        const AstImportDecl *imp = &program->imports[i];
+
         if (!(builder_start_line(builder, indent + 1) &&
-              builder_append(builder, "ImportDecl: ") &&
-              dump_qualified_name(builder, &program->imports[i].module_name) &&
-              builder_finish_line(builder))) {
+              builder_append(builder, "ImportDecl: "))) {
             return false;
+        }
+
+        switch (imp->kind) {
+        case AST_IMPORT_PLAIN:
+            if (!(dump_qualified_name(builder, &imp->module_name) &&
+                  builder_finish_line(builder))) {
+                return false;
+            }
+            break;
+        case AST_IMPORT_ALIAS:
+            if (!(dump_qualified_name(builder, &imp->module_name) &&
+                  builder_append(builder, " as ") &&
+                  builder_append(builder, imp->alias ? imp->alias : "<null>") &&
+                  builder_finish_line(builder))) {
+                return false;
+            }
+            break;
+        case AST_IMPORT_WILDCARD:
+            if (!(dump_qualified_name(builder, &imp->module_name) &&
+                  builder_append(builder, ".*") &&
+                  builder_finish_line(builder))) {
+                return false;
+            }
+            break;
+        case AST_IMPORT_SELECTIVE: {
+            size_t j;
+            if (!(dump_qualified_name(builder, &imp->module_name) &&
+                  builder_append(builder, ".{"))) {
+                return false;
+            }
+            for (j = 0; j < imp->selected_count; j++) {
+                if (j > 0 && !builder_append(builder, ", ")) {
+                    return false;
+                }
+                if (!builder_append(builder, imp->selected_names[j])) {
+                    return false;
+                }
+            }
+            if (!(builder_append(builder, "}") &&
+                  builder_finish_line(builder))) {
+                return false;
+            }
+            break;
+        }
         }
     }
 
