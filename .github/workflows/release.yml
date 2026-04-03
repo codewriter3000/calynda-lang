@@ -1,0 +1,46 @@
+name: Package Compiler Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. v0.2.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc make nasm
+
+      - name: Build compiler
+        run: make -C compiler clean && make -C compiler -j$(nproc)
+
+      - name: Run tests
+        run: make -C compiler test
+
+      - name: Package compiler
+        run: |
+          mkdir -p calynda-${{ inputs.version }}
+          cp compiler/build/calynda calynda-${{ inputs.version }}/
+          cp compiler/install.sh calynda-${{ inputs.version }}/
+          cp LICENSE calynda-${{ inputs.version }}/
+          cp README.md calynda-${{ inputs.version }}/
+          cp RELEASE_NOTES.md calynda-${{ inputs.version }}/
+          zip -r calynda-${{ inputs.version }}-linux-x86_64.zip calynda-${{ inputs.version }}/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: Calynda ${{ inputs.version }}
+          body_path: RELEASE_NOTES.md
+          files: calynda-${{ inputs.version }}-linux-x86_64.zip

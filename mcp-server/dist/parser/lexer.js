@@ -4,12 +4,15 @@ exports.Lexer = exports.LexError = void 0;
 const KEYWORDS = new Set([
     'package', 'import', 'public', 'private', 'final', 'var', 'start',
     'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
+    'export', 'as', 'internal', 'static', 'union', 'manual', 'arr',
+    'malloc', 'calloc', 'realloc', 'free',
 ]);
 const PRIMITIVE_TYPES = new Set([
     'int8', 'int16', 'int32', 'int64',
     'uint8', 'uint16', 'uint32', 'uint64',
     'float32', 'float64',
     'bool', 'char', 'string',
+    'byte', 'sbyte', 'short', 'int', 'long', 'ulong', 'uint', 'float', 'double',
 ]);
 class LexError extends Error {
     line;
@@ -116,6 +119,8 @@ class Lexer {
             else
                 break;
         }
+        if (value === '_')
+            return this.makeToken('underscore', value, line, col, offset);
         if (value === 'true' || value === 'false')
             return this.makeToken('bool', value, line, col, offset);
         if (value === 'null')
@@ -245,12 +250,20 @@ class Lexer {
                     this.advance();
                     return this.makeToken('arrow', '->', line, col, offset);
                 }
+                if (next === '-') {
+                    this.advance();
+                    return this.makeToken('minusminus', '--', line, col, offset);
+                }
                 if (next === '=') {
                     this.advance();
                     return this.makeToken('minuseq', '-=', line, col, offset);
                 }
                 return this.makeToken('minus', '-', line, col, offset);
             case '+':
+                if (next === '+') {
+                    this.advance();
+                    return this.makeToken('plusplus', '++', line, col, offset);
+                }
                 if (next === '=') {
                     this.advance();
                     return this.makeToken('pluseq', '+=', line, col, offset);
@@ -360,7 +373,13 @@ class Lexer {
             case ']': return this.makeToken('rbracket', ']', line, col, offset);
             case ';': return this.makeToken('semicolon', ';', line, col, offset);
             case ',': return this.makeToken('comma', ',', line, col, offset);
-            case '.': return this.makeToken('dot', '.', line, col, offset);
+            case '.':
+                if (this.peek() === '.' && this.peek(1) === '.') {
+                    this.advance();
+                    this.advance();
+                    return this.makeToken('ellipsis', '...', line, col, offset);
+                }
+                return this.makeToken('dot', '.', line, col, offset);
             default:
                 this.errors.push(new LexError(`Unexpected character: ${ch}`, line, col));
                 return null;

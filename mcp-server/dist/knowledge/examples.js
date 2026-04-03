@@ -86,5 +86,95 @@ private final float64 PI = 3.141592653589793;`,
     return a / b;
 };`,
     },
+    {
+        name: 'import-alias',
+        description: 'Importing a module with an alias',
+        tags: ['import', 'alias', 'v2'],
+        code: `import io.stdlib as std;
+
+start(string[] args) -> {
+    std.print("hello");
+    return 0;
+};`,
+    },
+    {
+        name: 'import-wildcard',
+        description: 'Wildcard import of all direct exports',
+        tags: ['import', 'wildcard', 'v2'],
+        code: `import io.stdlib.*;
+
+start(string[] args) -> {
+    print("hello");
+    return 0;
+};`,
+    },
+    {
+        name: 'import-selective',
+        description: 'Selective import of specific names',
+        tags: ['import', 'selective', 'v2'],
+        code: `import io.stdlib.{print, readLine};
+
+start(string[] args) -> {
+    var line = readLine();
+    print(line);
+    return 0;
+};`,
+    },
+    {
+        name: 'export-binding',
+        description: 'Exporting a top-level binding',
+        tags: ['export', 'modifier', 'v2'],
+        code: `export int32 add = (int32 a, int32 b) -> a + b;
+export final float64 TAU = 6.283185307179586;`,
+    },
+    {
+        name: 'increment-decrement',
+        description: 'Prefix and postfix increment/decrement operators',
+        tags: ['operator', 'increment', 'decrement', 'v2'],
+        code: `start(string[] args) -> {
+    var x = 5;
+    x++;
+    ++x;
+    x--;
+    --x;
+    return x;
+};`,
+    },
+    {
+        name: 'varargs',
+        description: 'Variadic parameter function',
+        tags: ['varargs', 'v2'],
+        code: `int32 sum = (int32... nums) -> {
+    var total = 0;
+    return total;
+};`,
+    },
+    {
+        name: 'discard',
+        description: 'Discard expression to ignore a value',
+        tags: ['discard', 'v2'],
+        code: `start(string[] args) -> {
+    _ = computeSomething();
+    return 0;
+};`,
+    },
+    {
+        name: 'java-type-aliases',
+        description: 'Java-style primitive type aliases',
+        tags: ['types', 'alias', 'v2'],
+        code: `int x = 42;
+long big = 9999999999;
+double pi = 3.14159;
+float f = 1.5;
+byte b = 0xFF;
+short s = 256;`,
+    },
+    {
+        name: 'tagged-union',
+        description: 'Tagged union declaration with generic parameters',
+        tags: ['union', 'generics', 'v2'],
+        code: `union Option<T> { Some(T), None };
+union Result<T, E> { Ok(T), Err(E) };`,
+    },
 ];
 //# sourceMappingURL=examples.js.map
