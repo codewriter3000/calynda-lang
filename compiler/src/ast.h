@@ -7,7 +7,10 @@
 typedef enum {
     AST_MODIFIER_PUBLIC = 0,
     AST_MODIFIER_PRIVATE,
-    AST_MODIFIER_FINAL
+    AST_MODIFIER_FINAL,
+    AST_MODIFIER_EXPORT,
+    AST_MODIFIER_STATIC,
+    AST_MODIFIER_INTERNAL
 } AstModifier;
 
 typedef enum {
@@ -23,12 +26,22 @@ typedef enum {
     AST_PRIMITIVE_FLOAT64,
     AST_PRIMITIVE_BOOL,
     AST_PRIMITIVE_CHAR,
-    AST_PRIMITIVE_STRING
+    AST_PRIMITIVE_STRING,
+    AST_PRIMITIVE_BYTE,
+    AST_PRIMITIVE_SBYTE,
+    AST_PRIMITIVE_SHORT,
+    AST_PRIMITIVE_INT,
+    AST_PRIMITIVE_LONG,
+    AST_PRIMITIVE_ULONG,
+    AST_PRIMITIVE_UINT,
+    AST_PRIMITIVE_FLOAT,
+    AST_PRIMITIVE_DOUBLE
 } AstPrimitiveType;
 
 typedef enum {
     AST_TYPE_VOID = 0,
-    AST_TYPE_PRIMITIVE
+    AST_TYPE_PRIMITIVE,
+    AST_TYPE_ARR
 } AstTypeKind;
 
 typedef struct {
@@ -36,13 +49,34 @@ typedef struct {
     char *size_literal;
 } AstArrayDimension;
 
+typedef struct AstType AstType;
+
+typedef enum {
+    AST_GENERIC_ARG_WILDCARD = 0,
+    AST_GENERIC_ARG_TYPE
+} AstGenericArgKind;
+
+typedef struct AstGenericArg AstGenericArg;
+
+struct AstGenericArg {
+    AstGenericArgKind kind;
+    AstType          *type;   /* NULL for wildcard */
+};
+
 typedef struct {
+    AstGenericArg *items;
+    size_t         count;
+    size_t         capacity;
+} AstGenericArgList;
+
+struct AstType {
     AstTypeKind       kind;
     AstPrimitiveType  primitive;
     AstArrayDimension *dimensions;
     size_t            dimension_count;
     size_t            dimension_capacity;
-} AstType;
+    AstGenericArgList generic_args;
+};
 
 typedef struct {
     int start_line;
@@ -68,6 +102,7 @@ typedef struct {
     AstType       type;
     char         *name;
     AstSourceSpan name_span;
+    bool          is_varargs;
 } AstParameter;
 
 typedef struct {
@@ -161,7 +196,11 @@ typedef enum {
     AST_UNARY_OP_LOGICAL_NOT = 0,
     AST_UNARY_OP_BITWISE_NOT,
     AST_UNARY_OP_NEGATE,
-    AST_UNARY_OP_PLUS
+    AST_UNARY_OP_PLUS,
+    AST_UNARY_OP_PRE_INCREMENT,
+    AST_UNARY_OP_PRE_DECREMENT,
+    AST_UNARY_OP_DEREF,
+    AST_UNARY_OP_ADDRESS_OF
 } AstUnaryOperator;
 
 typedef enum {
@@ -233,6 +272,14 @@ typedef struct {
     AstExpression *inner;
 } AstGroupingExpression;
 
+typedef struct {
+    AstExpression *operand;
+} AstPostIncrementExpression;
+
+typedef struct {
+    AstExpression *operand;
+} AstPostDecrementExpression;
+
 typedef enum {
     AST_EXPR_LITERAL = 0,
     AST_EXPR_IDENTIFIER,
@@ -246,7 +293,10 @@ typedef enum {
     AST_EXPR_MEMBER,
     AST_EXPR_CAST,
     AST_EXPR_ARRAY_LITERAL,
-    AST_EXPR_GROUPING
+    AST_EXPR_GROUPING,
+    AST_EXPR_DISCARD,
+    AST_EXPR_POST_INCREMENT,
+    AST_EXPR_POST_DECREMENT
 } AstExpressionKind;
 
 struct AstExpression {
@@ -266,6 +316,8 @@ struct AstExpression {
         AstCastExpression         cast;
         AstArrayLiteralExpression array_literal;
         AstGroupingExpression     grouping;
+        AstPostIncrementExpression post_increment;
+        AstPostDecrementExpression post_decrement;
     } as;
 };
 
@@ -278,12 +330,18 @@ typedef struct {
     AstExpression *initializer;
 } AstLocalBindingStatement;
 
+typedef struct {
+    AstParameterList parameters;
+    AstBlock        *body;
+} AstManualStatement;
+
 typedef enum {
     AST_STMT_LOCAL_BINDING = 0,
     AST_STMT_RETURN,
     AST_STMT_EXIT,
     AST_STMT_THROW,
-    AST_STMT_EXPRESSION
+    AST_STMT_EXPRESSION,
+    AST_STMT_MANUAL
 } AstStatementKind;
 
 struct AstStatement {
@@ -294,6 +352,7 @@ struct AstStatement {
         AstExpression            *return_expression;
         AstExpression            *throw_expression;
         AstExpression            *expression;
+        AstManualStatement       manual;
     } as;
 };
 
@@ -320,9 +379,29 @@ typedef struct {
     AstSourceSpan    start_span;
 } AstStartDecl;
 
+typedef struct {
+    char    *name;
+    AstType *payload_type;   /* NULL if no payload */
+} AstUnionVariant;
+
+typedef struct {
+    AstModifier  *modifiers;
+    size_t       modifier_count;
+    size_t       modifier_capacity;
+    char         *name;
+    AstSourceSpan name_span;
+    char         **generic_params;
+    size_t       generic_param_count;
+    size_t       generic_param_capacity;
+    AstUnionVariant *variants;
+    size_t       variant_count;
+    size_t       variant_capacity;
+} AstUnionDecl;
+
 typedef enum {
     AST_TOP_LEVEL_START = 0,
-    AST_TOP_LEVEL_BINDING
+    AST_TOP_LEVEL_BINDING,
+    AST_TOP_LEVEL_UNION
 } AstTopLevelDeclKind;
 
 struct AstTopLevelDecl {
@@ -330,13 +409,30 @@ struct AstTopLevelDecl {
     union {
         AstStartDecl   start_decl;
         AstBindingDecl binding_decl;
+        AstUnionDecl   union_decl;
     } as;
 };
+
+typedef enum {
+    AST_IMPORT_PLAIN = 0,
+    AST_IMPORT_ALIAS,
+    AST_IMPORT_WILDCARD,
+    AST_IMPORT_SELECTIVE
+} AstImportKind;
+
+typedef struct {
+    AstImportKind    kind;
+    AstQualifiedName module_name;
+    char            *alias;           /* for AST_IMPORT_ALIAS */
+    char           **selected_names;  /* for AST_IMPORT_SELECTIVE */
+    size_t           selected_count;
+    size_t           selected_capacity;
+} AstImportDecl;
 
 typedef struct {
     bool             has_package;
     AstQualifiedName package_name;
-    AstQualifiedName *imports;
+    AstImportDecl   *imports;
     size_t           import_count;
     size_t           import_capacity;
     AstTopLevelDecl **top_level_decls;
@@ -353,8 +449,11 @@ bool ast_qualified_name_append(AstQualifiedName *name, const char *segment);
 
 void ast_type_init_void(AstType *type);
 void ast_type_init_primitive(AstType *type, AstPrimitiveType primitive);
+void ast_type_init_arr(AstType *type);
 void ast_type_free(AstType *type);
 bool ast_type_add_dimension(AstType *type, bool has_size, const char *size_literal);
+bool ast_type_add_generic_arg(AstType *type, AstGenericArg *arg);
+void ast_generic_arg_list_free(AstGenericArgList *list);
 
 void ast_parameter_list_init(AstParameterList *list);
 void ast_parameter_list_free(AstParameterList *list);
@@ -381,7 +480,15 @@ bool ast_binding_decl_add_modifier(AstBindingDecl *decl, AstModifier modifier);
 void ast_program_init(AstProgram *program);
 void ast_program_free(AstProgram *program);
 bool ast_program_set_package(AstProgram *program, AstQualifiedName *package_name);
-bool ast_program_add_import(AstProgram *program, AstQualifiedName *import_name);
+bool ast_program_add_import(AstProgram *program, AstImportDecl *import_decl);
 bool ast_program_add_top_level_decl(AstProgram *program, AstTopLevelDecl *decl);
+
+void ast_import_decl_init(AstImportDecl *decl);
+void ast_import_decl_free(AstImportDecl *decl);
+bool ast_import_decl_add_selected(AstImportDecl *decl, const char *name);
+
+void ast_union_decl_free_fields(AstUnionDecl *decl);
+bool ast_union_decl_add_generic_param(AstUnionDecl *decl, const char *param);
+bool ast_union_decl_add_variant(AstUnionDecl *decl, AstUnionVariant *variant);
 
 #endif /* CALYNDA_AST_H */
