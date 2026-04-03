@@ -663,8 +663,8 @@ static bool add_import_symbols(SymbolTable *table, const AstProgram *program) {
     size_t i;
 
     for (i = 0; i < program->import_count; i++) {
-        char *name = qualified_name_tail(&program->imports[i]);
-        char *qualified_name = qualified_name_to_string(&program->imports[i]);
+        char *name = qualified_name_tail(&program->imports[i].module_name);
+        char *qualified_name = qualified_name_to_string(&program->imports[i].module_name);
         const Symbol *existing_import = NULL;
         Symbol *symbol;
 
@@ -678,7 +678,7 @@ static bool add_import_symbols(SymbolTable *table, const AstProgram *program) {
         existing_import = symbol_table_find_import(table, name);
         if (existing_import) {
             symbol_table_set_error_at(table,
-                                      program->imports[i].tail_span,
+                                      program->imports[i].module_name.tail_span,
                                       &existing_import->declaration_span,
                                       "Duplicate import alias '%s'.",
                                       name);
@@ -689,7 +689,7 @@ static bool add_import_symbols(SymbolTable *table, const AstProgram *program) {
 
         symbol = symbol_new(table, SYMBOL_KIND_IMPORT, name, qualified_name,
                             NULL, false, false,
-                            program->imports[i].tail_span,
+                            program->imports[i].module_name.tail_span,
                             &program->imports[i], table->root_scope);
         free(name);
         free(qualified_name);

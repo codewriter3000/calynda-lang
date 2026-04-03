@@ -74,7 +74,7 @@ static bool parser_add_statement(Parser *parser, AstBlock *block,
 static bool parser_add_top_level_decl(Parser *parser, AstProgram *program,
                                       AstTopLevelDecl *decl);
 static bool parser_add_import(Parser *parser, AstProgram *program,
-                              AstQualifiedName *import_name);
+                              AstImportDecl *import_decl);
 static bool parser_add_modifier(Parser *parser, AstBindingDecl *decl,
                                 AstModifier modifier);
 static bool parser_add_template_text(Parser *parser, AstLiteral *literal,
@@ -241,21 +241,25 @@ bool parser_parse_program(Parser *parser, AstProgram *program) {
     }
 
     while (parser_match(parser, TOK_IMPORT)) {
-        AstQualifiedName import_name;
+        AstImportDecl import_decl;
 
-        if (!parser_parse_qualified_name(parser, &import_name)) {
+        ast_import_decl_init(&import_decl);
+        import_decl.kind = AST_IMPORT_PLAIN;
+
+        if (!parser_parse_qualified_name(parser, &import_decl.module_name)) {
+            ast_import_decl_free(&import_decl);
             ast_program_free(program);
             return false;
         }
 
         if (!parser_consume(parser, TOK_SEMICOLON,
                             "Expected ';' after import declaration.")) {
-            ast_qualified_name_free(&import_name);
+            ast_import_decl_free(&import_decl);
             ast_program_free(program);
             return false;
         }
 
-        if (!parser_add_import(parser, program, &import_name)) {
+        if (!parser_add_import(parser, program, &import_decl)) {
             ast_program_free(program);
             return false;
         }
@@ -514,13 +518,13 @@ static bool parser_add_top_level_decl(Parser *parser, AstProgram *program,
 }
 
 static bool parser_add_import(Parser *parser, AstProgram *program,
-                              AstQualifiedName *import_name) {
-    if (ast_program_add_import(program, import_name)) {
+                              AstImportDecl *import_decl) {
+    if (ast_program_add_import(program, import_decl)) {
         return true;
     }
 
     parser_set_oom_error(parser);
-    ast_qualified_name_free(import_name);
+    ast_import_decl_free(import_decl);
     return false;
 }
 
