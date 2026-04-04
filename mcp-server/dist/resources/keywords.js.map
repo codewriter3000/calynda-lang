@@ -1,1 +1,0 @@
-{"version":3,"file":"keywords.js","sourceRoot":"","sources":["../../src/resources/keywords.ts"],"names":[],"mappings":";;AAEA,kDAUC;AAZD,oDAAkE;AAElE,SAAgB,mBAAmB;IACjC,MAAM,KAAK,GAAa;QACtB,yCAAyC;QACzC,aAAa;QACb,mBAAQ,CAAC,IAAI,CAAC,IAAI,CAAC;QACnB,EAAE;QACF,oBAAoB;QACpB,0BAAe,CAAC,IAAI,CAAC,IAAI,CAAC;KAC3B,CAAC;IACF,OAAO,KAAK,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC;AAC1B,CAAC"}
