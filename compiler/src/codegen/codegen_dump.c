@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "target.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,20 +13,7 @@ const char *codegen_dump_instruction_kind_name(LirInstructionKind kind);
 const char *codegen_dump_terminator_kind_name(LirTerminatorKind kind);
 
 bool codegen_dump_program(FILE *out, const CodegenProgram *program) {
-    static const CodegenRegister arg_regs[] = {
-        CODEGEN_REG_RDI,
-        CODEGEN_REG_RSI,
-        CODEGEN_REG_RDX,
-        CODEGEN_REG_RCX,
-        CODEGEN_REG_R8,
-        CODEGEN_REG_R9
-    };
-    static const CodegenRegister alloc_regs[] = {
-        CODEGEN_REG_R10,
-        CODEGEN_REG_R11,
-        CODEGEN_REG_R12,
-        CODEGEN_REG_R13
-    };
+    const TargetDescriptor *target;
     size_t i;
     size_t j;
 
@@ -33,27 +21,32 @@ bool codegen_dump_program(FILE *out, const CodegenProgram *program) {
         return false;
     }
 
+    target = program->target_desc;
+    if (!target) {
+        target = target_get_default();
+    }
+
     fprintf(out,
             "CodegenProgram target=%s return=%s env=%s args=[",
             codegen_target_name(program->target),
-            codegen_register_name(CODEGEN_REG_RAX),
-            codegen_register_name(CODEGEN_REG_R15));
-    for (i = 0; i < sizeof(arg_regs) / sizeof(arg_regs[0]); i++) {
+            target_register_name(target, target->return_register.id),
+            target_register_name(target, target->closure_env_register.id));
+    for (i = 0; i < target->arg_register_count; i++) {
         if (i > 0 && fputs(", ", out) == EOF) {
             return false;
         }
-        if (fputs(codegen_register_name(arg_regs[i]), out) == EOF) {
+        if (fputs(target_register_name(target, target->arg_registers[i].id), out) == EOF) {
             return false;
         }
     }
     if (fputs("] alloc=[", out) == EOF) {
         return false;
     }
-    for (i = 0; i < sizeof(alloc_regs) / sizeof(alloc_regs[0]); i++) {
+    for (i = 0; i < target->allocatable_register_count; i++) {
         if (i > 0 && fputs(", ", out) == EOF) {
             return false;
         }
-        if (fputs(codegen_register_name(alloc_regs[i]), out) == EOF) {
+        if (fputs(target_register_name(target, target->allocatable_registers[i].id), out) == EOF) {
             return false;
         }
     }

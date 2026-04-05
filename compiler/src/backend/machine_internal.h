@@ -12,6 +12,11 @@ typedef struct {
     const CodegenProgram *codegen_program;
 } MachineBuildContext;
 
+/* Convenience accessors for the target descriptor from a build context */
+#define mc_target(ctx)       ((ctx)->program->target_desc)
+#define mc_target_kind(ctx)  ((ctx)->program->target_desc->kind)
+#define mc_is_aarch64(ctx)   ((ctx)->program->target_desc->kind == TARGET_KIND_AARCH64_AAPCS_ELF)
+
 bool mc_reserve_items(void **items, size_t *capacity,
                       size_t needed, size_t item_size);
 bool mc_source_span_is_valid(AstSourceSpan span);
@@ -33,14 +38,17 @@ bool mc_unit_uses_register(const CodegenUnit *unit, CodegenRegister reg);
 size_t mc_compute_helper_slot_count(const LirUnit *lir_unit,
                                     const CodegenUnit *codegen_unit);
 size_t mc_compute_outgoing_stack_slot_count(const LirUnit *lir_unit,
-                                            const CodegenUnit *codegen_unit);
+                                            const CodegenUnit *codegen_unit,
+                                            const TargetDescriptor *target);
 size_t mc_unit_stack_word_count(const MachineUnit *unit);
 bool mc_format_slot_operand(const CodegenUnit *codegen_unit,
                             size_t slot_index, char **text);
-bool mc_format_vreg_operand(const CodegenUnit *codegen_unit,
+bool mc_format_vreg_operand(const TargetDescriptor *target,
+                            const CodegenUnit *codegen_unit,
                             size_t vreg_index, char **text);
 bool mc_format_literal_operand(LirOperand operand, char **text);
-bool mc_format_operand(const LirUnit *lir_unit,
+bool mc_format_operand(const TargetDescriptor *target,
+                       const LirUnit *lir_unit,
                        const CodegenUnit *codegen_unit,
                        LirOperand operand, char **text);
 bool mc_format_capture_operand(size_t capture_index, char **text);

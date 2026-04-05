@@ -13,8 +13,10 @@ const grammar_1 = require("./resources/grammar");
 const types_1 = require("./resources/types");
 const keywords_1 = require("./resources/keywords");
 const examples_2 = require("./resources/examples");
+const architecture_1 = require("./resources/architecture");
+const bytecode_1 = require("./resources/bytecode");
 const index_1 = require("./prompts/index");
-const server = new index_js_1.Server({ name: 'calynda-mcp-server', version: '0.1.0' }, { capabilities: { tools: {}, resources: {}, prompts: {} } });
+const server = new index_js_1.Server({ name: 'calynda-mcp-server', version: '0.2.0' }, { capabilities: { tools: {}, resources: {}, prompts: {} } });
 server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
     tools: [
         {
@@ -31,11 +33,11 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
         },
         {
             name: 'explain_calynda_syntax',
-            description: 'Explain Calynda language features and syntax',
+            description: 'Explain Calynda language features, syntax, or compiler pipeline stages',
             inputSchema: {
                 type: 'object',
                 properties: {
-                    topic: { type: 'string', description: 'The feature name or code snippet to explain (e.g., "int32", "lambda", "template literal")' },
+                    topic: { type: 'string', description: 'The feature, syntax, or pipeline stage to explain (e.g., "lambda", "union", "generics", "HIR", "MIR", "bytecode", "pipeline")' },
                 },
                 required: ['topic'],
             },
@@ -85,6 +87,17 @@ server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
                 required: ['code'],
             },
         },
+        {
+            name: 'explain_compiler_architecture',
+            description: 'Explain the Calynda compiler architecture, pipeline stages, source tree, build targets, bytecode ISA, or backend strategy',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    topic: { type: 'string', description: 'The architecture topic to explain (e.g., "pipeline", "HIR", "MIR", "bytecode", "backend", "build", "source tree", "codegen", "runtime")' },
+                },
+                required: ['topic'],
+            },
+        },
     ],
 }));
 server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
@@ -126,6 +139,11 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
                 const result = (0, formatter_1.formatCode)({ code: a['code'] });
                 return { content: [{ type: 'text', text: result.formatted }] };
             }
+            case 'explain_compiler_architecture': {
+                const a = args;
+                const result = (0, explainer_1.explainTopic)({ topic: a['topic'] });
+                return { content: [{ type: 'text', text: result.explanation }] };
+            }
             default:
                 throw new Error(`Unknown tool: ${name}`);
         }
@@ -139,10 +157,12 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
 });
 server.setRequestHandler(types_js_1.ListResourcesRequestSchema, async () => ({
     resources: [
-        { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The full EBNF grammar specification', mimeType: 'text/plain' },
+        { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The full V2 EBNF grammar specification', mimeType: 'text/plain' },
         { uri: 'calynda://types', name: 'Calynda Types', description: 'Documentation for all built-in types', mimeType: 'text/markdown' },
         { uri: 'calynda://keywords', name: 'Calynda Keywords', description: 'All keywords and reserved words', mimeType: 'text/markdown' },
         { uri: 'calynda://examples', name: 'Calynda Examples', description: 'Code examples for common patterns', mimeType: 'text/markdown' },
+        { uri: 'calynda://architecture', name: 'Compiler Architecture', description: 'Full compiler pipeline, source tree, build targets, and stage descriptions', mimeType: 'text/markdown' },
+        { uri: 'calynda://bytecode', name: 'Bytecode ISA', description: 'Portable-v1 bytecode instruction set architecture', mimeType: 'text/markdown' },
     ],
 }));
 server.setRequestHandler(types_js_1.ReadResourceRequestSchema, async (request) => {
@@ -156,6 +176,10 @@ server.setRequestHandler(types_js_1.ReadResourceRequestSchema, async (request) =
             return { contents: [{ uri, mimeType: 'text/markdown', text: (0, keywords_1.getKeywordsResource)() }] };
         case 'calynda://examples':
             return { contents: [{ uri, mimeType: 'text/markdown', text: (0, examples_2.getExamplesResource)() }] };
+        case 'calynda://architecture':
+            return { contents: [{ uri, mimeType: 'text/markdown', text: (0, architecture_1.getArchitectureResource)() }] };
+        case 'calynda://bytecode':
+            return { contents: [{ uri, mimeType: 'text/markdown', text: (0, bytecode_1.getBytecodeResource)() }] };
         default:
             throw new Error(`Unknown resource: ${uri}`);
     }

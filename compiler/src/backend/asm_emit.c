@@ -8,6 +8,7 @@
 bool asm_emit_program(FILE *out, const MachineProgram *program) {
     AsmEmitContext context;
     size_t unit_index;
+    bool is_arm64;
 
     if (!out || !program) {
         return false;
@@ -15,17 +16,31 @@ bool asm_emit_program(FILE *out, const MachineProgram *program) {
 
     memset(&context, 0, sizeof(context));
     context.program = program;
+    is_arm64 = program->target_desc &&
+               program->target_desc->kind == TARGET_KIND_AARCH64_AAPCS_ELF;
 
-    if (fputs(".intel_syntax noprefix\n.text\n", out) == EOF) {
-        return false;
+    if (is_arm64) {
+        if (fputs(".text\n", out) == EOF) {
+            return false;
+        }
+    } else {
+        if (fputs(".intel_syntax noprefix\n.text\n", out) == EOF) {
+            return false;
+        }
     }
     for (unit_index = 0; unit_index < program->unit_count; unit_index++) {
         if (!ae_emit_unit_text(&context, out, unit_index, &program->units[unit_index])) {
             return false;
         }
     }
-    if (!ae_emit_program_entry_glue(&context, out)) {
-        return false;
+    if (is_arm64) {
+        if (!ae_emit_program_entry_glue_aarch64(&context, out)) {
+            return false;
+        }
+    } else {
+        if (!ae_emit_program_entry_glue(&context, out)) {
+            return false;
+        }
     }
     if (!ae_emit_rodata(out, &context) || !ae_emit_data(out, &context) ||
         !ae_emit_line(out, ".section .note.GNU-stack,\"\",@progbits\n")) {

@@ -1,11 +1,13 @@
 #include "calynda_internal.h"
+#include "target.h"
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
 int calynda_compile_to_machine_program(const char *path,
-                                       MachineProgram *machine_program) {
+                                       MachineProgram *machine_program,
+                                       const TargetDescriptor *target) {
     char *source;
     Parser parser;
     AstProgram program;
@@ -77,7 +79,7 @@ int calynda_compile_to_machine_program(const char *path,
     if (!hir_build_program(&hir_program, &program, &symbols, &checker) ||
         !mir_build_program(&mir_program, &hir_program) ||
         !lir_build_program(&lir_program, &mir_program) ||
-        !codegen_build_program(&codegen_program, &lir_program) ||
+        !codegen_build_program(&codegen_program, &lir_program, target) ||
         !machine_build_program(machine_program, &lir_program, &codegen_program)) {
         fprintf(stderr, "%s: backend lowering failed\n", path);
         exit_code = 1;

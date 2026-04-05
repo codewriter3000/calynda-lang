@@ -60,6 +60,43 @@ Token tokenizer_next(Tokenizer *t) {
                                   TOK_TEMPLATE_MIDDLE, TOK_TEMPLATE_END);
     }
 
+    /* If we just saw `asm` and the next char is '{', switch to raw
+       asm body scanning — capture everything between { and matching }. */
+    if (t->asm_body_pending && !is_at_end(t) && peek(t) == '{') {
+        int line = t->line, col = t->column;
+        int depth;
+        const char *body_start;
+        const char *body_end;
+        Token tok;
+
+        t->asm_body_pending = 0;
+        advance_char(t); /* consume '{' */
+        body_start = t->current;
+        depth = 1;
+
+        while (!is_at_end(t) && depth > 0) {
+            char c = peek(t);
+            if (c == '{') depth++;
+            else if (c == '}') {
+                depth--;
+                if (depth == 0) break;
+            }
+            advance_char(t);
+        }
+
+        body_end = t->current;
+        if (!is_at_end(t)) {
+            advance_char(t); /* consume matching '}' */
+        }
+
+        tok.type   = TOK_ASM_BODY;
+        tok.start  = body_start;
+        tok.length = (size_t)(body_end - body_start);
+        tok.line   = line;
+        tok.column = col;
+        return tok;
+    }
+
     if (is_at_end(t)) {
         return make_token(t, TOK_EOF, t->current, t->line, t->column);
     }
@@ -70,8 +107,12 @@ Token tokenizer_next(Tokenizer *t) {
     char c = advance_char(t);
 
     /* Identifiers and keywords */
-    if (isalpha((unsigned char)c) || c == '_')
-        return tokenizer_scan_identifier(t, start, line, col);
+    if (isalpha((unsigned char)c) || c == '_') {
+        Token tok = tokenizer_scan_identifier(t, start, line, col);
+        if (tok.type == TOK_ASM)
+            t->asm_body_pending = 1;
+        return tok;
+    }
 
     /* Numbers */
     if (isdigit((unsigned char)c))
@@ -90,6 +131,7 @@ void tokenizer_init(Tokenizer *t, const char *source) {
     t->line           = 1;
     t->column         = 1;
     t->template_depth = 0;
+    t->asm_body_pending = 0;
     memset(t->interpolation_brace_depth, 0,
            sizeof(t->interpolation_brace_depth));
 }
@@ -114,6 +156,7 @@ const char *token_type_name(TokenType type) {
     case TOK_PACKAGE:        return "PACKAGE";
     case TOK_IMPORT:         return "IMPORT";
     case TOK_START:          return "START";
+    case TOK_BOOT:           return "BOOT";
     case TOK_VAR:            return "VAR";
     case TOK_PUBLIC:         return "PUBLIC";
     case TOK_PRIVATE:        return "PRIVATE";
@@ -136,6 +179,8 @@ const char *token_type_name(TokenType type) {
     case TOK_CALLOC:         return "CALLOC";
     case TOK_REALLOC:        return "REALLOC";
     case TOK_FREE:           return "FREE";
+    case TOK_ASM:            return "ASM";
+    case TOK_ASM_BODY:       return "ASM_BODY";
     case TOK_INT8:           return "INT8";
     case TOK_INT16:          return "INT16";
     case TOK_INT32:          return "INT32";

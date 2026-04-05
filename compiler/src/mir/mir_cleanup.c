@@ -134,5 +134,6 @@ void mr_unit_free(MirUnit *unit) {
         mr_basic_block_free(&unit->blocks[i]);
     }
     free(unit->blocks);
+    free(unit->asm_body);
     memset(unit, 0, sizeof(*unit));
 }

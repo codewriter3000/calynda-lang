@@ -1,5 +1,42 @@
 #include "parser_internal.h"
 
+/* Check if the declaration starting at the current position is an asm decl.
+   Lookahead past modifiers, type, name, '=' to see if 'asm' follows. */
+static bool looks_like_asm_decl(const Parser *parser) {
+    size_t ahead = parser->current;
+
+    /* Skip modifiers */
+    while (true) {
+        TokenType t = parser_token_at(parser, ahead)->type;
+        if (t == TOK_PUBLIC || t == TOK_PRIVATE || t == TOK_FINAL ||
+            t == TOK_EXPORT || t == TOK_STATIC || t == TOK_INTERNAL) {
+            ahead++;
+        } else {
+            break;
+        }
+    }
+
+    /* Skip type (use scan_type_pattern) */
+    if (!scan_type_pattern(parser, &ahead)) {
+        return false;
+    }
+
+    /* Skip name (identifier) */
+    if (parser_token_at(parser, ahead)->type != TOK_IDENTIFIER) {
+        return false;
+    }
+    ahead++;
+
+    /* Check = */
+    if (parser_token_at(parser, ahead)->type != TOK_ASSIGN) {
+        return false;
+    }
+    ahead++;
+
+    /* Check asm */
+    return parser_token_at(parser, ahead)->type == TOK_ASM;
+}
+
 bool parser_parse_lambda_body(Parser *parser, AstLambdaBody *body) {
     if (parser_check(parser, TOK_LBRACE)) {
         AstBlock *block = parse_block(parser);
@@ -40,6 +77,15 @@ bool parser_parse_block_or_expression_body(Parser *parser,
 AstTopLevelDecl *parse_top_level_decl(Parser *parser) {
     if (parser_check(parser, TOK_START)) {
         return parse_start_decl(parser);
+    }
+
+    if (parser_check(parser, TOK_BOOT)) {
+        return parse_boot_decl(parser);
+    }
+
+    /* Check for asm declarations before binding/union dispatch. */
+    if (looks_like_asm_decl(parser)) {
+        return parse_asm_decl(parser);
     }
 
     /* Peek past any modifier tokens to decide binding vs union. */
@@ -93,6 +139,30 @@ AstTopLevelDecl *parse_start_decl(Parser *parser) {
         !parser_consume(parser, TOK_ARROW, "Expected '->' after start parameters.") ||
         !parser_parse_block_or_expression_body(parser, &decl->as.start_decl.body) ||
         !parser_consume(parser, TOK_SEMICOLON, "Expected ';' after start declaration.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    return decl;
+}
+
+AstTopLevelDecl *parse_boot_decl(Parser *parser) {
+    AstTopLevelDecl *decl = ast_top_level_decl_new(AST_TOP_LEVEL_START);
+
+    if (!decl) {
+        parser_set_oom_error(parser);
+        return NULL;
+    }
+
+    decl->as.start_decl.is_boot = true;
+    decl->as.start_decl.start_span = parser_source_span(parser_current_token(parser));
+
+    if (!parser_consume(parser, TOK_BOOT, "Expected 'boot'.") ||
+        !parser_consume(parser, TOK_LPAREN, "Expected '(' after 'boot'.") ||
+        !parser_consume(parser, TOK_RPAREN, "Expected ')' after 'boot('.") ||
+        !parser_consume(parser, TOK_ARROW, "Expected '->' after boot parameters.") ||
+        !parser_parse_block_or_expression_body(parser, &decl->as.start_decl.body) ||
+        !parser_consume(parser, TOK_SEMICOLON, "Expected ';' after boot declaration.")) {
         ast_top_level_decl_free(decl);
         return NULL;
     }
@@ -210,4 +280,102 @@ AstBlock *parse_block(Parser *parser) {
     }
 
     return block;
+}
+
+AstTopLevelDecl *parse_asm_decl(Parser *parser) {
+    AstTopLevelDecl *decl = ast_top_level_decl_new(AST_TOP_LEVEL_ASM);
+    const Token *name_token;
+    const Token *body_token;
+
+    if (!decl) {
+        parser_set_oom_error(parser);
+        return NULL;
+    }
+
+    /* Parse modifiers */
+    while (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
+           parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_EXPORT) ||
+           parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL)) {
+        AstModifier modifier;
+
+        switch (parser_current_token(parser)->type) {
+        case TOK_PUBLIC:
+            modifier = AST_MODIFIER_PUBLIC;
+            break;
+        case TOK_PRIVATE:
+            modifier = AST_MODIFIER_PRIVATE;
+            break;
+        case TOK_EXPORT:
+            modifier = AST_MODIFIER_EXPORT;
+            break;
+        case TOK_STATIC:
+            modifier = AST_MODIFIER_STATIC;
+            break;
+        case TOK_INTERNAL:
+            modifier = AST_MODIFIER_INTERNAL;
+            break;
+        default:
+            modifier = AST_MODIFIER_FINAL;
+            break;
+        }
+
+        parser_advance(parser);
+        if (!ast_asm_decl_add_modifier(&decl->as.asm_decl, modifier)) {
+            parser_set_oom_error(parser);
+            ast_top_level_decl_free(decl);
+            return NULL;
+        }
+    }
+
+    /* Parse return type */
+    if (!parser_parse_type(parser, &decl->as.asm_decl.return_type)) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    /* Parse name */
+    name_token = parser_current_token(parser);
+    decl->as.asm_decl.name =
+        parser_consume_identifier(parser, "Expected asm binding name.");
+    if (!decl->as.asm_decl.name) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+    decl->as.asm_decl.name_span = parser_source_span(name_token);
+
+    /* = asm ( params ) -> body ; */
+    if (!parser_consume(parser, TOK_ASSIGN, "Expected '=' after asm binding name.") ||
+        !parser_consume(parser, TOK_ASM, "Expected 'asm' keyword.") ||
+        !parser_consume(parser, TOK_LPAREN, "Expected '(' after 'asm'.") ||
+        !parser_parse_parameter_list(parser, &decl->as.asm_decl.parameters, true) ||
+        !parser_consume(parser, TOK_RPAREN, "Expected ')' after asm parameters.") ||
+        !parser_consume(parser, TOK_ARROW, "Expected '->' after asm parameters.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    /* Consume the TOK_ASM_BODY token (raw text between { and }) */
+    body_token = parser_current_token(parser);
+    if (body_token->type != TOK_ASM_BODY) {
+        parser_set_error(parser, *body_token,
+                         "Expected asm body block '{ ... }'.");
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+    decl->as.asm_decl.body = ast_copy_text_n(body_token->start, body_token->length);
+    decl->as.asm_decl.body_length = body_token->length;
+    if (!decl->as.asm_decl.body) {
+        parser_set_oom_error(parser);
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+    parser_advance(parser);
+
+    if (!parser_consume(parser, TOK_SEMICOLON,
+                        "Expected ';' after asm declaration.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    return decl;
 }

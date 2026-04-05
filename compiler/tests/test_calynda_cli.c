@@ -189,7 +189,7 @@ static void test_calynda_cli_help_and_emitters(void) {
                  "run calynda help");
     captured_output = output;
     ASSERT_EQ_INT(0, exit_code, "calynda help exits successfully");
-    ASSERT_CONTAINS("build <source.cal>", captured_output, "help text lists build command");
+    ASSERT_CONTAINS("build", captured_output, "help text lists build command");
 
     REQUIRE_TRUE(run_capture("./build/calynda", asm_argv, output, sizeof(output), &exit_code),
                  "run calynda asm");

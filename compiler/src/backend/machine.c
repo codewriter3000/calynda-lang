@@ -10,6 +10,7 @@ void machine_program_init(MachineProgram *program) {
 
     memset(program, 0, sizeof(*program));
     program->target = CODEGEN_TARGET_X86_64_SYSV_ELF;
+    program->target_desc = target_get_default();
 }
 
 void machine_program_free(MachineProgram *program) {
@@ -24,6 +25,22 @@ void machine_program_free(MachineProgram *program) {
     }
     free(program->units);
     memset(program, 0, sizeof(*program));
+}
+
+bool machine_program_has_boot(const MachineProgram *program) {
+    size_t i;
+
+    if (!program) {
+        return false;
+    }
+
+    for (i = 0; i < program->unit_count; i++) {
+        if (program->units[i].kind == LIR_UNIT_START &&
+            program->units[i].is_boot) {
+            return true;
+        }
+    }
+    return false;
 }
 
 const MachineBuildError *machine_get_error(const MachineProgram *program) {
@@ -100,7 +117,8 @@ bool machine_build_program(MachineProgram *program,
                      "Cannot emit machine instructions while the codegen plan reports errors.");
         return false;
     }
-    if (codegen_program->target != CODEGEN_TARGET_X86_64_SYSV_ELF) {
+    if (codegen_program->target != CODEGEN_TARGET_X86_64_SYSV_ELF &&
+        codegen_program->target != TARGET_KIND_AARCH64_AAPCS_ELF) {
         mc_set_error(&context,
                      (AstSourceSpan){0},
                      NULL,
@@ -117,6 +135,7 @@ bool machine_build_program(MachineProgram *program,
     }
 
     program->target = codegen_program->target;
+    program->target_desc = codegen_program->target_desc;
     program->unit_count = lir_program->unit_count;
     if (program->unit_count > 0) {
         program->units = calloc(program->unit_count, sizeof(*program->units));

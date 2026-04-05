@@ -44,7 +44,8 @@ typedef enum {
     LIR_UNIT_START = 0,
     LIR_UNIT_BINDING,
     LIR_UNIT_INIT,
-    LIR_UNIT_LAMBDA
+    LIR_UNIT_LAMBDA,
+    LIR_UNIT_ASM
 } LirUnitKind;
 
 struct LirUnit {
@@ -61,6 +62,11 @@ struct LirUnit {
     LirBasicBlock *blocks;
     size_t         block_count;
     size_t         block_capacity;
+    /* ASM unit fields */
+    char          *asm_body;
+    size_t         asm_body_length;
+    /* Boot flag for START units */
+    bool           is_boot;
 };
 
 typedef struct {

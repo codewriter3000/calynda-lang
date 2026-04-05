@@ -14,6 +14,10 @@ bool st_analyze_top_level_decl(SymbolTable *table,
 
     case AST_TOP_LEVEL_UNION:
         return st_analyze_union_decl(table, &decl->as.union_decl, scope);
+
+    case AST_TOP_LEVEL_ASM:
+        /* Asm declarations have opaque bodies — nothing to analyze. */
+        return true;
     }
 
     return false;

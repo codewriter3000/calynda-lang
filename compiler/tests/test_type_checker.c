@@ -413,7 +413,7 @@ static void test_type_checker_requires_start_entry_point(void) {
     REQUIRE_TRUE(error != NULL, "missing start error exists");
     REQUIRE_TRUE(type_checker_format_error(error, diagnostic, sizeof(diagnostic_buffer)),
                  "format missing start error");
-    ASSERT_EQ_STR("Program must declare exactly one start entry point.",
+    ASSERT_EQ_STR("Program must declare exactly one start or boot entry point.",
                   diagnostic,
                   "formatted missing start diagnostic");
 
@@ -482,6 +482,89 @@ static void test_type_checker_rejects_invalid_start_parameter_type(void) {
     ASSERT_EQ_STR("1:13: start parameter must have type string[]. Related location at 1:1.",
                   diagnostic,
                   "formatted invalid start parameter diagnostic");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+static void test_type_checker_accepts_boot_entry_point(void) {
+    const char *source = "boot() -> 0;\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse boot program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for boot program");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "boot entry point passes type checking");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+static void test_type_checker_rejects_boot_and_start_together(void) {
+    const char *source =
+        "boot() -> 0;\n"
+        "start(string[] args) -> 0;\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *error;
+    char diagnostic_buffer[256];
+    char *diagnostic = diagnostic_buffer;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse boot+start program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for boot+start");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
+                "boot+start fails type checking");
+
+    error = type_checker_get_error(&checker);
+    REQUIRE_TRUE(error != NULL, "boot+start error exists");
+    REQUIRE_TRUE(type_checker_format_error(error, diagnostic, sizeof(diagnostic_buffer)),
+                 "format boot+start error");
+    ASSERT_TRUE(strstr(diagnostic, "boot and start") != NULL ||
+                strstr(diagnostic, "mutually exclusive") != NULL ||
+                strstr(diagnostic, "cannot declare") != NULL,
+                "boot+start error contains relevant message");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+static void test_type_checker_rejects_duplicate_boot_entry_points(void) {
+    const char *source =
+        "boot() -> 0;\n"
+        "boot() -> 1;\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *error;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse duplicate boot program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for duplicate boot");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
+                "duplicate boot fails type checking");
+
+    error = type_checker_get_error(&checker);
+    REQUIRE_TRUE(error != NULL, "duplicate boot error exists");
 
     type_checker_free(&checker);
     symbol_table_free(&symbols);
@@ -1282,6 +1365,9 @@ int main(void) {
     RUN_TEST(test_type_checker_requires_start_entry_point);
     RUN_TEST(test_type_checker_rejects_duplicate_start_entry_points);
     RUN_TEST(test_type_checker_rejects_invalid_start_parameter_type);
+    RUN_TEST(test_type_checker_accepts_boot_entry_point);
+    RUN_TEST(test_type_checker_rejects_boot_and_start_together);
+    RUN_TEST(test_type_checker_rejects_duplicate_boot_entry_points);
     RUN_TEST(test_type_checker_allows_exit_in_void_lambda_block);
     RUN_TEST(test_type_checker_rejects_bare_return_in_non_void_lambda);
     RUN_TEST(test_type_checker_rejects_exit_in_start_block);

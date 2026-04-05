@@ -33,45 +33,64 @@ bool ae_emit_program_entry_glue(AsmEmitContext *context, FILE *out) {
         return false;
     }
 
-    if (!ae_emit_line(out,
-                   ".globl calynda_program_start\n"
-                   "calynda_program_start:\n"
-                   "    push rbp\n"
-                   "    mov rbp, rsp\n"
-                   "    push r15\n"
-                   "    sub rsp, 8\n"
-                   "    xor r15, r15\n")) {
-        return false;
-    }
-
-    for (string_index = 0; string_index < context->string_literal_count; string_index++) {
+    if (start_unit->is_boot) {
+        /*
+         * Boot entry: freestanding _start that calls the boot unit directly
+         * and exits via Linux syscall (sys_exit = 60).
+         */
         if (!ae_emit_line(out,
-                       "    mov rdi, OFFSET FLAT:%s\n"
-                       "    call calynda_rt_register_static_object\n",
-                       context->string_literals[string_index].object_label)) {
+                       ".globl _start\n"
+                       "_start:\n"
+                       "    xor rbp, rbp\n"
+                       "    xor r15, r15\n"
+                       "    call %s\n"
+                       "    mov edi, eax\n"
+                       "    mov eax, 60\n"
+                       "    syscall\n",
+                       start_symbol->symbol)) {
             return false;
         }
-    }
+    } else {
+        if (!ae_emit_line(out,
+                       ".globl calynda_program_start\n"
+                       "calynda_program_start:\n"
+                       "    push rbp\n"
+                       "    mov rbp, rsp\n"
+                       "    push r15\n"
+                       "    sub rsp, 8\n"
+                       "    xor r15, r15\n")) {
+            return false;
+        }
 
-    if (!ae_emit_line(out,
-                   "    call %s\n"
-                   "    add rsp, 8\n"
-                   "    pop r15\n"
-                   "    pop rbp\n"
-                   "    ret\n",
-                   start_symbol->symbol) ||
-        !ae_emit_line(out,
-                   ".globl main\n"
-                   "main:\n"
-                   "    push rbp\n"
-                   "    mov rbp, rsp\n"
-                   "    mov rdx, rsi\n"
-                   "    mov esi, edi\n"
-                   "    mov rdi, OFFSET FLAT:calynda_program_start\n"
-                   "    call calynda_rt_start_process\n"
-                   "    pop rbp\n"
-                   "    ret\n")) {
-        return false;
+        for (string_index = 0; string_index < context->string_literal_count; string_index++) {
+            if (!ae_emit_line(out,
+                           "    mov rdi, OFFSET FLAT:%s\n"
+                           "    call calynda_rt_register_static_object\n",
+                           context->string_literals[string_index].object_label)) {
+                return false;
+            }
+        }
+
+        if (!ae_emit_line(out,
+                       "    call %s\n"
+                       "    add rsp, 8\n"
+                       "    pop r15\n"
+                       "    pop rbp\n"
+                       "    ret\n",
+                       start_symbol->symbol) ||
+            !ae_emit_line(out,
+                       ".globl main\n"
+                       "main:\n"
+                       "    push rbp\n"
+                       "    mov rbp, rsp\n"
+                       "    mov rdx, rsi\n"
+                       "    mov esi, edi\n"
+                       "    mov rdi, OFFSET FLAT:calynda_program_start\n"
+                       "    call calynda_rt_start_process\n"
+                       "    pop rbp\n"
+                       "    ret\n")) {
+            return false;
+        }
     }
 
     for (unit_index = 0; unit_index < context->program->unit_count; unit_index++) {

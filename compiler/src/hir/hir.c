@@ -52,6 +52,15 @@ void hir_program_free(HirProgram *program) {
             }
             free(decl->as.union_decl.variants);
             free(decl->as.union_decl.name);
+        } else if (decl->kind == HIR_TOP_LEVEL_ASM) {
+            size_t p;
+            free(decl->as.asm_decl.name);
+            for (p = 0; p < decl->as.asm_decl.parameter_count; p++) {
+                free(decl->as.asm_decl.parameter_names[p]);
+            }
+            free(decl->as.asm_decl.parameter_names);
+            free(decl->as.asm_decl.parameter_types);
+            free(decl->as.asm_decl.body);
         } else {
             hr_free_parameter_list(&decl->as.start.parameters);
             if (decl->as.start.body) {

@@ -68,6 +68,8 @@ BytecodeUnitKind bc_unit_kind_from_mir(MirUnitKind kind) {
         return BYTECODE_UNIT_INIT;
     case MIR_UNIT_LAMBDA:
         return BYTECODE_UNIT_LAMBDA;
+    case MIR_UNIT_ASM:
+        break;
     }
 
     return BYTECODE_UNIT_BINDING;

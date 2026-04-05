@@ -126,6 +126,14 @@ bool ae_emit_div(FILE *out, const char *mnemonic, AsmOperand *source);
 /* asm_emit_instr.c */
 bool ae_emit_machine_instruction(AsmEmitContext *context, FILE *out, const MachineUnit *unit, const AsmUnitLayout *layout, size_t unit_index, size_t block_index, size_t instruction_index, const char *instruction_text);
 
+/* asm_emit_instr_aarch64.c */
+bool ae_emit_machine_instruction_aarch64(AsmEmitContext *context, FILE *out, const MachineUnit *unit, const AsmUnitLayout *layout, size_t unit_index, size_t block_index, size_t instruction_index, const char *instruction_text);
+AsmUnitLayout ae_compute_unit_layout_aarch64(const MachineUnit *unit);
+bool ae_translate_operand_aarch64(AsmEmitContext *context, const MachineUnit *unit, const AsmUnitLayout *layout, const char *operand_text, bool destination, AsmOperand *operand);
+
+/* asm_emit_entry_aarch64.c */
+bool ae_emit_program_entry_glue_aarch64(AsmEmitContext *context, FILE *out);
+
 /* asm_emit_sections.c */
 bool ae_emit_unit_text(AsmEmitContext *context, FILE *out, size_t unit_index, const MachineUnit *unit);
 bool ae_emit_rodata(FILE *out, const AsmEmitContext *context);

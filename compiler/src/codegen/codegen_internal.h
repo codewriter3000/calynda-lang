@@ -9,16 +9,10 @@
 #include <string.h>
 
 typedef struct {
-    CodegenProgram  *program;
-    const LirProgram *lir_program;
+    CodegenProgram         *program;
+    const LirProgram       *lir_program;
+    const TargetDescriptor *target;
 } CodegenBuildContext;
-
-static const CodegenRegister X86_64_SYSV_ALLOCATABLE_REGS[] = {
-    CODEGEN_REG_R10,
-    CODEGEN_REG_R11,
-    CODEGEN_REG_R12,
-    CODEGEN_REG_R13
-};
 
 /* codegen_helpers.c */
 bool cg_source_span_is_valid(AstSourceSpan span);

@@ -18,12 +18,28 @@ bool cg_build_unit(CodegenBuildContext *context,
     unit->frame_slot_count = lir_unit->slot_count;
     unit->vreg_count = lir_unit->virtual_register_count;
     unit->block_count = lir_unit->block_count;
+    unit->is_boot = lir_unit->is_boot;
     if (!unit->name) {
         cg_set_error(context,
                      (AstSourceSpan){0},
                      NULL,
                      "Out of memory while building codegen units.");
         return false;
+    }
+
+    if (lir_unit->kind == LIR_UNIT_ASM) {
+        unit->asm_body = ast_copy_text_n(lir_unit->asm_body,
+                                         lir_unit->asm_body_length);
+        unit->asm_body_length = lir_unit->asm_body_length;
+        if (lir_unit->asm_body && !unit->asm_body) {
+            cg_unit_free(unit);
+            cg_set_error(context,
+                         (AstSourceSpan){0},
+                         NULL,
+                         "Out of memory while building codegen asm body.");
+            return false;
+        }
+        return true;
     }
 
     if (unit->frame_slot_count > 0) {
@@ -82,15 +98,18 @@ bool cg_build_unit(CodegenBuildContext *context,
         cg_infer_vreg_types(lir_unit, vreg_types, unit->vreg_count);
     }
     for (i = 0; i < unit->vreg_count; i++) {
+        const TargetDescriptor *target = context->target;
+        size_t alloc_count = target ? target->allocatable_register_count : 0;
+
         unit->vreg_allocations[i].vreg_index = i;
         unit->vreg_allocations[i].type = vreg_types ? vreg_types[i] : cg_checked_type_invalid_value();
-        if (i < (sizeof(X86_64_SYSV_ALLOCATABLE_REGS) / sizeof(X86_64_SYSV_ALLOCATABLE_REGS[0]))) {
+        if (target && i < alloc_count) {
             unit->vreg_allocations[i].location.kind = CODEGEN_VREG_REGISTER;
-            unit->vreg_allocations[i].location.as.reg = X86_64_SYSV_ALLOCATABLE_REGS[i];
+            unit->vreg_allocations[i].location.as.reg = target->allocatable_registers[i].id;
         } else {
             unit->vreg_allocations[i].location.kind = CODEGEN_VREG_SPILL;
             unit->vreg_allocations[i].location.as.spill_slot_index =
-                i - (sizeof(X86_64_SYSV_ALLOCATABLE_REGS) / sizeof(X86_64_SYSV_ALLOCATABLE_REGS[0]));
+                i - alloc_count;
             unit->spill_slot_count++;
         }
     }

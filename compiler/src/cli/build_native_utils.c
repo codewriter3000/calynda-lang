@@ -112,7 +112,8 @@ bool build_native_write_temp_assembly(const char *assembly, char *path_buffer, s
 
 int build_native_run_linker(const char *assembly_path,
                             const char *runtime_object_path,
-                            const char *output_path) {
+                            const char *output_path,
+                            bool is_boot) {
     pid_t child;
     int status;
 
@@ -122,18 +123,32 @@ int build_native_run_linker(const char *assembly_path,
     }
 
     if (child == 0) {
-        execlp("gcc",
-               "gcc",
-               "-no-pie",
-               "-x",
-               "assembler",
-               assembly_path,
-               "-x",
-               "none",
-               runtime_object_path,
-               "-o",
-               output_path,
-               (char *)NULL);
+        if (is_boot) {
+            execlp("gcc",
+                   "gcc",
+                   "-nostdlib",
+                   "-static",
+                   "-no-pie",
+                   "-x",
+                   "assembler",
+                   assembly_path,
+                   "-o",
+                   output_path,
+                   (char *)NULL);
+        } else {
+            execlp("gcc",
+                   "gcc",
+                   "-no-pie",
+                   "-x",
+                   "assembler",
+                   assembly_path,
+                   "-x",
+                   "none",
+                   runtime_object_path,
+                   "-o",
+                   output_path,
+                   (char *)NULL);
+        }
         _exit(127);
     }
 

@@ -80,9 +80,11 @@ size_t mc_compute_helper_slot_count(const LirUnit *lir_unit,
 }
 
 size_t mc_compute_outgoing_stack_slot_count(const LirUnit *lir_unit,
-                                            const CodegenUnit *codegen_unit) {
+                                            const CodegenUnit *codegen_unit,
+                                            const TargetDescriptor *target) {
     size_t block_index;
     size_t max_slots = 0;
+    size_t max_reg_args = target ? target->arg_register_count : 6;
 
     if (!lir_unit || !codegen_unit) {
         return 0;
@@ -100,8 +102,8 @@ size_t mc_compute_outgoing_stack_slot_count(const LirUnit *lir_unit,
             if (instruction->kind == LIR_INSTR_CALL &&
                 selected->selection.kind == CODEGEN_SELECTION_DIRECT &&
                 selected->selection.as.direct_pattern == CODEGEN_DIRECT_CALL_GLOBAL &&
-                instruction->as.call.argument_count > 6) {
-                size_t needed = instruction->as.call.argument_count - 6;
+                instruction->as.call.argument_count > max_reg_args) {
+                size_t needed = instruction->as.call.argument_count - max_reg_args;
                 if (needed > max_slots) {
                     max_slots = needed;
                 }
@@ -128,7 +130,8 @@ bool mc_format_slot_operand(const CodegenUnit *codegen_unit,
     return *text != NULL;
 }
 
-bool mc_format_vreg_operand(const CodegenUnit *codegen_unit,
+bool mc_format_vreg_operand(const TargetDescriptor *target,
+                            const CodegenUnit *codegen_unit,
                             size_t vreg_index,
                             char **text) {
     const CodegenVRegAllocation *allocation;
@@ -139,7 +142,7 @@ bool mc_format_vreg_operand(const CodegenUnit *codegen_unit,
 
     allocation = &codegen_unit->vreg_allocations[vreg_index];
     if (allocation->location.kind == CODEGEN_VREG_REGISTER) {
-        *text = ast_copy_text(codegen_register_name(allocation->location.as.reg));
+        *text = ast_copy_text(target_register_name(target, allocation->location.as.reg));
     } else {
         *text = mc_copy_format("spill(%zu)", allocation->location.as.spill_slot_index);
     }
@@ -173,7 +176,8 @@ bool mc_format_literal_operand(LirOperand operand, char **text) {
     }
 }
 
-bool mc_format_operand(const LirUnit *lir_unit,
+bool mc_format_operand(const TargetDescriptor *target,
+                       const LirUnit *lir_unit,
                        const CodegenUnit *codegen_unit,
                        LirOperand operand,
                        char **text) {
@@ -188,7 +192,7 @@ bool mc_format_operand(const LirUnit *lir_unit,
         *text = ast_copy_text("<invalid>");
         return *text != NULL;
     case LIR_OPERAND_VREG:
-        return mc_format_vreg_operand(codegen_unit, operand.as.vreg_index, text);
+        return mc_format_vreg_operand(target, codegen_unit, operand.as.vreg_index, text);
     case LIR_OPERAND_SLOT:
         return mc_format_slot_operand(codegen_unit, operand.as.slot_index, text);
     case LIR_OPERAND_GLOBAL:

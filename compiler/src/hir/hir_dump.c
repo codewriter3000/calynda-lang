@@ -90,6 +90,32 @@ bool hir_dump_program(FILE *out, const HirProgram *program) {
                 }
                 fputc('\n', out);
             }
+        } else if (decl->kind == HIR_TOP_LEVEL_ASM) {
+            size_t j;
+
+            fprintf(out, "    Asm name=%s return=", decl->as.asm_decl.name);
+            if (!hir_dump_write_checked_type(out, decl->as.asm_decl.return_type)) {
+                return false;
+            }
+            if (decl->as.asm_decl.is_exported) {
+                fprintf(out, " exported");
+            }
+            if (decl->as.asm_decl.is_static) {
+                fprintf(out, " static");
+            }
+            if (decl->as.asm_decl.is_internal) {
+                fprintf(out, " internal");
+            }
+            fprintf(out, " params=%zu body_length=%zu",
+                    decl->as.asm_decl.parameter_count,
+                    decl->as.asm_decl.body_length);
+            fprintf(out, " span=");
+            hir_dump_write_span(out, decl->as.asm_decl.source_span);
+            fputc('\n', out);
+            for (j = 0; j < decl->as.asm_decl.parameter_count; j++) {
+                fprintf(out, "      Param name=%s\n",
+                        decl->as.asm_decl.parameter_names[j]);
+            }
         } else {
             size_t j;
 

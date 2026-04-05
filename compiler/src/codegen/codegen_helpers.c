@@ -57,6 +57,7 @@ void cg_unit_free(CodegenUnit *unit) {
         cg_block_free(&unit->blocks[i]);
     }
     free(unit->blocks);
+    free(unit->asm_body);
     memset(unit, 0, sizeof(*unit));
 }
 

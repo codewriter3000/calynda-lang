@@ -69,6 +69,40 @@ bool ast_dump_top_level_decl(AstDumpBuilder *builder, const AstTopLevelDecl *dec
         }
         return ast_dump_builder_finish_line(builder);
     }
+
+    case AST_TOP_LEVEL_ASM: {
+        char len_buf[32];
+
+        if (!ast_dump_builder_start_line(builder, indent) ||
+            !ast_dump_builder_append(builder, "AsmDecl name=") ||
+            !ast_dump_builder_append(builder,
+                            decl->as.asm_decl.name ? decl->as.asm_decl.name : "<null>") ||
+            !ast_dump_builder_append(builder, " return=")) {
+            return false;
+        }
+        if (!ast_dump_type(builder, &decl->as.asm_decl.return_type, false)) {
+            return false;
+        }
+        if (!ast_dump_builder_append(builder, " modifiers=") ||
+            !ast_dump_modifiers(builder, decl->as.asm_decl.modifiers,
+                             decl->as.asm_decl.modifier_count)) {
+            return false;
+        }
+        if (!ast_dump_builder_finish_line(builder)) {
+            return false;
+        }
+        if (!ast_dump_parameter_list(builder, &decl->as.asm_decl.parameters, indent + 1)) {
+            return false;
+        }
+        snprintf(len_buf, sizeof(len_buf), "%zu", decl->as.asm_decl.body_length);
+        if (!(ast_dump_builder_start_line(builder, indent + 1) &&
+              ast_dump_builder_append(builder, "AsmBody length=") &&
+              ast_dump_builder_append(builder, len_buf) &&
+              ast_dump_builder_finish_line(builder))) {
+            return false;
+        }
+        return true;
+    }
     }
 
     return false;

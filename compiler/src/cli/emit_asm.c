@@ -1,5 +1,6 @@
 #include "asm_emit.h"
 #include "parser.h"
+#include "target.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -139,7 +140,7 @@ static int emit_program_file(const char *path) {
     if (!hir_build_program(&hir_program, &program, &symbols, &checker) ||
         !mir_build_program(&mir_program, &hir_program) ||
         !lir_build_program(&lir_program, &mir_program) ||
-        !codegen_build_program(&codegen_program, &lir_program) ||
+        !codegen_build_program(&codegen_program, &lir_program, target_get_default()) ||
         !machine_build_program(&machine_program, &lir_program, &codegen_program)) {
         fprintf(stderr, "%s: backend lowering failed\n", path);
         exit_code = 1;

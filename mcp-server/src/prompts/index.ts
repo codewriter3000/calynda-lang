@@ -29,24 +29,55 @@ export const PROMPTS: PromptDefinition[] = [
       { name: 'sourceLanguage', description: 'The source programming language (e.g., Python, JavaScript, C)', required: false },
     ],
   },
+  {
+    name: 'explain-compiler-stage',
+    description: 'Explain a specific stage of the Calynda compiler pipeline',
+    arguments: [
+      { name: 'stage', description: 'The pipeline stage to explain (e.g., tokenizer, parser, HIR, MIR, LIR, codegen, bytecode)', required: true },
+    ],
+  },
 ];
+
+const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
+- Compiled functional systems programming language with ~200 C source files
+- Two backends: native x86_64 SysV ELF and portable-v1 bytecode (no interpreter)
+- All functions are lambdas: (type param) -> expr or (type param) -> { ... }
+- Entry point: start(string[] args) -> { ... }; returns int32 (exit code)
+- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<T>, void
+- Java-style aliases: byte, sbyte, short, int, long, ulong, uint, float, double
+- Tagged unions with reified generics: union Option<T> { Some(T), None };
+- Heterogeneous arrays: arr<?> mixed = [1, "hello", true];
+- Template literals with \${} interpolation (backtick strings)
+- No built-in if/else or loops — use ternary for conditionals, library functions for iteration
+- throw keyword for errors, exit; is sugar for return; in void lambdas
+- var keyword for type inference
+- Modifiers: export, public, private, final, static, internal
+- Import styles: plain, alias ("as"), wildcard (".*"), selective (".{a, b}")
+- Closures capture outer locals/parameters; ++ and -- prefix/postfix operators
+- Discard expression: _ = expr; to explicitly ignore values
+- Varargs: Type... name in parameter lists`;
 
 export function getPromptMessages(name: string, args: Record<string, string>): Array<{ role: string; content: string }> {
   switch (name) {
     case 'write-calynda-function':
       return [{
         role: 'user',
-        content: `Write a Calynda function to: ${args['task']}${args['returnType'] ? `\nThe function should return type: ${args['returnType']}` : ''}\n\nCalynda key facts:\n- All functions are lambdas: (type param) -> expr or (type param) -> { ... }\n- Entry point: start(string[] args) -> { ... }; returns int32\n- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[]\n- Template literals with \${} interpolation (backtick strings)\n- No built-in control flow — use ternary for conditionals\n- throw keyword, exit; is sugar for return null; in void lambdas\n- var keyword for type inference\n- Modifiers: public, private, final`,
+        content: `Write a Calynda function to: ${args['task']}${args['returnType'] ? `\nThe function should return type: ${args['returnType']}` : ''}\n\n${CALYNDA_LANGUAGE_FACTS}`,
       }];
     case 'debug-calynda-code':
       return [{
         role: 'user',
-        content: `Debug this Calynda code${args['problem'] ? ` (Problem: ${args['problem']})` : ''}:\n\n\`\`\`cal\n${args['code']}\n\`\`\`\n\nCalynda is a compiled functional systems programming language. Check for:\n- Syntax errors (missing semicolons, incorrect arrow syntax)\n- Type mismatches and invalid casts\n- Missing or incorrect start(string[] args) -> { ... }; entry point\n- Undefined variables or out-of-scope references\n- Incorrect lambda parameter types\n- Template literal interpolation issues\n- Incorrect use of throw, exit, return`,
+        content: `Debug this Calynda code${args['problem'] ? ` (Problem: ${args['problem']})` : ''}:\n\n\`\`\`cal\n${args['code']}\n\`\`\`\n\n${CALYNDA_LANGUAGE_FACTS}\n\nCheck for:\n- Syntax errors (missing semicolons, incorrect -> arrow syntax)\n- Type mismatches and invalid casts\n- Missing or incorrect start(string[] args) -> { ... }; entry point (must be exactly one)\n- Undefined variables or out-of-scope references\n- Incorrect lambda parameter types\n- Template literal interpolation issues (zero-arg callables are auto-called)\n- Incorrect use of throw, exit, return (exit only in void lambdas)\n- internal visibility violations (nested-lambda-only access)\n- Assignment to non-l-values (imports, packages, final bindings, temporaries)`,
       }];
     case 'convert-to-calynda':
       return [{
         role: 'user',
-        content: `Convert this ${args['sourceLanguage'] || 'code'} to Calynda:\n\n\`\`\`${args['sourceLanguage'] ? args['sourceLanguage'].toLowerCase() : ''}\n${args['code']}\n\`\`\`\n\nCalynda key facts:\n- All functions are lambdas: \`(type param) -> expr\` or \`(type param) -> { ... }\`\n- Entry point must be: \`start(string[] args) -> { ... };\` returning int32\n- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[]\n- Template literals use backticks with \${} interpolation\n- No built-in if/else or loops — use ternary expressions and library functions\n- Use throw for errors, exit; in void lambdas\n- Use var for type inference, or explicit types\n- Modifiers: public, private, final`,
+        content: `Convert this ${args['sourceLanguage'] || 'code'} to Calynda:\n\n\`\`\`${args['sourceLanguage'] ? args['sourceLanguage'].toLowerCase() : ''}\n${args['code']}\n\`\`\`\n\n${CALYNDA_LANGUAGE_FACTS}`,
+      }];
+    case 'explain-compiler-stage':
+      return [{
+        role: 'user',
+        content: `Explain the ${args['stage']} stage of the Calynda compiler.\n\nThe Calynda compiler pipeline:\n- Native path: Source → Tokenizer → Parser → AST → SymbolTable → TypeResolution → TypeChecker → HIR → MIR → LIR → Codegen → Machine → AsmEmit → gcc link → executable\n- Bytecode path: Source → Tokenizer → Parser → AST → SymbolTable → TypeResolution → TypeChecker → HIR → MIR → BytecodeProgram (portable-v1)\n\nMIR is the split point. The runtime is shared infrastructure (strings, arrays, closures, unions, packages), not an interpreter surface.\n\nPlease explain what the ${args['stage']} stage does, its key data structures, and how it fits into the pipeline.`,
       }];
     default:
       return [{ role: 'user', content: `Unknown prompt: ${name}` }];

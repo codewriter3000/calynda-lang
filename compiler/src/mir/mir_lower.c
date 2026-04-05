@@ -191,8 +191,9 @@ bool mr_lower_start_unit(MirBuildContext *context,
     memset(&unit, 0, sizeof(unit));
     memset(&unit_context, 0, sizeof(unit_context));
     unit.kind = MIR_UNIT_START;
-    unit.name = ast_copy_text("start");
+    unit.name = ast_copy_text(start_decl->is_boot ? "boot" : "start");
     unit.return_type = (CheckedType){CHECKED_TYPE_VALUE, AST_PRIMITIVE_INT32, 0, NULL, 0};
+    unit.is_boot = start_decl->is_boot;
     if (!unit.name) {
         mr_set_error(context,
                       start_decl->source_span,

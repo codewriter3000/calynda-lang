@@ -20,11 +20,13 @@ import { getGrammarResource } from './resources/grammar';
 import { getTypesResource } from './resources/types';
 import { getKeywordsResource } from './resources/keywords';
 import { getExamplesResource } from './resources/examples';
+import { getArchitectureResource } from './resources/architecture';
+import { getBytecodeResource } from './resources/bytecode';
 
 import { PROMPTS, getPromptMessages } from './prompts/index';
 
 const server = new Server(
-  { name: 'calynda-mcp-server', version: '0.1.0' },
+  { name: 'calynda-mcp-server', version: '0.2.0' },
   { capabilities: { tools: {}, resources: {}, prompts: {} } }
 );
 
@@ -44,11 +46,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'explain_calynda_syntax',
-      description: 'Explain Calynda language features and syntax',
+      description: 'Explain Calynda language features, syntax, or compiler pipeline stages',
       inputSchema: {
         type: 'object' as const,
         properties: {
-          topic: { type: 'string', description: 'The feature name or code snippet to explain (e.g., "int32", "lambda", "template literal")' },
+          topic: { type: 'string', description: 'The feature, syntax, or pipeline stage to explain (e.g., "lambda", "union", "generics", "HIR", "MIR", "bytecode", "pipeline")' },
         },
         required: ['topic'],
       },
@@ -98,6 +100,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['code'],
       },
     },
+    {
+      name: 'explain_compiler_architecture',
+      description: 'Explain the Calynda compiler architecture, pipeline stages, source tree, build targets, bytecode ISA, or backend strategy',
+      inputSchema: {
+        type: 'object' as const,
+        properties: {
+          topic: { type: 'string', description: 'The architecture topic to explain (e.g., "pipeline", "HIR", "MIR", "bytecode", "backend", "build", "source tree", "codegen", "runtime")' },
+        },
+        required: ['topic'],
+      },
+    },
   ],
 }));
 
@@ -141,6 +154,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const result = formatCode({ code: a['code'] as string });
         return { content: [{ type: 'text' as const, text: result.formatted }] };
       }
+      case 'explain_compiler_architecture': {
+        const a = args as Record<string, unknown>;
+        const result = explainTopic({ topic: a['topic'] as string });
+        return { content: [{ type: 'text' as const, text: result.explanation }] };
+      }
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -154,10 +172,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({
   resources: [
-    { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The full EBNF grammar specification', mimeType: 'text/plain' },
+    { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The full V2 EBNF grammar specification', mimeType: 'text/plain' },
     { uri: 'calynda://types', name: 'Calynda Types', description: 'Documentation for all built-in types', mimeType: 'text/markdown' },
     { uri: 'calynda://keywords', name: 'Calynda Keywords', description: 'All keywords and reserved words', mimeType: 'text/markdown' },
     { uri: 'calynda://examples', name: 'Calynda Examples', description: 'Code examples for common patterns', mimeType: 'text/markdown' },
+    { uri: 'calynda://architecture', name: 'Compiler Architecture', description: 'Full compiler pipeline, source tree, build targets, and stage descriptions', mimeType: 'text/markdown' },
+    { uri: 'calynda://bytecode', name: 'Bytecode ISA', description: 'Portable-v1 bytecode instruction set architecture', mimeType: 'text/markdown' },
   ],
 }));
 
@@ -172,6 +192,10 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       return { contents: [{ uri, mimeType: 'text/markdown', text: getKeywordsResource() }] };
     case 'calynda://examples':
       return { contents: [{ uri, mimeType: 'text/markdown', text: getExamplesResource() }] };
+    case 'calynda://architecture':
+      return { contents: [{ uri, mimeType: 'text/markdown', text: getArchitectureResource() }] };
+    case 'calynda://bytecode':
+      return { contents: [{ uri, mimeType: 'text/markdown', text: getBytecodeResource() }] };
     default:
       throw new Error(`Unknown resource: ${uri}`);
   }

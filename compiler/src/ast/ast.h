@@ -40,6 +40,7 @@ void ast_statement_free(AstStatement *statement);
 AstTopLevelDecl *ast_top_level_decl_new(AstTopLevelDeclKind kind);
 void ast_top_level_decl_free(AstTopLevelDecl *decl);
 bool ast_binding_decl_add_modifier(AstBindingDecl *decl, AstModifier modifier);
+bool ast_asm_decl_add_modifier(AstAsmDecl *decl, AstModifier modifier);
 bool ast_union_decl_add_modifier(AstUnionDecl *decl, AstModifier modifier);
 bool ast_decl_has_modifier(const AstModifier *modifiers, size_t count,
                            AstModifier modifier);

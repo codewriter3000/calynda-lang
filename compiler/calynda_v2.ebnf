@@ -40,14 +40,24 @@ QualifiedName
 
 TopLevelDecl
     = StartDecl
+    | BootDecl
     | BindingDecl
     | UnionDecl
+    | AsmDecl
     ;
 
 (* Entry point — implicitly returns int32 (exit code).              *)
 (* Syntax: start(string[] args) -> { ... };                         *)
 StartDecl
     = "start" "(" ParameterList ")" "->" ( Block | Expression ) ";"
+    ;
+
+(* Bare-metal entry point — no runtime, no parameters.              *)
+(* Implicitly returns int32 (halt code). Mutually exclusive with    *)
+(* StartDecl.                                                       *)
+(* Syntax: boot() -> { ... };                                       *)
+BootDecl
+    = "boot" "(" ")" "->" ( Block | Expression ) ";"
     ;
 
 (* Variable / function binding with optional modifiers.             *)
@@ -58,6 +68,19 @@ StartDecl
 (*   var y = 42;                                                    *)
 BindingDecl
     = { Modifier } ( Type | "var" ) Identifier "=" Expression ";"
+    ;
+
+(* Inline assembly function binding.                                *)
+(* The raw body between { } is passed verbatim to the assembler.    *)
+(* Examples:                                                        *)
+(*   int32 add = asm(int32 a, int32 b) -> { addl %esi, %edi ... }; *)
+(*   export int32 syscall1 = asm(int32 nr, int32 arg) -> { ... };  *)
+AsmDecl
+    = { Modifier } Type Identifier "=" "asm" "(" [ ParameterList ] ")" "->" AsmBody ";"
+    ;
+
+AsmBody
+    = "{" (* raw text, brace-depth tracked *) "}"
     ;
 
 Modifier

@@ -155,10 +155,24 @@ bool lr_lower_mir_unit(LirBuildContext *context,
     unit->return_type = mir_unit->return_type;
     unit->parameter_count = mir_unit->parameter_count;
     unit->virtual_register_count = mir_unit->next_temp_index;
+    unit->is_boot = mir_unit->is_boot;
     if (!unit->name) {
         lr_set_error(context, (AstSourceSpan){0}, NULL,
                      "Out of memory while lowering LIR units.");
         return false;
+    }
+
+    if (mir_unit->kind == MIR_UNIT_ASM) {
+        unit->asm_body = ast_copy_text_n(mir_unit->asm_body,
+                                         mir_unit->asm_body_length);
+        unit->asm_body_length = mir_unit->asm_body_length;
+        if (mir_unit->asm_body && !unit->asm_body) {
+            lr_unit_free(unit);
+            lr_set_error(context, (AstSourceSpan){0}, NULL,
+                         "Out of memory while lowering LIR asm body.");
+            return false;
+        }
+        return true;
     }
 
     for (i = 0; i < mir_unit->local_count; i++) {

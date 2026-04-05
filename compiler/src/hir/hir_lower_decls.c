@@ -101,6 +101,72 @@ bool hr_lower_top_level_decls(HirBuildContext *context) {
             continue;
         }
 
+        /* Lower asm declarations into HIR opaque units */
+        if (ast_decl->kind == AST_TOP_LEVEL_ASM) {
+            const AstAsmDecl *adecl = &ast_decl->as.asm_decl;
+            const Scope *root_scope = symbol_table_root_scope(context->symbols);
+            const Symbol *symbol = scope_lookup_local(root_scope, adecl->name);
+            const TypeCheckInfo *tc_info = symbol ? type_checker_get_symbol_info(context->checker, symbol) : NULL;
+            size_t p;
+
+            hir_decl = hr_top_level_decl_new(HIR_TOP_LEVEL_ASM);
+            if (!hir_decl) {
+                hr_set_error(context, adecl->name_span, NULL,
+                             "Out of memory while lowering HIR asm declaration.");
+                return false;
+            }
+
+            hir_decl->as.asm_decl.name = ast_copy_text(adecl->name);
+            hir_decl->as.asm_decl.symbol = symbol;
+            hir_decl->as.asm_decl.source_span = adecl->name_span;
+            hir_decl->as.asm_decl.is_exported = symbol ? symbol->is_exported : false;
+            hir_decl->as.asm_decl.is_static = symbol ? symbol->is_static : false;
+            hir_decl->as.asm_decl.is_internal = symbol ? symbol->is_internal : false;
+            hir_decl->as.asm_decl.return_type = tc_info ? tc_info->callable_return_type : (CheckedType){0};
+            hir_decl->as.asm_decl.parameter_count = adecl->parameters.count;
+            hir_decl->as.asm_decl.parameter_types = NULL;
+            hir_decl->as.asm_decl.parameter_names = NULL;
+            hir_decl->as.asm_decl.body = ast_copy_text_n(adecl->body, adecl->body_length);
+            hir_decl->as.asm_decl.body_length = adecl->body_length;
+
+            if (adecl->parameters.count > 0) {
+                hir_decl->as.asm_decl.parameter_names = calloc(adecl->parameters.count,
+                                                               sizeof(char *));
+                if (!hir_decl->as.asm_decl.parameter_names) {
+                    free(hir_decl->as.asm_decl.name);
+                    free(hir_decl->as.asm_decl.body);
+                    free(hir_decl);
+                    hr_set_error(context, adecl->name_span, NULL,
+                                 "Out of memory while lowering asm parameters.");
+                    return false;
+                }
+                for (p = 0; p < adecl->parameters.count; p++) {
+                    hir_decl->as.asm_decl.parameter_names[p] =
+                        ast_copy_text(adecl->parameters.items[p].name);
+                }
+            }
+
+            if (!hir_decl->as.asm_decl.name ||
+                (adecl->body_length > 0 && !hir_decl->as.asm_decl.body)) {
+                free(hir_decl->as.asm_decl.name);
+                free(hir_decl->as.asm_decl.body);
+                free(hir_decl);
+                hr_set_error(context, adecl->name_span, NULL,
+                             "Out of memory while lowering asm declaration name/body.");
+                return false;
+            }
+
+            if (!hr_append_top_level_decl(context->program, hir_decl)) {
+                free(hir_decl->as.asm_decl.name);
+                free(hir_decl->as.asm_decl.body);
+                free(hir_decl);
+                hr_set_error(context, adecl->name_span, NULL,
+                             "Out of memory while adding asm to HIR program.");
+                return false;
+            }
+            continue;
+        }
+
         if (ast_decl->kind == AST_TOP_LEVEL_BINDING) {
             const Scope *root_scope = symbol_table_root_scope(context->symbols);
             const Symbol *symbol;
@@ -189,6 +255,7 @@ bool hr_lower_top_level_decls(HirBuildContext *context) {
             }
 
             hir_decl->as.start.source_span = ast_decl->as.start_decl.start_span;
+            hir_decl->as.start.is_boot = ast_decl->as.start_decl.is_boot;
             if (!hr_lower_parameters(context,
                                      &hir_decl->as.start.parameters,
                                      &ast_decl->as.start_decl.parameters,

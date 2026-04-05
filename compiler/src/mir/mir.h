@@ -44,7 +44,8 @@ typedef enum {
     MIR_UNIT_START = 0,
     MIR_UNIT_BINDING,
     MIR_UNIT_INIT,
-    MIR_UNIT_LAMBDA
+    MIR_UNIT_LAMBDA,
+    MIR_UNIT_ASM
 } MirUnitKind;
 
 struct MirUnit {
@@ -60,6 +61,11 @@ struct MirUnit {
     MirBasicBlock *blocks;
     size_t         block_count;
     size_t         block_capacity;
+    /* ASM unit fields */
+    char          *asm_body;
+    size_t         asm_body_length;
+    /* Boot flag for START units */
+    bool           is_boot;
 };
 
 typedef struct {

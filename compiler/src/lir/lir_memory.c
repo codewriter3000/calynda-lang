@@ -194,5 +194,6 @@ void lr_unit_free(LirUnit *unit) {
         lr_basic_block_free(&unit->blocks[i]);
     }
     free(unit->blocks);
+    free(unit->asm_body);
     memset(unit, 0, sizeof(*unit));
 }

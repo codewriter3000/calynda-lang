@@ -11,6 +11,8 @@ const char *symbol_kind_name(SymbolKind kind) {
         return "import";
     case SYMBOL_KIND_TOP_LEVEL_BINDING:
         return "top-level binding";
+    case SYMBOL_KIND_ASM_BINDING:
+        return "asm binding";
     case SYMBOL_KIND_PARAMETER:
         return "parameter";
     case SYMBOL_KIND_LOCAL:

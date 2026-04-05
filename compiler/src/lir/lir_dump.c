@@ -26,6 +26,9 @@ bool lir_dump_program(FILE *out, const LirProgram *program) {
         case LIR_UNIT_LAMBDA:
             unit_kind = "lambda";
             break;
+        case LIR_UNIT_ASM:
+            unit_kind = "asm";
+            break;
         }
 
         fprintf(out, "  Unit name=%s kind=%s return=", unit->name, unit_kind);

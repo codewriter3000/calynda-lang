@@ -37,13 +37,39 @@ export function getCompletions(input: CompleteInput): CompletionItem[] {
     });
   }
 
-  if (prefix === '') {
+  if ('union'.startsWith(prefix)) {
     items.push({
-      label: '() -> {}',
+      label: 'union',
       kind: 'snippet',
-      detail: 'Lambda expression',
-      insertText: '(${1:type} ${2:param}) -> {\n    ${3}\n}',
+      detail: 'Tagged union declaration',
+      insertText: 'union ${1:Name}<${2:T}> { ${3:Variant}(${4:T}) };',
     });
+  }
+
+  if (prefix === '' || 'arr'.startsWith(prefix)) {
+    items.push({
+      label: 'arr<?>',
+      kind: 'snippet',
+      detail: 'Heterogeneous array type',
+      insertText: 'arr<${1:?}>',
+    });
+  }
+
+  if (prefix === '') {
+    items.push(
+      {
+        label: '() -> {}',
+        kind: 'snippet',
+        detail: 'Lambda expression',
+        insertText: '(${1:type} ${2:param}) -> {\n    ${3}\n}',
+      },
+      {
+        label: '() -> expr',
+        kind: 'snippet',
+        detail: 'Expression-body lambda',
+        insertText: '(${1:type} ${2:param}) -> ${3:expr}',
+      },
+    );
   }
 
   return items;

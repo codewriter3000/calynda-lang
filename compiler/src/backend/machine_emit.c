@@ -58,6 +58,8 @@ bool mc_emit_call_global(MachineBuildContext *context,
                          const CodegenUnit *codegen_unit,
                          const LirInstruction *instruction,
                          MachineBlock *block) {
+    const TargetDescriptor *td = mc_target(context);
+    const char *call_mnemonic = mc_is_aarch64(context) ? "bl" : "call";
     bool ok;
 
     (void)lir_unit;
@@ -65,7 +67,8 @@ bool mc_emit_call_global(MachineBuildContext *context,
     ok = mc_emit_preserve_before_call(context, codegen_unit, block) &&
          mc_append_line(context,
                         block,
-                        "call %s",
+                        "%s %s",
+                        call_mnemonic,
                         instruction->as.call.callee.as.global_name) &&
          mc_emit_preserve_after_call(context, codegen_unit, block);
     if (!ok) {
@@ -76,7 +79,7 @@ bool mc_emit_call_global(MachineBuildContext *context,
                                   codegen_unit,
                                   instruction->as.call.dest_vreg,
                                   block,
-                                  codegen_register_name(CODEGEN_REG_RAX));
+                                  td->return_register.name);
     }
 
     return true;
@@ -87,6 +90,8 @@ bool mc_emit_runtime_helper_call(MachineBuildContext *context,
                                  const RuntimeAbiHelperSignature *signature,
                                  MachineBlock *block,
                                  bool is_noreturn) {
+    const char *call_mnemonic = mc_is_aarch64(context) ? "bl" : "call";
+
     if (!signature) {
         mc_set_error(context,
                      (AstSourceSpan){0},
@@ -96,7 +101,7 @@ bool mc_emit_runtime_helper_call(MachineBuildContext *context,
     }
 
     if (!mc_emit_preserve_before_call(context, codegen_unit, block) ||
-        !mc_append_line(context, block, "call %s", signature->name)) {
+        !mc_append_line(context, block, "%s %s", call_mnemonic, signature->name)) {
         return false;
     }
     if (!is_noreturn && !mc_emit_preserve_after_call(context, codegen_unit, block)) {
@@ -113,6 +118,10 @@ bool mc_emit_terminator(MachineBuildContext *context,
                         MachineBlock *block) {
     const LirTerminator *terminator;
     const CodegenSelectedTerminator *selected;
+    const TargetDescriptor *td = mc_target(context);
+    bool is_arm64 = mc_is_aarch64(context);
+    const char *jmp_mnemonic = is_arm64 ? "b" : "jmp";
+    const char *jne_mnemonic = is_arm64 ? "b.ne" : "jne";
 
     if (!lir_block || !machine_unit || !block) {
         return false;
@@ -128,13 +137,14 @@ bool mc_emit_terminator(MachineBuildContext *context,
                 char *value = NULL;
                 bool ok;
 
-                if (!mc_format_operand(lir_unit,
+                if (!mc_format_operand(td, lir_unit,
                                        codegen_unit,
                                        terminator->as.return_term.value,
                                        &value)) {
                     return false;
                 }
-                ok = mc_append_line(context, block, "mov rax, %s", value);
+                ok = mc_append_line(context, block, "mov %s, %s",
+                                    td->return_register.name, value);
                 free(value);
                 if (!ok) {
                     return false;
@@ -145,13 +155,14 @@ bool mc_emit_terminator(MachineBuildContext *context,
         case CODEGEN_DIRECT_JUMP:
             return mc_append_line(context,
                                   block,
-                                  "jmp %s",
+                                  "%s %s",
+                                  jmp_mnemonic,
                                   codegen_unit->blocks[terminator->as.jump_term.target_block].label);
         case CODEGEN_DIRECT_BRANCH: {
             char *condition = NULL;
             bool ok;
 
-            if (!mc_format_operand(lir_unit,
+            if (!mc_format_operand(td, lir_unit,
                                    codegen_unit,
                                    terminator->as.branch_term.condition,
                                    &condition)) {
@@ -160,11 +171,13 @@ bool mc_emit_terminator(MachineBuildContext *context,
             ok = mc_append_line(context, block, "cmp %s, bool(false)", condition) &&
                  mc_append_line(context,
                                 block,
-                                "jne %s",
+                                "%s %s",
+                                jne_mnemonic,
                                 codegen_unit->blocks[terminator->as.branch_term.true_block].label) &&
                  mc_append_line(context,
                                 block,
-                                "jmp %s",
+                                "%s %s",
+                                jmp_mnemonic,
                                 codegen_unit->blocks[terminator->as.branch_term.false_block].label);
             free(condition);
             return ok;
@@ -194,10 +207,11 @@ bool mc_emit_terminator(MachineBuildContext *context,
         char *value = NULL;
         bool ok;
 
-        if (!mc_format_operand(lir_unit, codegen_unit, terminator->as.throw_term.value, &value)) {
+        if (!mc_format_operand(td, lir_unit, codegen_unit, terminator->as.throw_term.value, &value)) {
             return false;
         }
-        ok = mc_append_line(context, block, "mov rdi, %s", value) &&
+        ok = mc_append_line(context, block, "mov %s, %s",
+                            td->arg_registers[0].name, value) &&
              mc_emit_runtime_helper_call(context, codegen_unit, signature, block, true);
         free(value);
         return ok;

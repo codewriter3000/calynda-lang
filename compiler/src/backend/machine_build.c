@@ -30,8 +30,9 @@ bool mc_build_unit(MachineBuildContext *context,
     machine_unit->parameter_count = lir_unit->parameter_count;
     machine_unit->frame_slot_count = codegen_unit->frame_slot_count;
     machine_unit->spill_slot_count = codegen_unit->spill_slot_count;
+    machine_unit->is_boot = lir_unit->is_boot;
     machine_unit->helper_slot_count = mc_compute_helper_slot_count(lir_unit, codegen_unit);
-    machine_unit->outgoing_stack_slot_count = mc_compute_outgoing_stack_slot_count(lir_unit, codegen_unit);
+    machine_unit->outgoing_stack_slot_count = mc_compute_outgoing_stack_slot_count(lir_unit, codegen_unit, context->program->target_desc);
     machine_unit->block_count = lir_unit->block_count;
     if (!machine_unit->name) {
         mc_set_error(context,
@@ -40,6 +41,22 @@ bool mc_build_unit(MachineBuildContext *context,
                      "Out of memory while naming machine unit.");
         return false;
     }
+
+    if (lir_unit->kind == LIR_UNIT_ASM) {
+        machine_unit->asm_body = ast_copy_text_n(codegen_unit->asm_body,
+                                                 codegen_unit->asm_body_length);
+        machine_unit->asm_body_length = codegen_unit->asm_body_length;
+        if (codegen_unit->asm_body && !machine_unit->asm_body) {
+            mc_unit_free(machine_unit);
+            mc_set_error(context,
+                         (AstSourceSpan){0},
+                         NULL,
+                         "Out of memory while building machine asm body.");
+            return false;
+        }
+        return true;
+    }
+
     if (machine_unit->frame_slot_count > 0) {
         size_t slot_index;
 

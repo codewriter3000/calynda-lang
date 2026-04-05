@@ -3,6 +3,7 @@
 #include "lir.h"
 #include "mir.h"
 #include "parser.h"
+#include "target.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,7 +127,7 @@ static void test_codegen_dump_defines_x86_64_sysv_target_and_direct_patterns(voi
                  "lower MIR for codegen program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for codegen program");
-    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program),
+    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program, target_get_default()),
                  "build codegen plan for minimal direct patterns");
 
     dump = codegen_dump_program_to_string(&codegen_program);
@@ -184,7 +185,7 @@ static void test_codegen_dump_distinguishes_runtime_backed_operations(void) {
                  "lower MIR for runtime-boundary program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for runtime-boundary program");
-    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program),
+    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program, target_get_default()),
                  "build codegen plan for runtime boundary program");
 
     dump = codegen_dump_program_to_string(&codegen_program);
@@ -260,7 +261,7 @@ static void test_codegen_dump_allocates_registers_then_spills(void) {
                  "lower MIR for spilling codegen program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for spilling codegen program");
-    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program),
+    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program, target_get_default()),
                  "build codegen plan for spilling program");
 
     dump = codegen_dump_program_to_string(&codegen_program);
@@ -332,7 +333,7 @@ static void test_codegen_dump_routes_throw_through_runtime_helper(void) {
                  "lower MIR for throw codegen program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for throw codegen program");
-    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program),
+    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program, target_get_default()),
                  "build codegen plan for throw codegen program");
 
     dump = codegen_dump_program_to_string(&codegen_program);

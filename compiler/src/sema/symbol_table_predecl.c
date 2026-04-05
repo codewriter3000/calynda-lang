@@ -96,6 +96,50 @@ bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *prog
                 st_symbol_free(symbol);
                 return false;
             }
+        } else if (decl->kind == AST_TOP_LEVEL_ASM) {
+            const AstAsmDecl *asm_decl = &decl->as.asm_decl;
+            const Symbol *conflicting_symbol = scope_lookup_local(table->root_scope,
+                                                                  asm_decl->name);
+            if (!conflicting_symbol) {
+                conflicting_symbol = symbol_table_find_import(table, asm_decl->name);
+            }
+            Symbol *symbol;
+
+            if (conflicting_symbol) {
+                st_set_error_at(table,
+                                asm_decl->name_span,
+                                &conflicting_symbol->declaration_span,
+                                "Duplicate symbol '%s' in %s.",
+                                asm_decl->name,
+                                scope_kind_name(table->root_scope->kind));
+                return false;
+            }
+
+            symbol = st_symbol_new(table, SYMBOL_KIND_ASM_BINDING,
+                                   asm_decl->name, NULL,
+                                   &asm_decl->return_type,
+                                   false, /* is_inferred_type */
+                                   true,  /* is_final — asm bindings are always final */
+                                   ast_decl_has_modifier(asm_decl->modifiers,
+                                                         asm_decl->modifier_count,
+                                                         AST_MODIFIER_EXPORT),
+                                   ast_decl_has_modifier(asm_decl->modifiers,
+                                                         asm_decl->modifier_count,
+                                                         AST_MODIFIER_STATIC),
+                                   ast_decl_has_modifier(asm_decl->modifiers,
+                                                         asm_decl->modifier_count,
+                                                         AST_MODIFIER_INTERNAL),
+                                   asm_decl->name_span,
+                                   asm_decl,
+                                   table->root_scope);
+            if (!symbol) {
+                return false;
+            }
+
+            if (!st_scope_append_symbol(table, table->root_scope, symbol)) {
+                st_symbol_free(symbol);
+                return false;
+            }
         }
     }
 

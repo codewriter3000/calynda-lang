@@ -145,6 +145,8 @@ LirUnitKind lr_unit_kind_from_mir(MirUnitKind kind) {
         return LIR_UNIT_INIT;
     case MIR_UNIT_LAMBDA:
         return LIR_UNIT_LAMBDA;
+    case MIR_UNIT_ASM:
+        return LIR_UNIT_ASM;
     }
 
     return LIR_UNIT_BINDING;

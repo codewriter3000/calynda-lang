@@ -210,6 +210,38 @@ bool mir_build_program(MirProgram *program, const HirProgram *hir_program) {
             continue;
         }
 
+        if (decl->kind == HIR_TOP_LEVEL_ASM) {
+            MirUnit asm_unit;
+            memset(&asm_unit, 0, sizeof(asm_unit));
+            asm_unit.kind = MIR_UNIT_ASM;
+            asm_unit.name = ast_copy_text(decl->as.asm_decl.name);
+            asm_unit.symbol = decl->as.asm_decl.symbol;
+            asm_unit.return_type = decl->as.asm_decl.return_type;
+            asm_unit.parameter_count = decl->as.asm_decl.parameter_count;
+            asm_unit.asm_body = ast_copy_text_n(decl->as.asm_decl.body,
+                                                decl->as.asm_decl.body_length);
+            asm_unit.asm_body_length = decl->as.asm_decl.body_length;
+            if (!asm_unit.name || !asm_unit.asm_body) {
+                mr_unit_free(&asm_unit);
+                mr_set_error(&context,
+                              decl->as.asm_decl.source_span,
+                              NULL,
+                              "Out of memory while lowering asm unit '%s'.",
+                              decl->as.asm_decl.name);
+                return false;
+            }
+            if (!mr_append_unit(context.program, asm_unit)) {
+                mr_unit_free(&asm_unit);
+                mr_set_error(&context,
+                              decl->as.asm_decl.source_span,
+                              NULL,
+                              "Out of memory while appending asm unit '%s'.",
+                              decl->as.asm_decl.name);
+                return false;
+            }
+            continue;
+        }
+
         if (mr_top_level_binding_uses_lambda_unit(decl)) {
             if (!mr_lower_lambda_unit(&context,
                                    decl->as.binding.name,

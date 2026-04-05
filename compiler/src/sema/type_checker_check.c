@@ -109,6 +109,21 @@ bool type_checker_check_program(TypeChecker *checker,
             if (!tc_resolve_symbol_info(checker, symbol)) {
                 return false;
             }
+        } else if (decl->kind == AST_TOP_LEVEL_ASM) {
+            const Symbol *symbol = scope_lookup_local(root_scope, decl->as.asm_decl.name);
+
+            if (!symbol) {
+                tc_set_error_at(checker,
+                                decl->as.asm_decl.name_span,
+                                NULL,
+                                "Internal error: missing symbol for asm binding '%s'.",
+                                decl->as.asm_decl.name);
+                return false;
+            }
+
+            if (!tc_resolve_symbol_info(checker, symbol)) {
+                return false;
+            }
         } else if (!tc_check_start_decl(checker, &decl->as.start_decl)) {
             return false;
         }

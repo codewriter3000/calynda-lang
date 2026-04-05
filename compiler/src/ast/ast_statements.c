@@ -101,6 +101,9 @@ AstTopLevelDecl *ast_top_level_decl_new(AstTopLevelDeclKind kind) {
         ast_type_init_void(&decl->as.binding_decl.declared_type);
     } else if (kind == AST_TOP_LEVEL_UNION) {
         memset(&decl->as.union_decl, 0, sizeof(decl->as.union_decl));
+    } else if (kind == AST_TOP_LEVEL_ASM) {
+        ast_type_init_void(&decl->as.asm_decl.return_type);
+        ast_parameter_list_init(&decl->as.asm_decl.parameters);
     }
 
     return decl;
@@ -122,12 +125,34 @@ void ast_top_level_decl_free(AstTopLevelDecl *decl) {
     case AST_TOP_LEVEL_UNION:
         ast_union_decl_free_fields(&decl->as.union_decl);
         break;
+    case AST_TOP_LEVEL_ASM:
+        free(decl->as.asm_decl.modifiers);
+        ast_type_free(&decl->as.asm_decl.return_type);
+        free(decl->as.asm_decl.name);
+        ast_parameter_list_free(&decl->as.asm_decl.parameters);
+        free(decl->as.asm_decl.body);
+        memset(&decl->as.asm_decl, 0, sizeof(decl->as.asm_decl));
+        break;
     }
 
     free(decl);
 }
 
 bool ast_binding_decl_add_modifier(AstBindingDecl *decl, AstModifier modifier) {
+    if (!decl) {
+        return false;
+    }
+
+    if (!ast_reserve_items((void **)&decl->modifiers, &decl->modifier_capacity,
+                           decl->modifier_count + 1, sizeof(*decl->modifiers))) {
+        return false;
+    }
+
+    decl->modifiers[decl->modifier_count++] = modifier;
+    return true;
+}
+
+bool ast_asm_decl_add_modifier(AstAsmDecl *decl, AstModifier modifier) {
     if (!decl) {
         return false;
     }

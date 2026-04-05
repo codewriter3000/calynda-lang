@@ -302,6 +302,38 @@ static void test_build_native_auto_calls_zero_arg_template_callable(void) {
     unlink(output_path);
 }
 
+static void test_build_native_runs_boot_program(void) {
+    static const char source[] =
+        "boot() -> 13;\n";
+    char output_path[64];
+    char *run_argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build boot native executable");
+    exit_code = run_process(output_path, run_argv);
+    ASSERT_EQ_INT(13, exit_code, "boot native executable returns the boot result");
+    unlink(output_path);
+}
+
+static void test_build_native_runs_boot_program_with_block(void) {
+    static const char source[] =
+        "boot() -> {\n"
+        "    int32 x = 3;\n"
+        "    int32 y = 4;\n"
+        "    return x + y;\n"
+        "};\n";
+    char output_path[64];
+    char *run_argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build boot block native executable");
+    exit_code = run_process(output_path, run_argv);
+    ASSERT_EQ_INT(7, exit_code, "boot block native executable returns computed result");
+    unlink(output_path);
+}
+
 int main(void) {
     printf("Running native build tests...\n\n");
 
@@ -309,6 +341,8 @@ int main(void) {
     RUN_TEST(test_build_native_handles_direct_eight_argument_calls);
     RUN_TEST(test_build_native_runs_runtime_lambda_program);
     RUN_TEST(test_build_native_auto_calls_zero_arg_template_callable);
+    RUN_TEST(test_build_native_runs_boot_program);
+    RUN_TEST(test_build_native_runs_boot_program_with_block);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

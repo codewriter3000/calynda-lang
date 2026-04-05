@@ -1,7 +1,9 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "asm_emit.h"
+#include "machine.h"
 #include "parser.h"
+#include "target.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -14,7 +16,8 @@ bool build_native_executable_directory(char *buffer, size_t buffer_size);
 bool build_native_write_temp_assembly(const char *assembly, char *path_buffer, size_t buffer_size);
 int build_native_run_linker(const char *assembly_path,
                             const char *runtime_object_path,
-                            const char *output_path);
+                            const char *output_path,
+                            bool is_boot);
 static void print_usage(const char *program_name);
 static int build_program_file(const char *source_path, const char *output_path);
 
@@ -106,7 +109,7 @@ static int build_program_file(const char *source_path, const char *output_path) 
     if (!hir_build_program(&hir_program, &program, &symbols, &checker) ||
         !mir_build_program(&mir_program, &hir_program) ||
         !lir_build_program(&lir_program, &mir_program) ||
-        !codegen_build_program(&codegen_program, &lir_program) ||
+        !codegen_build_program(&codegen_program, &lir_program, target_get_default()) ||
         !machine_build_program(&machine_program, &lir_program, &codegen_program)) {
         fprintf(stderr, "%s: backend lowering failed\n", source_path);
         exit_code = 1;
@@ -136,7 +139,9 @@ static int build_program_file(const char *source_path, const char *output_path) 
         goto cleanup;
     }
 
-    link_exit_code = build_native_run_linker(assembly_path, runtime_object_path, output_path);
+    link_exit_code = build_native_run_linker(assembly_path, runtime_object_path,
+                                              output_path,
+                                              machine_program_has_boot(&machine_program));
     if (link_exit_code != 0) {
         fprintf(stderr,
                 "%s: native link failed (gcc exit %d). Preserved assembly at %s\n",

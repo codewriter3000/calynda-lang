@@ -10,26 +10,67 @@ bool ae_emit_unit_text(AsmEmitContext *context,
     AsmUnitSymbol *symbol;
     AsmUnitLayout layout;
     size_t block_index;
+    bool is_arm64 = context->program->target_desc &&
+                    context->program->target_desc->kind == TARGET_KIND_AARCH64_AAPCS_ELF;
 
     symbol = ae_ensure_unit_symbol(context, unit->name);
     if (!symbol) {
         return false;
     }
-    layout = ae_compute_unit_layout(unit);
 
-    if (!ae_emit_line(out, ".globl %s\n%s:\n", symbol->symbol, symbol->symbol) ||
-        !ae_emit_line(out, "    push rbp\n    mov rbp, rsp\n    push r14\n")) {
-        return false;
+    if (unit->kind == LIR_UNIT_ASM) {
+        if (!ae_emit_line(out, ".globl %s\n%s:\n", symbol->symbol, symbol->symbol)) {
+            return false;
+        }
+        if (unit->asm_body && unit->asm_body_length > 0) {
+            if (fwrite(unit->asm_body, 1, unit->asm_body_length, out) != unit->asm_body_length) {
+                return false;
+            }
+            if (unit->asm_body[unit->asm_body_length - 1] != '\n') {
+                if (fputc('\n', out) == EOF) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
-    if (layout.saves_r12 && !ae_emit_line(out, "    push r12\n")) {
-        return false;
-    }
-    if (layout.saves_r13 && !ae_emit_line(out, "    push r13\n")) {
-        return false;
-    }
-    if (layout.total_local_words > 0 &&
-        !ae_emit_line(out, "    sub rsp, %zu\n", layout.total_local_words * 8)) {
-        return false;
+
+    if (is_arm64) {
+        size_t frame_size;
+
+        layout = ae_compute_unit_layout_aarch64(unit);
+        frame_size = (layout.saved_reg_words + layout.total_local_words) * 8;
+
+        if (!ae_emit_line(out, ".globl %s\n%s:\n", symbol->symbol, symbol->symbol) ||
+            !ae_emit_line(out, "    stp x29, x30, [sp, #-16]!\n") ||
+            !ae_emit_line(out, "    mov x29, sp\n")) {
+            return false;
+        }
+        if (frame_size > 0 &&
+            !ae_emit_line(out, "    sub sp, sp, #%zu\n", frame_size)) {
+            return false;
+        }
+        /* Save work register (x16) at first slot below FP */
+        if (!ae_emit_line(out, "    str x16, [x29, #-8]\n")) {
+            return false;
+        }
+    } else {
+        layout = ae_compute_unit_layout(unit);
+
+        if (!ae_emit_line(out, ".globl %s\n%s:\n", symbol->symbol, symbol->symbol) ||
+            !ae_emit_line(out, "    push rbp\n    mov rbp, rsp\n    push r14\n")) {
+            return false;
+        }
+        if (layout.saves_r12 && !ae_emit_line(out, "    push r12\n")) {
+            return false;
+        }
+        if (layout.saves_r13 && !ae_emit_line(out, "    push r13\n")) {
+            return false;
+        }
+        if (layout.total_local_words > 0 &&
+            !ae_emit_line(out, "    sub rsp, %zu\n", layout.total_local_words * 8)) {
+            return false;
+        }
     }
 
     for (block_index = 0; block_index < unit->block_count; block_index++) {
@@ -42,14 +83,28 @@ bool ae_emit_unit_text(AsmEmitContext *context,
         for (instruction_index = 0;
              instruction_index < unit->blocks[block_index].instruction_count;
              instruction_index++) {
-            if (!ae_emit_machine_instruction(context,
-                                          out,
-                                          unit,
-                                          &layout,
-                                          unit_index,
-                                          block_index,
-                                          instruction_index,
-                                          unit->blocks[block_index].instructions[instruction_index].text)) {
+            bool instr_ok;
+
+            if (is_arm64) {
+                instr_ok = ae_emit_machine_instruction_aarch64(context,
+                                              out,
+                                              unit,
+                                              &layout,
+                                              unit_index,
+                                              block_index,
+                                              instruction_index,
+                                              unit->blocks[block_index].instructions[instruction_index].text);
+            } else {
+                instr_ok = ae_emit_machine_instruction(context,
+                                              out,
+                                              unit,
+                                              &layout,
+                                              unit_index,
+                                              block_index,
+                                              instruction_index,
+                                              unit->blocks[block_index].instructions[instruction_index].text);
+            }
+            if (!instr_ok) {
                 return false;
             }
         }

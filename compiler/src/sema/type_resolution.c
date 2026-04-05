@@ -56,6 +56,22 @@ bool type_resolver_resolve_program(TypeResolver *resolver, const AstProgram *pro
                     }
                 }
             }
+        } else if (decl->kind == AST_TOP_LEVEL_ASM) {
+            const AstAsmDecl *asm_decl = &decl->as.asm_decl;
+            size_t p;
+            if (!tr_resolve_declared_type(resolver,
+                                          &asm_decl->return_type,
+                                          asm_decl->name_span,
+                                          "Asm binding",
+                                          asm_decl->name,
+                                          true)) {
+                return false;
+            }
+            for (p = 0; p < asm_decl->parameters.count; p++) {
+                if (!tr_resolve_parameter(resolver, &asm_decl->parameters.items[p])) {
+                    return false;
+                }
+            }
         } else if (!tr_resolve_start_decl(resolver, &decl->as.start_decl)) {
             return false;
         }

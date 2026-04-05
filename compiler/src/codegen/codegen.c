@@ -7,6 +7,7 @@ void codegen_program_init(CodegenProgram *program) {
 
     memset(program, 0, sizeof(*program));
     program->target = CODEGEN_TARGET_X86_64_SYSV_ELF;
+    program->target_desc = target_get_default();
 }
 
 void codegen_program_free(CodegenProgram *program) {
@@ -65,7 +66,9 @@ bool codegen_format_error(const CodegenBuildError *error,
     return written >= 0 && (size_t)written < buffer_size;
 }
 
-bool codegen_build_program(CodegenProgram *program, const LirProgram *lir_program) {
+bool codegen_build_program(CodegenProgram *program,
+                           const LirProgram *lir_program,
+                           const TargetDescriptor *target) {
     CodegenBuildContext context;
     size_t i;
 
@@ -76,9 +79,15 @@ bool codegen_build_program(CodegenProgram *program, const LirProgram *lir_progra
     codegen_program_free(program);
     codegen_program_init(program);
 
+    if (target) {
+        program->target = target->kind;
+        program->target_desc = target;
+    }
+
     memset(&context, 0, sizeof(context));
     context.program = program;
     context.lir_program = lir_program;
+    context.target = program->target_desc;
 
     if (lir_get_error(lir_program) != NULL) {
         cg_set_error(&context,

@@ -31,6 +31,8 @@ const char *codegen_dump_unit_kind_name(LirUnitKind kind) {
         return "init";
     case LIR_UNIT_LAMBDA:
         return "lambda";
+    case LIR_UNIT_ASM:
+        return "asm";
     }
 
     return "unknown";

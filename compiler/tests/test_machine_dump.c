@@ -5,6 +5,7 @@
 #include "mir.h"
 #include "parser.h"
 #include "runtime_abi.h"
+#include "target.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -99,7 +100,7 @@ static bool build_machine_dump_from_source(const char *source, char **dump_out) 
         !hir_build_program(&hir_program, &ast_program, &symbols, &checker) ||
         !mir_build_program(&mir_program, &hir_program) ||
         !lir_build_program(&lir_program, &mir_program) ||
-        !codegen_build_program(&codegen_program, &lir_program) ||
+        !codegen_build_program(&codegen_program, &lir_program, target_get_default()) ||
         !machine_build_program(&machine_program, &lir_program, &codegen_program)) {
         goto cleanup;
     }

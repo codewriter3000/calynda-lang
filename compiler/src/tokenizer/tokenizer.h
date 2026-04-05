@@ -32,6 +32,7 @@ typedef enum {
     TOK_PACKAGE,
     TOK_IMPORT,
     TOK_START,
+    TOK_BOOT,
     TOK_VAR,
     TOK_PUBLIC,
     TOK_PRIVATE,
@@ -54,6 +55,8 @@ typedef enum {
     TOK_CALLOC,
     TOK_REALLOC,
     TOK_FREE,
+    TOK_ASM,
+    TOK_ASM_BODY,
 
     /* Primitive type keywords */
     TOK_INT8,
@@ -171,6 +174,7 @@ typedef struct {
     int         column;
     int         template_depth;   /* nesting depth of template literals */
     int         interpolation_brace_depth[TOKENIZER_MAX_TEMPLATE_DEPTH];
+    int         asm_body_pending;  /* true after TOK_ASM; next '{' triggers raw scan */
 } Tokenizer;
 
 /* ------------------------------------------------------------------ */

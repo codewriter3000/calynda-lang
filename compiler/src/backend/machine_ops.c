@@ -11,12 +11,14 @@ bool mc_emit_binary(MachineBuildContext *context,
     char *left = NULL;
     char *right = NULL;
     const CodegenVRegAllocation *allocation;
+    const TargetDescriptor *td = mc_target(context);
     const char *work_reg;
     bool is_unsigned;
+    bool is_arm64 = mc_is_aarch64(context);
     bool ok = false;
 
-    if (!mc_format_operand(lir_unit, codegen_unit, instruction->as.binary.left, &left) ||
-        !mc_format_operand(lir_unit, codegen_unit, instruction->as.binary.right, &right)) {
+    if (!mc_format_operand(td, lir_unit, codegen_unit, instruction->as.binary.left, &left) ||
+        !mc_format_operand(td, lir_unit, codegen_unit, instruction->as.binary.right, &right)) {
         goto cleanup;
     }
     if (instruction->as.binary.dest_vreg >= codegen_unit->vreg_count) {
@@ -30,11 +32,93 @@ bool mc_emit_binary(MachineBuildContext *context,
 
     allocation = &codegen_unit->vreg_allocations[instruction->as.binary.dest_vreg];
     work_reg = allocation->location.kind == CODEGEN_VREG_REGISTER
-        ? codegen_register_name(allocation->location.as.reg)
-        : codegen_register_name(CODEGEN_REG_R14);
+        ? target_register_name(td, allocation->location.as.reg)
+        : td->work_register.name;
     is_unsigned = mc_checked_type_is_unsigned(instruction->as.binary.left.type);
 
-    switch (instruction->as.binary.operator) {
+    if (is_arm64) {
+        /* ARM64: 3-operand instructions */
+        switch (instruction->as.binary.operator) {
+        case AST_BINARY_OP_ADD:
+            ok = mc_append_line(context, block, "add %s, %s, %s", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_SUBTRACT:
+            ok = mc_append_line(context, block, "sub %s, %s, %s", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_MULTIPLY:
+            ok = mc_append_line(context, block, "mul %s, %s, %s", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_DIVIDE:
+            ok = mc_append_line(context, block, "%s %s, %s, %s",
+                                is_unsigned ? "udiv" : "sdiv", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_MODULO:
+            /* ARM64: remainder = dividend - (dividend / divisor) * divisor
+             * Using msub: msub Rd, Rm, Rn, Ra => Rd = Ra - Rm * Rn */
+            ok = mc_append_line(context, block, "%s %s, %s, %s",
+                                is_unsigned ? "udiv" : "sdiv", td->work_register.name, left, right) &&
+                 mc_append_line(context, block, "msub %s, %s, %s, %s",
+                                work_reg, td->work_register.name, right, left);
+            break;
+        case AST_BINARY_OP_BIT_AND:
+            ok = mc_append_line(context, block, "and %s, %s, %s", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_BIT_OR:
+            ok = mc_append_line(context, block, "orr %s, %s, %s", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_BIT_XOR:
+            ok = mc_append_line(context, block, "eor %s, %s, %s", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_BIT_NAND:
+            ok = mc_append_line(context, block, "and %s, %s, %s", work_reg, left, right) &&
+                 mc_append_line(context, block, "mvn %s, %s", work_reg, work_reg);
+            break;
+        case AST_BINARY_OP_BIT_XNOR:
+            ok = mc_append_line(context, block, "eor %s, %s, %s", work_reg, left, right) &&
+                 mc_append_line(context, block, "mvn %s, %s", work_reg, work_reg);
+            break;
+        case AST_BINARY_OP_SHIFT_LEFT:
+            ok = mc_append_line(context, block, "lsl %s, %s, %s", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_SHIFT_RIGHT:
+            ok = mc_append_line(context, block, "%s %s, %s, %s",
+                                is_unsigned ? "lsr" : "asr", work_reg, left, right);
+            break;
+        case AST_BINARY_OP_EQUAL:
+            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
+                 mc_append_line(context, block, "cset %s, eq", work_reg);
+            break;
+        case AST_BINARY_OP_NOT_EQUAL:
+            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
+                 mc_append_line(context, block, "cset %s, ne", work_reg);
+            break;
+        case AST_BINARY_OP_LESS:
+            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
+                 mc_append_line(context, block, "cset %s, %s", work_reg, is_unsigned ? "lo" : "lt");
+            break;
+        case AST_BINARY_OP_GREATER:
+            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
+                 mc_append_line(context, block, "cset %s, %s", work_reg, is_unsigned ? "hi" : "gt");
+            break;
+        case AST_BINARY_OP_LESS_EQUAL:
+            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
+                 mc_append_line(context, block, "cset %s, %s", work_reg, is_unsigned ? "ls" : "le");
+            break;
+        case AST_BINARY_OP_GREATER_EQUAL:
+            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
+                 mc_append_line(context, block, "cset %s, %s", work_reg, is_unsigned ? "hs" : "ge");
+            break;
+        case AST_BINARY_OP_LOGICAL_AND:
+        case AST_BINARY_OP_LOGICAL_OR:
+            mc_set_error(context,
+                         (AstSourceSpan){0},
+                         NULL,
+                         "Logical short-circuit operators should not reach direct binary machine emission.");
+            goto cleanup;
+        }
+    } else {
+        /* x86_64: 2-operand instructions */
+        switch (instruction->as.binary.operator) {
     case AST_BINARY_OP_ADD:
         ok = mc_append_line(context, block, "mov %s, %s", work_reg, left) &&
              mc_append_line(context, block, "add %s, %s", work_reg, right);
@@ -137,6 +221,7 @@ bool mc_emit_binary(MachineBuildContext *context,
                      "Logical short-circuit operators should not reach direct binary machine emission.");
         goto cleanup;
     }
+    } /* end else (x86_64) */
 
     if (ok) {
         ok = mc_emit_store_vreg(context,
@@ -159,10 +244,12 @@ bool mc_emit_unary(MachineBuildContext *context,
                    MachineBlock *block) {
     char *operand = NULL;
     const CodegenVRegAllocation *allocation;
+    const TargetDescriptor *td = mc_target(context);
     const char *work_reg;
+    bool is_arm64 = mc_is_aarch64(context);
     bool ok = false;
 
-    if (!mc_format_operand(lir_unit, codegen_unit, instruction->as.unary.operand, &operand)) {
+    if (!mc_format_operand(td, lir_unit, codegen_unit, instruction->as.unary.operand, &operand)) {
         goto cleanup;
     }
     if (instruction->as.unary.dest_vreg >= codegen_unit->vreg_count) {
@@ -176,36 +263,62 @@ bool mc_emit_unary(MachineBuildContext *context,
 
     allocation = &codegen_unit->vreg_allocations[instruction->as.unary.dest_vreg];
     work_reg = allocation->location.kind == CODEGEN_VREG_REGISTER
-        ? codegen_register_name(allocation->location.as.reg)
-        : codegen_register_name(CODEGEN_REG_R14);
+        ? target_register_name(td, allocation->location.as.reg)
+        : td->work_register.name;
 
     ok = mc_append_line(context, block, "mov %s, %s", work_reg, operand);
     if (!ok) {
         goto cleanup;
     }
 
-    switch (instruction->as.unary.operator) {
-    case AST_UNARY_OP_PLUS:
-        break;
-    case AST_UNARY_OP_NEGATE:
-        ok = mc_append_line(context, block, "neg %s", work_reg);
-        break;
-    case AST_UNARY_OP_BITWISE_NOT:
-        ok = mc_append_line(context, block, "not %s", work_reg);
-        break;
-    case AST_UNARY_OP_LOGICAL_NOT:
-        ok = mc_append_line(context, block, "cmp %s, bool(false)", work_reg) &&
-             mc_append_line(context, block, "sete %s", work_reg);
-        break;
-    case AST_UNARY_OP_PRE_INCREMENT:
-        ok = mc_append_line(context, block, "inc %s", work_reg);
-        break;
-    case AST_UNARY_OP_PRE_DECREMENT:
-        ok = mc_append_line(context, block, "dec %s", work_reg);
-        break;
-    case AST_UNARY_OP_DEREF:
-    case AST_UNARY_OP_ADDRESS_OF:
-        break;
+    if (is_arm64) {
+        switch (instruction->as.unary.operator) {
+        case AST_UNARY_OP_PLUS:
+            break;
+        case AST_UNARY_OP_NEGATE:
+            ok = mc_append_line(context, block, "neg %s, %s", work_reg, work_reg);
+            break;
+        case AST_UNARY_OP_BITWISE_NOT:
+            ok = mc_append_line(context, block, "mvn %s, %s", work_reg, work_reg);
+            break;
+        case AST_UNARY_OP_LOGICAL_NOT:
+            ok = mc_append_line(context, block, "cmp %s, bool(false)", work_reg) &&
+                 mc_append_line(context, block, "cset %s, eq", work_reg);
+            break;
+        case AST_UNARY_OP_PRE_INCREMENT:
+            ok = mc_append_line(context, block, "add %s, %s, i64(1)", work_reg, work_reg);
+            break;
+        case AST_UNARY_OP_PRE_DECREMENT:
+            ok = mc_append_line(context, block, "sub %s, %s, i64(1)", work_reg, work_reg);
+            break;
+        case AST_UNARY_OP_DEREF:
+        case AST_UNARY_OP_ADDRESS_OF:
+            break;
+        }
+    } else {
+        switch (instruction->as.unary.operator) {
+        case AST_UNARY_OP_PLUS:
+            break;
+        case AST_UNARY_OP_NEGATE:
+            ok = mc_append_line(context, block, "neg %s", work_reg);
+            break;
+        case AST_UNARY_OP_BITWISE_NOT:
+            ok = mc_append_line(context, block, "not %s", work_reg);
+            break;
+        case AST_UNARY_OP_LOGICAL_NOT:
+            ok = mc_append_line(context, block, "cmp %s, bool(false)", work_reg) &&
+                 mc_append_line(context, block, "sete %s", work_reg);
+            break;
+        case AST_UNARY_OP_PRE_INCREMENT:
+            ok = mc_append_line(context, block, "inc %s", work_reg);
+            break;
+        case AST_UNARY_OP_PRE_DECREMENT:
+            ok = mc_append_line(context, block, "dec %s", work_reg);
+            break;
+        case AST_UNARY_OP_DEREF:
+        case AST_UNARY_OP_ADDRESS_OF:
+            break;
+        }
     }
 
     if (ok) {
@@ -226,10 +339,11 @@ bool mc_emit_cast(MachineBuildContext *context,
                   const CodegenUnit *codegen_unit,
                   const LirInstruction *instruction,
                   MachineBlock *block) {
+    const TargetDescriptor *td = mc_target(context);
     char *operand = NULL;
     bool ok = false;
 
-    if (!mc_format_operand(lir_unit, codegen_unit, instruction->as.cast.operand, &operand)) {
+    if (!mc_format_operand(td, lir_unit, codegen_unit, instruction->as.cast.operand, &operand)) {
         goto cleanup;
     }
     ok = mc_emit_store_vreg(context,

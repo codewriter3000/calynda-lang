@@ -128,11 +128,12 @@ bool tc_check_start_decl(TypeChecker *checker, const AstStartDecl *start_decl) {
     AstSourceSpan body_span;
     CheckedType expected_type = tc_checked_type_value(AST_PRIMITIVE_INT32, 0);
     char body_text[64];
+    const char *entry_name = start_decl->is_boot ? "boot" : "start";
 
     start_scope = symbol_table_find_scope(checker->symbols, start_decl, SCOPE_KIND_START);
     if (!start_scope) {
         tc_set_error_at(checker, start_decl->start_span, NULL,
-                        "Internal error: missing start scope.");
+                        "Internal error: missing %s scope.", entry_name);
         return false;
     }
 
@@ -140,23 +141,33 @@ bool tc_check_start_decl(TypeChecker *checker, const AstStartDecl *start_decl) {
         return false;
     }
 
-    if (start_decl->parameters.count != 1) {
-        tc_set_error_at(checker,
-                        start_decl->start_span,
-                        NULL,
-                        "start must declare exactly one parameter of type string[].");
-        return false;
-    }
+    if (start_decl->is_boot) {
+        if (start_decl->parameters.count != 0) {
+            tc_set_error_at(checker,
+                            start_decl->start_span,
+                            NULL,
+                            "boot must declare zero parameters.");
+            return false;
+        }
+    } else {
+        if (start_decl->parameters.count != 1) {
+            tc_set_error_at(checker,
+                            start_decl->start_span,
+                            NULL,
+                            "start must declare exactly one parameter of type string[].");
+            return false;
+        }
 
-    if (start_decl->parameters.items[0].type.kind != AST_TYPE_PRIMITIVE ||
-        start_decl->parameters.items[0].type.primitive != AST_PRIMITIVE_STRING ||
-        start_decl->parameters.items[0].type.dimension_count != 1 ||
-        start_decl->parameters.items[0].type.dimensions[0].has_size) {
-        tc_set_error_at(checker,
-                        start_decl->parameters.items[0].name_span,
-                        &start_decl->start_span,
-                        "start parameter must have type string[].");
-        return false;
+        if (start_decl->parameters.items[0].type.kind != AST_TYPE_PRIMITIVE ||
+            start_decl->parameters.items[0].type.primitive != AST_PRIMITIVE_STRING ||
+            start_decl->parameters.items[0].type.dimension_count != 1 ||
+            start_decl->parameters.items[0].type.dimensions[0].has_size) {
+            tc_set_error_at(checker,
+                            start_decl->parameters.items[0].name_span,
+                            &start_decl->start_span,
+                            "start parameter must have type string[].");
+            return false;
+        }
     }
 
     body_span = start_decl->start_span;
@@ -194,8 +205,8 @@ bool tc_check_start_decl(TypeChecker *checker, const AstStartDecl *start_decl) {
         tc_set_error_at(checker,
                         body_span,
                         &start_decl->start_span,
-                        "start body must produce int32 but got %s.",
-                        body_text);
+                        "%s body must produce int32 but got %s.",
+                        entry_name, body_text);
         return false;
     }
 

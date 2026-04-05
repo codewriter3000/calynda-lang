@@ -2,6 +2,7 @@
 #define CALYNDA_CODEGEN_H
 
 #include "lir.h"
+#include "target.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -10,25 +11,26 @@
 typedef struct CodegenBlock CodegenBlock;
 typedef struct CodegenUnit CodegenUnit;
 
-typedef enum {
-    CODEGEN_TARGET_X86_64_SYSV_ELF = 0
-} CodegenTargetKind;
+typedef TargetKind CodegenTargetKind;
 
-typedef enum {
-    CODEGEN_REG_RAX = 0,
-    CODEGEN_REG_RDI,
-    CODEGEN_REG_RSI,
-    CODEGEN_REG_RDX,
-    CODEGEN_REG_RCX,
-    CODEGEN_REG_R8,
-    CODEGEN_REG_R9,
-    CODEGEN_REG_R10,
-    CODEGEN_REG_R11,
-    CODEGEN_REG_R12,
-    CODEGEN_REG_R13,
-    CODEGEN_REG_R14,
-    CODEGEN_REG_R15
-} CodegenRegister;
+#define CODEGEN_TARGET_X86_64_SYSV_ELF TARGET_KIND_X86_64_SYSV_ELF
+
+typedef int CodegenRegister;
+
+/* Backward-compatible register constants (x86_64 register IDs) */
+#define CODEGEN_REG_RAX  0
+#define CODEGEN_REG_RDI  1
+#define CODEGEN_REG_RSI  2
+#define CODEGEN_REG_RDX  3
+#define CODEGEN_REG_RCX  4
+#define CODEGEN_REG_R8   5
+#define CODEGEN_REG_R9   6
+#define CODEGEN_REG_R10  7
+#define CODEGEN_REG_R11  8
+#define CODEGEN_REG_R12  9
+#define CODEGEN_REG_R13  10
+#define CODEGEN_REG_R14  11
+#define CODEGEN_REG_R15  12
 
 typedef enum {
     CODEGEN_VREG_REGISTER = 0,
@@ -133,6 +135,11 @@ struct CodegenUnit {
     size_t                 spill_slot_count;
     CodegenBlock          *blocks;
     size_t                 block_count;
+    /* ASM unit fields */
+    char                  *asm_body;
+    size_t                 asm_body_length;
+    /* Boot flag for START units */
+    bool                   is_boot;
 };
 
 typedef struct {
@@ -143,17 +150,20 @@ typedef struct {
 } CodegenBuildError;
 
 typedef struct {
-    CodegenTargetKind target;
-    CodegenUnit      *units;
-    size_t            unit_count;
-    CodegenBuildError error;
-    bool              has_error;
+    CodegenTargetKind        target;
+    const TargetDescriptor  *target_desc;
+    CodegenUnit             *units;
+    size_t                   unit_count;
+    CodegenBuildError        error;
+    bool                     has_error;
 } CodegenProgram;
 
 void codegen_program_init(CodegenProgram *program);
 void codegen_program_free(CodegenProgram *program);
 
-bool codegen_build_program(CodegenProgram *program, const LirProgram *lir_program);
+bool codegen_build_program(CodegenProgram *program,
+                           const LirProgram *lir_program,
+                           const TargetDescriptor *target);
 
 const CodegenBuildError *codegen_get_error(const CodegenProgram *program);
 bool codegen_format_error(const CodegenBuildError *error,

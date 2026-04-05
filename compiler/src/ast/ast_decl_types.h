@@ -137,6 +137,7 @@ typedef struct {
     AstParameterList parameters;
     AstLambdaBody    body;
     AstSourceSpan    start_span;
+    bool             is_boot;
 } AstStartDecl;
 
 typedef struct {
@@ -158,10 +159,23 @@ typedef struct {
     size_t       variant_capacity;
 } AstUnionDecl;
 
+typedef struct {
+    AstModifier  *modifiers;
+    size_t       modifier_count;
+    size_t       modifier_capacity;
+    AstType      return_type;
+    char         *name;
+    AstSourceSpan name_span;
+    AstParameterList parameters;
+    char         *body;         /* raw asm body text (between { and }) */
+    size_t       body_length;
+} AstAsmDecl;
+
 typedef enum {
     AST_TOP_LEVEL_START = 0,
     AST_TOP_LEVEL_BINDING,
-    AST_TOP_LEVEL_UNION
+    AST_TOP_LEVEL_UNION,
+    AST_TOP_LEVEL_ASM
 } AstTopLevelDeclKind;
 
 struct AstTopLevelDecl {
@@ -170,6 +184,7 @@ struct AstTopLevelDecl {
         AstStartDecl   start_decl;
         AstBindingDecl binding_decl;
         AstUnionDecl   union_decl;
+        AstAsmDecl     asm_decl;
     } as;
 };
 

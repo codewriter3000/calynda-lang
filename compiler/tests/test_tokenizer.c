@@ -52,14 +52,14 @@ static int tests_failed = 0;
 
 static void test_keywords(void) {
     const char *src =
-        "package import start var public private final void "
+        "package import start boot var public private final void "
         "return exit throw true false null "
         "int8 int16 int32 int64 uint8 uint16 uint32 uint64 "
         "float32 float64 bool char string "
         "export as internal static union manual arr";
 
     TokenType expected[] = {
-        TOK_PACKAGE, TOK_IMPORT, TOK_START, TOK_VAR,
+        TOK_PACKAGE, TOK_IMPORT, TOK_START, TOK_BOOT, TOK_VAR,
         TOK_PUBLIC, TOK_PRIVATE, TOK_FINAL, TOK_VOID,
         TOK_RETURN, TOK_EXIT, TOK_THROW, TOK_TRUE, TOK_FALSE, TOK_NULL,
         TOK_INT8, TOK_INT16, TOK_INT32, TOK_INT64,
@@ -470,6 +470,43 @@ static void test_errors(void) {
     ASSERT_EQ_INT(TOK_ERROR, tok.type, "bad hex literal");
 }
 
+static void test_asm_tokens(void) {
+    Tokenizer t;
+    Token tok;
+
+    /* TOK_ASM is recognized as a keyword */
+    tokenizer_init(&t, "asm");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_ASM, tok.type, "asm keyword recognized");
+
+    /* TOK_ASM followed by '(' doesn't trigger asm body mode */
+    tokenizer_init(&t, "asm(");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_ASM, tok.type, "asm keyword before paren");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_LPAREN, tok.type, "paren after asm keyword");
+
+    /* TOK_ASM_BODY captures raw text between { and } once asm_body_pending is set */
+    tokenizer_init(&t, "asm");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_ASM, tok.type, "asm keyword sets pending flag");
+    /* Simulate what the parser would see: the tokenizer has asm_body_pending=1 */
+    /* Push a raw body */
+    tokenizer_init(&t, "asm { mov eax, 1\n ret\n }");
+    tok = tokenizer_next(&t);  /* TOK_ASM, sets pending */
+    ASSERT_EQ_INT(TOK_ASM, tok.type, "asm keyword in body sequence");
+    tok = tokenizer_next(&t);  /* should be TOK_ASM_BODY */
+    ASSERT_EQ_INT(TOK_ASM_BODY, tok.type, "asm body token captured");
+    ASSERT_EQ_INT(1, tok.length > 0 ? 1 : 0, "asm body token has non-zero length");
+
+    /* Nested braces in the body are handled correctly */
+    tokenizer_init(&t, "asm { if { inner } outer }");
+    tok = tokenizer_next(&t);  /* TOK_ASM */
+    ASSERT_EQ_INT(TOK_ASM, tok.type, "asm keyword for nested brace test");
+    tok = tokenizer_next(&t);  /* TOK_ASM_BODY */
+    ASSERT_EQ_INT(TOK_ASM_BODY, tok.type, "nested brace asm body captured");
+}
+
 /* ------------------------------------------------------------------ */
 /*  Main                                                              */
 /* ------------------------------------------------------------------ */
@@ -490,6 +527,7 @@ int main(void) {
     RUN_TEST(test_positions);
     RUN_TEST(test_realistic_snippet);
     RUN_TEST(test_errors);
+    RUN_TEST(test_asm_tokens);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

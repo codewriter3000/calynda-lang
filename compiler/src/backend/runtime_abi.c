@@ -194,9 +194,7 @@ const RuntimeAbiHelperSignature *runtime_abi_get_helper_signature(CodegenTargetK
                                                                   CodegenRuntimeHelper helper) {
     size_t i;
 
-    if (target != CODEGEN_TARGET_X86_64_SYSV_ELF) {
-        return NULL;
-    }
+    (void)target;
 
     for (i = 0; i < runtime_abi_helper_count; i++) {
         if (runtime_abi_helpers[i].helper == helper) {
@@ -209,10 +207,11 @@ const RuntimeAbiHelperSignature *runtime_abi_get_helper_signature(CodegenTargetK
 
 CodegenRegister runtime_abi_get_helper_argument_register(CodegenTargetKind target,
                                                          size_t argument_index) {
-    if (target != CODEGEN_TARGET_X86_64_SYSV_ELF ||
-        argument_index >= runtime_abi_helper_arg_reg_count) {
-        return CODEGEN_REG_RAX;
+    const TargetDescriptor *td = target_get_descriptor(target);
+
+    if (!td || argument_index >= td->arg_register_count) {
+        return td ? td->return_register.id : 0;
     }
 
-    return runtime_abi_helper_arg_regs[argument_index];
+    return td->arg_registers[argument_index].id;
 }

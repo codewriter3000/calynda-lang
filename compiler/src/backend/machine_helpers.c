@@ -90,6 +90,7 @@ void mc_unit_free(MachineUnit *unit) {
         mc_block_free(&unit->blocks[i]);
     }
     free(unit->blocks);
+    free(unit->asm_body);
     memset(unit, 0, sizeof(*unit));
 }
 

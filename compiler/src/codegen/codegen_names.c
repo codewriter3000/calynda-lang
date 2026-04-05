@@ -1,45 +1,12 @@
 #include "codegen_internal.h"
 
 const char *codegen_target_name(CodegenTargetKind target) {
-    switch (target) {
-    case CODEGEN_TARGET_X86_64_SYSV_ELF:
-        return "x86_64_sysv_elf";
-    }
-
-    return "unknown";
+    return target_kind_name(target);
 }
 
 const char *codegen_register_name(CodegenRegister reg) {
-    switch (reg) {
-    case CODEGEN_REG_RAX:
-        return "rax";
-    case CODEGEN_REG_RDI:
-        return "rdi";
-    case CODEGEN_REG_RSI:
-        return "rsi";
-    case CODEGEN_REG_RDX:
-        return "rdx";
-    case CODEGEN_REG_RCX:
-        return "rcx";
-    case CODEGEN_REG_R8:
-        return "r8";
-    case CODEGEN_REG_R9:
-        return "r9";
-    case CODEGEN_REG_R10:
-        return "r10";
-    case CODEGEN_REG_R11:
-        return "r11";
-    case CODEGEN_REG_R12:
-        return "r12";
-    case CODEGEN_REG_R13:
-        return "r13";
-    case CODEGEN_REG_R14:
-        return "r14";
-    case CODEGEN_REG_R15:
-        return "r15";
-    }
-
-    return "?";
+    const TargetDescriptor *target = target_get_default();
+    return target_register_name(target, reg);
 }
 
 const char *codegen_direct_pattern_name(CodegenDirectPattern pattern) {
