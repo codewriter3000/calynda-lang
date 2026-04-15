@@ -1,5 +1,7 @@
 #include "mir_internal.h"
 
+static bool mr_lower_block_inline(MirUnitBuildContext *context, const HirBlock *block);
+
 bool mr_lower_statement(MirUnitBuildContext *context,
                         const HirStatement *statement) {
     MirBasicBlock *block;
@@ -104,7 +106,7 @@ bool mr_lower_statement(MirUnitBuildContext *context,
 
     case HIR_STMT_MANUAL:
         if (statement->as.manual_body) {
-            return mr_lower_block(context, statement->as.manual_body);
+            return mr_lower_block_inline(context, statement->as.manual_body);
         }
         return true;
     }
@@ -112,7 +114,7 @@ bool mr_lower_statement(MirUnitBuildContext *context,
     return false;
 }
 
-bool mr_lower_block(MirUnitBuildContext *context, const HirBlock *block) {
+static bool mr_lower_block_inline(MirUnitBuildContext *context, const HirBlock *block) {
     MirBasicBlock *current_block;
     size_t i;
 
@@ -135,6 +137,16 @@ bool mr_lower_block(MirUnitBuildContext *context, const HirBlock *block) {
         if (!mr_lower_statement(context, block->statements[i])) {
             return false;
         }
+    }
+
+    return true;
+}
+
+bool mr_lower_block(MirUnitBuildContext *context, const HirBlock *block) {
+    MirBasicBlock *current_block;
+
+    if (!mr_lower_block_inline(context, block)) {
+        return false;
     }
 
     current_block = mr_current_block(context);
