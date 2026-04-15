@@ -334,6 +334,26 @@ static void test_build_native_runs_boot_program_with_block(void) {
     unlink(output_path);
 }
 
+static void test_build_native_runs_manual_malloc_free(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        int64 ptr = malloc(64);\n"
+        "        free(ptr);\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    char output_path[64];
+    char *run_argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build manual malloc/free native executable");
+    exit_code = run_process(output_path, run_argv);
+    ASSERT_EQ_INT(0, exit_code, "manual malloc/free native executable returns 0");
+    unlink(output_path);
+}
+
 int main(void) {
     printf("Running native build tests...\n\n");
 
@@ -343,6 +363,7 @@ int main(void) {
     RUN_TEST(test_build_native_auto_calls_zero_arg_template_callable);
     RUN_TEST(test_build_native_runs_boot_program);
     RUN_TEST(test_build_native_runs_boot_program_with_block);
+    RUN_TEST(test_build_native_runs_manual_malloc_free);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

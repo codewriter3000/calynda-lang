@@ -40,6 +40,18 @@ typedef struct {
 } AstPostDecrementExpression;
 
 typedef enum {
+    AST_MEMORY_MALLOC = 0,
+    AST_MEMORY_CALLOC,
+    AST_MEMORY_REALLOC,
+    AST_MEMORY_FREE
+} AstMemoryOpKind;
+
+typedef struct {
+    AstMemoryOpKind    kind;
+    AstExpressionList  arguments;
+} AstMemoryOpExpression;
+
+typedef enum {
     AST_EXPR_LITERAL = 0,
     AST_EXPR_IDENTIFIER,
     AST_EXPR_LAMBDA,
@@ -55,7 +67,8 @@ typedef enum {
     AST_EXPR_GROUPING,
     AST_EXPR_DISCARD,
     AST_EXPR_POST_INCREMENT,
-    AST_EXPR_POST_DECREMENT
+    AST_EXPR_POST_DECREMENT,
+    AST_EXPR_MEMORY_OP
 } AstExpressionKind;
 
 struct AstExpression {
@@ -77,6 +90,7 @@ struct AstExpression {
         AstGroupingExpression     grouping;
         AstPostIncrementExpression post_increment;
         AstPostDecrementExpression post_decrement;
+        AstMemoryOpExpression     memory_op;
     } as;
 };
 

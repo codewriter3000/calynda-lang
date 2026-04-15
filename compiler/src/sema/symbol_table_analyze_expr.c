@@ -100,6 +100,16 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
 
     case AST_EXPR_POST_DECREMENT:
         return st_analyze_expression(table, expression->as.post_decrement.operand, scope);
+
+    case AST_EXPR_MEMORY_OP:
+        for (i = 0; i < expression->as.memory_op.arguments.count; i++) {
+            if (!st_analyze_expression(table,
+                                       expression->as.memory_op.arguments.items[i],
+                                       scope)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     return false;

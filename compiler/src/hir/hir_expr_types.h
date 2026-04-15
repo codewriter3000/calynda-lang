@@ -137,6 +137,19 @@ typedef struct {
 } HirPostDecrementExpression;
 
 typedef enum {
+    HIR_MEMORY_MALLOC = 0,
+    HIR_MEMORY_CALLOC,
+    HIR_MEMORY_REALLOC,
+    HIR_MEMORY_FREE
+} HirMemoryOpKind;
+
+typedef struct {
+    HirMemoryOpKind  kind;
+    HirExpression  **arguments;
+    size_t           argument_count;
+} HirMemoryOpExpression;
+
+typedef enum {
     HIR_EXPR_LITERAL = 0,
     HIR_EXPR_TEMPLATE,
     HIR_EXPR_SYMBOL,
@@ -152,7 +165,8 @@ typedef enum {
     HIR_EXPR_ARRAY_LITERAL,
     HIR_EXPR_DISCARD,
     HIR_EXPR_POST_INCREMENT,
-    HIR_EXPR_POST_DECREMENT
+    HIR_EXPR_POST_DECREMENT,
+    HIR_EXPR_MEMORY_OP
 } HirExpressionKind;
 
 struct HirExpression {
@@ -177,6 +191,7 @@ struct HirExpression {
         HirArrayLiteralExpression array_literal;
         HirPostIncrementExpression  post_increment;
         HirPostDecrementExpression  post_decrement;
+        HirMemoryOpExpression       memory_op;
     } as;
 };
 

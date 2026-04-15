@@ -114,6 +114,14 @@ HirStatement *hr_lower_statement(HirBuildContext *context,
     case AST_STMT_EXIT:
         break;
     case AST_STMT_MANUAL:
+        if (statement->as.manual.body) {
+            hir_statement->as.manual_body = hr_lower_block(context,
+                                                           statement->as.manual.body);
+            if (!hir_statement->as.manual_body) {
+                hir_statement_free(hir_statement);
+                return NULL;
+            }
+        }
         break;
     }
 

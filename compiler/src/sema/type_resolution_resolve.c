@@ -207,6 +207,9 @@ static bool resolve_statement(TypeResolver *resolver, const AstStatement *statem
         return tr_resolve_expression(resolver, statement->as.expression);
 
     case AST_STMT_MANUAL:
+        if (statement->as.manual.body) {
+            return tr_resolve_block(resolver, statement->as.manual.body);
+        }
         return true;
     }
 

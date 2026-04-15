@@ -9,7 +9,7 @@ Usage: ./install.sh [--prefix DIR] [--bin-dir DIR] [--lib-dir DIR] [--help]
 Builds Calynda and installs:
   - a launcher at <bin-dir>/calynda
   - the real CLI binary at <lib-dir>/calynda/calynda
-  - the runtime object at <lib-dir>/calynda/runtime.o
+  - the runtime archive at <lib-dir>/calynda/calynda_runtime.a
 
 Defaults:
   - root:    prefix=/usr/local
@@ -115,10 +115,10 @@ require_command gcc
 
 BUILD_DIR=$SCRIPT_DIR/build
 SOURCE_BIN=$BUILD_DIR/calynda
-SOURCE_RUNTIME=$BUILD_DIR/runtime.o
+SOURCE_RUNTIME=$BUILD_DIR/calynda_runtime.a
 INSTALL_ROOT=$LIB_DIR/calynda
 INSTALL_BIN=$INSTALL_ROOT/calynda
-INSTALL_RUNTIME=$INSTALL_ROOT/runtime.o
+INSTALL_RUNTIME=$INSTALL_ROOT/calynda_runtime.a
 LAUNCHER_PATH=$BIN_DIR/calynda
 
 printf '==> Building Calynda\n'

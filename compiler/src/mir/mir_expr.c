@@ -292,6 +292,78 @@ bool mr_lower_expression(MirUnitBuildContext *context,
         return mr_lower_postfix_increment(context, expression, value, true);
     case HIR_EXPR_POST_DECREMENT:
         return mr_lower_postfix_increment(context, expression, value, false);
+    case HIR_EXPR_MEMORY_OP:
+        {
+            const char *func_name;
+            MirInstruction instruction;
+            size_t mem_i;
+
+            switch (expression->as.memory_op.kind) {
+            case HIR_MEMORY_MALLOC:  func_name = "malloc";  break;
+            case HIR_MEMORY_CALLOC:  func_name = "calloc";  break;
+            case HIR_MEMORY_REALLOC: func_name = "realloc"; break;
+            case HIR_MEMORY_FREE:    func_name = "free";    break;
+            default:                 func_name = "malloc";  break;
+            }
+
+            memset(&instruction, 0, sizeof(instruction));
+            instruction.kind = MIR_INSTR_CALL;
+
+            if (!mr_value_from_global(context->build, func_name,
+                                       expression->type, &instruction.as.call.callee)) {
+                return false;
+            }
+
+            instruction.as.call.has_result =
+                (expression->as.memory_op.kind != HIR_MEMORY_FREE);
+            if (instruction.as.call.has_result) {
+                instruction.as.call.dest_temp = context->unit->next_temp_index++;
+            }
+
+            instruction.as.call.argument_count = expression->as.memory_op.argument_count;
+            if (instruction.as.call.argument_count > 0) {
+                instruction.as.call.arguments =
+                    calloc(instruction.as.call.argument_count,
+                           sizeof(*instruction.as.call.arguments));
+                if (!instruction.as.call.arguments) {
+                    mr_instruction_free(&instruction);
+                    mr_set_error(context->build, expression->source_span, NULL,
+                                  "Out of memory while lowering MIR memory operation.");
+                    return false;
+                }
+                for (mem_i = 0; mem_i < expression->as.memory_op.argument_count; mem_i++) {
+                    if (!mr_lower_expression(context,
+                                              expression->as.memory_op.arguments[mem_i],
+                                              &instruction.as.call.arguments[mem_i])) {
+                        mr_instruction_free(&instruction);
+                        return false;
+                    }
+                }
+            }
+
+            if (!mr_current_block(context)) {
+                mr_instruction_free(&instruction);
+                mr_set_error(context->build, expression->source_span, NULL,
+                              "Internal error: missing current MIR block for memory operation.");
+                return false;
+            }
+            if (!mr_append_instruction(mr_current_block(context), instruction)) {
+                mr_instruction_free(&instruction);
+                mr_set_error(context->build, expression->source_span, NULL,
+                              "Out of memory while lowering MIR memory operation.");
+                return false;
+            }
+
+            if (instruction.as.call.has_result) {
+                value->kind = MIR_VALUE_TEMP;
+                value->type = expression->type;
+                value->as.temp_index = instruction.as.call.dest_temp;
+            } else {
+                value->kind = MIR_VALUE_INVALID;
+                value->type = expression->type;
+            }
+            return true;
+        }
     }
 
     return false;

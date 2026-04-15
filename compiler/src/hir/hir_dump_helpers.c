@@ -170,6 +170,15 @@ bool hir_dump_statement(FILE *out, const HirStatement *statement, int indent) {
         hir_dump_write_span(out, statement->source_span);
         fputc('\n', out);
         return hir_dump_expression(out, statement->as.expression, indent + 2);
+    case HIR_STMT_MANUAL:
+        hir_dump_write_indent(out, indent);
+        fprintf(out, "Manual span=");
+        hir_dump_write_span(out, statement->source_span);
+        fputc('\n', out);
+        if (statement->as.manual_body) {
+            return hir_dump_block(out, statement->as.manual_body, indent + 2);
+        }
+        return true;
     }
 
     return false;

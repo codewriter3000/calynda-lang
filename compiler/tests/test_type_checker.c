@@ -1351,6 +1351,63 @@ static void test_type_checker_accepts_hetero_array(void) {
     parser_free(&parser);
 }
 
+static void test_type_checker_accepts_manual_block_with_memory_ops(void) {
+    const char *source =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        int64 ptr = malloc(1024);\n"
+        "        ptr = realloc(ptr, 2048);\n"
+        "        free(ptr);\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse manual block program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for manual block");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "manual block with memory ops passes type checking");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+static void test_type_checker_accepts_calloc_memory_op(void) {
+    const char *source =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        int64 ptr = calloc(10, 8);\n"
+        "        free(ptr);\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse calloc program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for calloc");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "calloc memory op passes type checking");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 int main(void) {
     printf("Running type checker tests...\n\n");
 
@@ -1393,6 +1450,8 @@ int main(void) {
     RUN_TEST(test_type_checker_accepts_payload_variant_constructor);
     RUN_TEST(test_type_checker_rejects_unknown_variant);
     RUN_TEST(test_type_checker_accepts_hetero_array);
+    RUN_TEST(test_type_checker_accepts_manual_block_with_memory_ops);
+    RUN_TEST(test_type_checker_accepts_calloc_memory_op);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

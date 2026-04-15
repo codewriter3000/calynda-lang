@@ -236,6 +236,72 @@ AstExpression *parse_primary_expression(Parser *parser) {
     case TOK_LBRACKET:
         return parse_array_literal_expression(parser);
 
+    case TOK_MALLOC:
+    case TOK_CALLOC:
+    case TOK_REALLOC:
+    case TOK_FREE: {
+        AstMemoryOpKind op_kind;
+        size_t expected_args;
+
+        switch (token->type) {
+        case TOK_MALLOC:  op_kind = AST_MEMORY_MALLOC;  expected_args = 1; break;
+        case TOK_CALLOC:  op_kind = AST_MEMORY_CALLOC;  expected_args = 2; break;
+        case TOK_REALLOC: op_kind = AST_MEMORY_REALLOC; expected_args = 2; break;
+        default:          op_kind = AST_MEMORY_FREE;    expected_args = 1; break;
+        }
+
+        expression = ast_expression_new(AST_EXPR_MEMORY_OP);
+        if (!expression) {
+            parser_set_oom_error(parser);
+            return NULL;
+        }
+        expression->source_span = parser_source_span(token);
+        expression->as.memory_op.kind = op_kind;
+        parser_advance(parser);
+
+        if (!parser_consume(parser, TOK_LPAREN, "Expected '(' after memory operation.")) {
+            ast_expression_free(expression);
+            return NULL;
+        }
+
+        {
+            AstExpression *arg = parse_expression_node(parser);
+            if (!arg) {
+                ast_expression_free(expression);
+                return NULL;
+            }
+            if (!parser_add_expression(parser, &expression->as.memory_op.arguments, arg)) {
+                ast_expression_free(expression);
+                return NULL;
+            }
+        }
+
+        if (expected_args == 2) {
+            AstExpression *arg;
+            if (!parser_consume(parser, TOK_COMMA,
+                                "Expected ',' between memory operation arguments.")) {
+                ast_expression_free(expression);
+                return NULL;
+            }
+            arg = parse_expression_node(parser);
+            if (!arg) {
+                ast_expression_free(expression);
+                return NULL;
+            }
+            if (!parser_add_expression(parser, &expression->as.memory_op.arguments, arg)) {
+                ast_expression_free(expression);
+                return NULL;
+            }
+        }
+
+        if (!parser_consume(parser, TOK_RPAREN, "Expected ')' after memory operation arguments.")) {
+            ast_expression_free(expression);
+            return NULL;
+        }
+
+        return expression;
+    }
+
     default:
         if (is_primitive_type_token(token->type) &&
             parser_token_at(parser, parser->current + 1)->type == TOK_LPAREN) {

@@ -101,6 +101,12 @@ bool mr_lower_statement(MirUnitBuildContext *context,
                       NULL,
                       "Internal error: exit should already be normalized before MIR lowering.");
         return false;
+
+    case HIR_STMT_MANUAL:
+        if (statement->as.manual_body) {
+            return mr_lower_block(context, statement->as.manual_body);
+        }
+        return true;
     }
 
     return false;

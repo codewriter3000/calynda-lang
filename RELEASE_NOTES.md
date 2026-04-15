@@ -1,3 +1,78 @@
+# Calynda 0.3.0
+
+April 15, 2026
+
+## New Features
+
+### ARM64 support
+
+Linux AArch64 is now a supported compilation target. Pass `--target aarch64-linux`
+to `calynda build` to produce AArch64 assembly. The default target remains Linux
+x86-64 SysV.
+
+### Inline assembly declarations (`asm()`)
+
+A new top-level declaration form lets you write platform-specific routines directly
+in a Calynda source file:
+
+```
+int32 my_add = asm(int32 a, int32 b) -> {
+    mov eax, edi
+    add eax, esi
+    ret
+};
+```
+
+The assembly body is passed through to the assembler unchanged. Parameters follow
+normal Calynda type syntax and map to ABI registers. The `export` and `static`
+modifiers are supported.
+
+### Bare-metal entry point (`boot()`)
+
+`boot()` is an alternative entry point that bypasses the Calynda runtime entirely
+and emits a raw `_start` symbol. It is intended for freestanding and embedded
+targets where no OS runtime is available.
+
+```
+boot() -> 0;
+```
+
+`boot()` and `start()` cannot coexist in the same compilation unit.
+
+### CAR source archives
+
+The CAR (Calynda Archive) format bundles multiple `.cal` source files into a single
+portable archive. Two new CLI subcommands are available:
+
+- `calynda car create archive.car src/` — creates an archive from a directory.
+- `calynda car extract archive.car` — extracts files from an archive.
+
+### Manual memory boundary (`manual { ... };`) *(experimental)*
+
+`manual { ... };` opens an unsafe scope for direct memory management. The following
+built-in expressions are available inside a manual block:
+
+| Expression | Returns | Description |
+|---|---|---|
+| `malloc(size)` | `int64` | Allocates `size` bytes. |
+| `calloc(count, size)` | `int64` | Allocates zeroed memory. |
+| `realloc(addr, size)` | `int64` | Resizes an allocation. |
+| `free(addr)` | `void` | Releases an allocation. |
+
+All arguments must be integral types. The return value of `malloc`, `calloc`, and
+`realloc` is a raw `int64` address with no type safety — use with care.
+
+This feature is experimental. The memory model, pointer representation, and
+interaction with the runtime heap are not yet finalized and may change in a future
+release.
+
+## Deferred
+
+- One-statement callback shorthand remains deferred pending an explicit
+  auto-lift rule decision.
+
+---
+
 # Calynda 0.2.1
 
 April 4, 2026

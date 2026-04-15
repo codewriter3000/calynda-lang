@@ -83,6 +83,31 @@ AstStatement *parse_statement(Parser *parser) {
         return statement;
     }
 
+    if (parser_check(parser, TOK_MANUAL)) {
+        AstStatement *statement = ast_statement_new(AST_STMT_MANUAL);
+
+        if (!statement) {
+            parser_set_oom_error(parser);
+            return NULL;
+        }
+
+        statement->source_span = parser_source_span(parser_current_token(parser));
+
+        parser_advance(parser);
+        statement->as.manual.body = parse_block(parser);
+        if (!statement->as.manual.body) {
+            ast_statement_free(statement);
+            return NULL;
+        }
+
+        if (!parser_consume(parser, TOK_SEMICOLON, "Expected ';' after manual block.")) {
+            ast_statement_free(statement);
+            return NULL;
+        }
+
+        return statement;
+    }
+
     if (parser_check(parser, TOK_INTERNAL) ||
         parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_VAR) ||
         (is_type_start_token(parser_current_token(parser)->type) &&

@@ -98,6 +98,14 @@ bool tr_resolve_expression(TypeResolver *resolver, const AstExpression *expressi
 
     case AST_EXPR_POST_DECREMENT:
         return tr_resolve_expression(resolver, expression->as.post_decrement.operand);
+
+    case AST_EXPR_MEMORY_OP:
+        for (i = 0; i < expression->as.memory_op.arguments.count; i++) {
+            if (!tr_resolve_expression(resolver, expression->as.memory_op.arguments.items[i])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     return false;

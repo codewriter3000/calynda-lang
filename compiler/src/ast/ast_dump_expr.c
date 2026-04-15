@@ -200,6 +200,34 @@ bool ast_dump_expression_node(AstDumpBuilder *builder,
                ast_dump_builder_finish_line(builder) &&
                ast_dump_expression_label(builder, indent + 1, "Operand",
                                      expression->as.post_decrement.operand);
+
+    case AST_EXPR_MEMORY_OP: {
+        const char *op_name;
+        switch (expression->as.memory_op.kind) {
+        case AST_MEMORY_MALLOC:  op_name = "malloc";  break;
+        case AST_MEMORY_CALLOC:  op_name = "calloc";  break;
+        case AST_MEMORY_REALLOC: op_name = "realloc"; break;
+        case AST_MEMORY_FREE:    op_name = "free";    break;
+        default:                 op_name = "unknown"; break;
+        }
+
+        if (!(ast_dump_builder_start_line(builder, indent) &&
+              ast_dump_builder_append(builder, "MemoryOpExpr op=") &&
+              ast_dump_builder_append(builder, op_name) &&
+              ast_dump_builder_finish_line(builder))) {
+            return false;
+        }
+
+        for (i = 0; i < expression->as.memory_op.arguments.count; i++) {
+            if (!ast_dump_expression_node(builder,
+                                      expression->as.memory_op.arguments.items[i],
+                                      indent + 1)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
     }
 
     return false;

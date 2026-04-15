@@ -19,7 +19,8 @@ typedef enum {
     HIR_STMT_RETURN,
     HIR_STMT_EXIT,
     HIR_STMT_THROW,
-    HIR_STMT_EXPRESSION
+    HIR_STMT_EXPRESSION,
+    HIR_STMT_MANUAL
 } HirStatementKind;
 
 struct HirStatement {
@@ -30,6 +31,7 @@ struct HirStatement {
         HirExpression  *return_expression;
         HirExpression  *throw_expression;
         HirExpression  *expression;
+        HirBlock       *manual_body;
     } as;
 };
 

@@ -137,7 +137,11 @@ bool ae_translate_operand_ext(AsmEmitContext *context,
     }
 
     operand->kind = ASM_OPERAND_CALL_TARGET;
-    if (ae_starts_with(operand_text, "__calynda_rt_")) {
+    if (ae_starts_with(operand_text, "__calynda_rt_") ||
+        strcmp(operand_text, "malloc") == 0 ||
+        strcmp(operand_text, "calloc") == 0 ||
+        strcmp(operand_text, "realloc") == 0 ||
+        strcmp(operand_text, "free") == 0) {
         operand->text = ae_copy_text(operand_text);
     } else {
         AsmUnitSymbol *symbol = ae_ensure_unit_symbol(context, operand_text);

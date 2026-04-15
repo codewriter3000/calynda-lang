@@ -123,6 +123,9 @@ void hir_statement_free(HirStatement *statement) {
         break;
     case HIR_STMT_EXIT:
         break;
+    case HIR_STMT_MANUAL:
+        hir_block_free(statement->as.manual_body);
+        break;
     }
 
     free(statement);
@@ -190,6 +193,15 @@ void hir_expression_free(HirExpression *expression) {
         break;
     case HIR_EXPR_POST_DECREMENT:
         hir_expression_free(expression->as.post_decrement.operand);
+        break;
+    case HIR_EXPR_MEMORY_OP:
+        {
+            size_t mem_i;
+            for (mem_i = 0; mem_i < expression->as.memory_op.argument_count; mem_i++) {
+                hir_expression_free(expression->as.memory_op.arguments[mem_i]);
+            }
+            free(expression->as.memory_op.arguments);
+        }
         break;
     }
 

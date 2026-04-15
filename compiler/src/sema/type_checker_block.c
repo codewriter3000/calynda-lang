@@ -188,6 +188,12 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
             break;
 
         case AST_STMT_MANUAL:
+            if (statement->as.manual.body) {
+                if (!tc_check_block(checker, statement->as.manual.body,
+                                    NULL, NULL, NULL)) {
+                    return false;
+                }
+            }
             break;
         }
     }

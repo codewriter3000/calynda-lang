@@ -159,6 +159,9 @@ bool st_analyze_statement(SymbolTable *table, const AstStatement *statement,
         return st_analyze_expression(table, statement->as.expression, scope);
 
     case AST_STMT_MANUAL:
+        if (statement->as.manual.body) {
+            return st_analyze_block(table, statement->as.manual.body, scope);
+        }
         return true;
     }
 

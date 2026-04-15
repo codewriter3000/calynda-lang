@@ -93,6 +93,32 @@ bool hir_dump_expression_ext(FILE *out, const HirExpression *expression, int ind
         hir_dump_write_span(out, expression->source_span);
         fputc('\n', out);
         return hir_dump_expression(out, expression->as.post_decrement.operand, indent + 2);
+    case HIR_EXPR_MEMORY_OP:
+        {
+            const char *op_name;
+            size_t mem_i;
+            switch (expression->as.memory_op.kind) {
+            case HIR_MEMORY_MALLOC:  op_name = "malloc";  break;
+            case HIR_MEMORY_CALLOC:  op_name = "calloc";  break;
+            case HIR_MEMORY_REALLOC: op_name = "realloc"; break;
+            case HIR_MEMORY_FREE:    op_name = "free";    break;
+            default:                 op_name = "unknown"; break;
+            }
+            fprintf(out, "MemoryOp op=%s type=", op_name);
+            if (!hir_dump_write_checked_type(out, expression->type)) {
+                return false;
+            }
+            fprintf(out, " span=");
+            hir_dump_write_span(out, expression->source_span);
+            fputc('\n', out);
+            for (mem_i = 0; mem_i < expression->as.memory_op.argument_count; mem_i++) {
+                if (!hir_dump_expression(out, expression->as.memory_op.arguments[mem_i],
+                                         indent + 2)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     default:
         return false;
     }

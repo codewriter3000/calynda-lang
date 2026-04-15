@@ -63,9 +63,13 @@ bool ast_dump_statement(AstDumpBuilder *builder, const AstStatement *statement,
                                      statement->as.expression);
 
     case AST_STMT_MANUAL:
-        return ast_dump_builder_start_line(builder, indent) &&
-               ast_dump_builder_append(builder, "ManualStmt") &&
-               ast_dump_builder_finish_line(builder);
+        if (!(ast_dump_builder_start_line(builder, indent) &&
+              ast_dump_builder_append(builder, "ManualStmt") &&
+              ast_dump_builder_finish_line(builder))) {
+            return false;
+        }
+        return ast_dump_block_label(builder, indent + 1, "Body",
+                                    statement->as.manual.body);
     }
 
     return false;

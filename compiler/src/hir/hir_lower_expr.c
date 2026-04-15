@@ -73,6 +73,9 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
     case AST_EXPR_POST_DECREMENT:
         hir_expression = hr_expression_new(HIR_EXPR_POST_DECREMENT);
         break;
+    case AST_EXPR_MEMORY_OP:
+        hir_expression = hr_expression_new(HIR_EXPR_MEMORY_OP);
+        break;
     case AST_EXPR_GROUPING:
     default:
         hir_expression = NULL;
@@ -156,6 +159,34 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
     case AST_EXPR_POST_DECREMENT:
         hir_expression->as.post_decrement.operand =
             hr_lower_expression(context, expression->as.post_decrement.operand);
+        break;
+
+    case AST_EXPR_MEMORY_OP:
+        {
+            size_t mem_i;
+            hir_expression->as.memory_op.kind = (HirMemoryOpKind)expression->as.memory_op.kind;
+            hir_expression->as.memory_op.argument_count = expression->as.memory_op.arguments.count;
+            if (expression->as.memory_op.arguments.count > 0) {
+                hir_expression->as.memory_op.arguments =
+                    calloc(expression->as.memory_op.arguments.count,
+                           sizeof(*hir_expression->as.memory_op.arguments));
+                if (!hir_expression->as.memory_op.arguments) {
+                    hir_expression_free(hir_expression);
+                    hr_set_error(context, expression->source_span, NULL,
+                                 "Out of memory while lowering HIR memory operation.");
+                    return NULL;
+                }
+                for (mem_i = 0; mem_i < expression->as.memory_op.arguments.count; mem_i++) {
+                    hir_expression->as.memory_op.arguments[mem_i] =
+                        hr_lower_expression(context,
+                                            expression->as.memory_op.arguments.items[mem_i]);
+                    if (!hir_expression->as.memory_op.arguments[mem_i]) {
+                        hir_expression_free(hir_expression);
+                        return NULL;
+                    }
+                }
+            }
+        }
         break;
 
     case AST_EXPR_GROUPING:

@@ -412,6 +412,49 @@ static void test_hir_dump_lowers_union_declarations(void) {
     parser_free(&parser);
 }
 
+static void test_hir_dump_lowers_manual_block_with_memory_ops(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        int64 ptr = malloc(64);\n"
+        "        free(ptr);\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse manual HIR source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols manual HIR");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                 "type check manual HIR source");
+    REQUIRE_TRUE(hir_build_program(&hir, &program, &symbols, &checker),
+                 "build HIR for manual block");
+
+    dump = hir_dump_program_to_string(&hir);
+    REQUIRE_TRUE(dump != NULL, "manual HIR dump string is not NULL");
+
+    ASSERT_CONTAINS("Manual", dump, "HIR dump contains Manual statement");
+    ASSERT_CONTAINS("MemoryOp", dump, "HIR dump contains MemoryOp expression");
+    ASSERT_CONTAINS("malloc", dump, "HIR dump contains malloc");
+    ASSERT_CONTAINS("free", dump, "HIR dump contains free");
+
+    free(dump);
+    hir_program_free(&hir);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 int main(void) {
     printf("Running HIR dump tests...\n\n");
 
@@ -422,6 +465,7 @@ int main(void) {
     RUN_TEST(test_hir_dump_lowers_v2_expressions);
     RUN_TEST(test_hir_dump_shows_export_and_static_flags);
     RUN_TEST(test_hir_dump_lowers_union_declarations);
+    RUN_TEST(test_hir_dump_lowers_manual_block_with_memory_ops);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

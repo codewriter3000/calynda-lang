@@ -195,6 +195,19 @@ static bool collect_expression_captures(MirBuildContext *context,
                                            expression->as.post_decrement.operand,
                                            bound,
                                            captures);
+    case HIR_EXPR_MEMORY_OP:
+        {
+            size_t mem_i;
+            for (mem_i = 0; mem_i < expression->as.memory_op.argument_count; mem_i++) {
+                if (!collect_expression_captures(context,
+                                                 expression->as.memory_op.arguments[mem_i],
+                                                 bound,
+                                                 captures)) {
+                    return false;
+                }
+            }
+            return true;
+        }
     }
 
     return true;
@@ -230,6 +243,14 @@ static bool collect_statement_captures(MirBuildContext *context,
                                            bound,
                                            captures);
     case HIR_STMT_EXIT:
+        return true;
+    case HIR_STMT_MANUAL:
+        if (statement->as.manual_body) {
+            return collect_block_captures(context,
+                                          statement->as.manual_body,
+                                          bound,
+                                          captures);
+        }
         return true;
     }
 

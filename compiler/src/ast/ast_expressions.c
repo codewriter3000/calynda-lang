@@ -242,6 +242,9 @@ void ast_expression_free(AstExpression *expression) {
     case AST_EXPR_POST_DECREMENT:
         ast_expression_free(expression->as.post_decrement.operand);
         break;
+    case AST_EXPR_MEMORY_OP:
+        ast_expression_list_free_internal(&expression->as.memory_op.arguments);
+        break;
     }
 
     free(expression);

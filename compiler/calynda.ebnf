@@ -174,10 +174,18 @@ Block
 
 Statement
     = LocalBindingStatement
+    | ManualStatement
     | ReturnStatement
     | ExitStatement
     | ThrowStatement
     | ExpressionStatement
+    ;
+
+(* Manual memory boundary — enables malloc/calloc/realloc/free     *)
+(* inside the block. Memory operations return int64 (raw address). *)
+(* Syntax: manual { int64 p = malloc(1024); free(p); };            *)
+ManualStatement
+    = "manual" Block ";"
     ;
 
 (* Local variable declaration — same syntax as top-level binding    *)
@@ -385,6 +393,20 @@ PrimaryExpression
     | "(" Expression ")"              (* parenthesized expression  *)
     | CastExpression                   (* type conversion           *)
     | ArrayLiteral                     (* array literal [1, 2, 3]   *)
+    | MemoryOpExpression               (* manual memory operations  *)
+    ;
+
+(* Memory allocation and deallocation expressions.                  *)
+(* Only valid inside a manual { ... } block.                        *)
+(* malloc(size) and free(addr) take 1 argument.                     *)
+(* calloc(count, size) and realloc(addr, size) take 2 arguments.   *)
+(* malloc/calloc/realloc return int64 (raw address).                *)
+(* free returns void.                                               *)
+MemoryOpExpression
+    = "malloc"  "(" Expression ")"
+    | "calloc"  "(" Expression "," Expression ")"
+    | "realloc" "(" Expression "," Expression ")"
+    | "free"    "(" Expression ")"
     ;
 
 (* The discard expression _ can be used as an assignment target     *)

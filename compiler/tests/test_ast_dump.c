@@ -55,6 +55,17 @@ static int tests_failed = 0;
     }                                                                       \
 } while (0)
 
+#define ASSERT_CONTAINS(needle, haystack, msg) do {                         \
+    tests_run++;                                                            \
+    if ((haystack) != NULL && strstr((haystack), (needle)) != NULL) {       \
+        tests_passed++;                                                     \
+    } else {                                                                \
+        tests_failed++;                                                     \
+        fprintf(stderr, "  FAIL [%s:%d] %s: missing \"%s\"\n",           \
+                __FILE__, __LINE__, (msg), (needle));                       \
+    }                                                                       \
+} while (0)
+
 #define RUN_TEST(fn) do {                                                   \
     printf("  %s ...\n", #fn);                                            \
     fn();                                                                   \
@@ -224,12 +235,41 @@ static void test_dump_expression_to_file(void) {
     parser_free(&parser);
 }
 
+static void test_dump_manual_block_with_memory_ops(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        int64 ptr = malloc(64);\n"
+        "        free(ptr);\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    char *dump;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse manual block for dump");
+
+    dump = ast_dump_program_to_string(&program);
+    REQUIRE_TRUE(dump != NULL, "render manual block dump to string");
+    ASSERT_CONTAINS("ManualStmt", dump, "dump contains ManualStmt");
+    ASSERT_CONTAINS("MemoryOpExpr", dump, "dump contains MemoryOpExpr");
+    ASSERT_CONTAINS("malloc", dump, "dump contains malloc op");
+    ASSERT_CONTAINS("free", dump, "dump contains free op");
+
+    free(dump);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 int main(void) {
     printf("Running AST dump tests...\n\n");
 
     RUN_TEST(test_dump_program_to_string);
     RUN_TEST(test_dump_expression_to_string);
     RUN_TEST(test_dump_expression_to_file);
+    RUN_TEST(test_dump_manual_block_with_memory_ops);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

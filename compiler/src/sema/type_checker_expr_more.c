@@ -242,6 +242,36 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
         }
         break;
 
+    case AST_EXPR_MEMORY_OP:
+        {
+            size_t i;
+            for (i = 0; i < expression->as.memory_op.arguments.count; i++) {
+                const TypeCheckInfo *arg_info = tc_check_expression(
+                    checker, expression->as.memory_op.arguments.items[i]);
+                CheckedType arg_type;
+                if (!arg_info) {
+                    return NULL;
+                }
+                arg_type = tc_type_check_source_type(arg_info);
+                if (!tc_checked_type_is_integral(arg_type)) {
+                    char arg_text[64];
+                    checked_type_to_string(arg_type, arg_text, sizeof(arg_text));
+                    tc_set_error_at(checker,
+                                    expression->as.memory_op.arguments.items[i]->source_span,
+                                    NULL,
+                                    "Memory operation argument must have an integral type but got %s.",
+                                    arg_text);
+                    return NULL;
+                }
+            }
+            if (expression->as.memory_op.kind == AST_MEMORY_FREE) {
+                info = tc_type_check_info_make(tc_checked_type_void());
+            } else {
+                info = tc_type_check_info_make(tc_checked_type_value(AST_PRIMITIVE_INT64, 0));
+            }
+        }
+        break;
+
     default:
         break;
     }
