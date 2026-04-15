@@ -40,9 +40,12 @@ export const PROMPTS: PromptDefinition[] = [
 
 const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Compiled functional systems programming language with ~200 C source files
-- Two backends: native x86_64 SysV ELF and portable-v1 bytecode (no interpreter)
+- Two backends: native x86_64 SysV ELF / AArch64 AAPCS64 ELF and portable-v1 bytecode (no interpreter)
 - All functions are lambdas: (type param) -> expr or (type param) -> { ... }
 - Entry point: start(string[] args) -> { ... }; returns int32 (exit code)
+- Bare-metal entry point: boot() -> expr; bypasses runtime, emits _start (cannot coexist with start)
+- Inline assembly: int32 name = asm(int32 a) -> { ... }; passed through to assembler unchanged
+- manual { ... }; opens an experimental unsafe scope with malloc/calloc/realloc/free built-ins
 - Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<T>, void
 - Java-style aliases: byte, sbyte, short, int, long, ulong, uint, float, double
 - Tagged unions with reified generics: union Option<T> { Some(T), None };
@@ -55,7 +58,9 @@ const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Import styles: plain, alias ("as"), wildcard (".*"), selective (".{a, b}")
 - Closures capture outer locals/parameters; ++ and -- prefix/postfix operators
 - Discard expression: _ = expr; to explicitly ignore values
-- Varargs: Type... name in parameter lists`;
+- Varargs: Type... name in parameter lists
+- CAR archives bundle .cal files: calynda car create/extract, calynda build/run project.car
+- ARM64 support: --target aarch64-linux for AArch64 output (default: x86_64)`;
 
 export function getPromptMessages(name: string, args: Record<string, string>): Array<{ role: string; content: string }> {
   switch (name) {
@@ -67,7 +72,7 @@ export function getPromptMessages(name: string, args: Record<string, string>): A
     case 'debug-calynda-code':
       return [{
         role: 'user',
-        content: `Debug this Calynda code${args['problem'] ? ` (Problem: ${args['problem']})` : ''}:\n\n\`\`\`cal\n${args['code']}\n\`\`\`\n\n${CALYNDA_LANGUAGE_FACTS}\n\nCheck for:\n- Syntax errors (missing semicolons, incorrect -> arrow syntax)\n- Type mismatches and invalid casts\n- Missing or incorrect start(string[] args) -> { ... }; entry point (must be exactly one)\n- Undefined variables or out-of-scope references\n- Incorrect lambda parameter types\n- Template literal interpolation issues (zero-arg callables are auto-called)\n- Incorrect use of throw, exit, return (exit only in void lambdas)\n- internal visibility violations (nested-lambda-only access)\n- Assignment to non-l-values (imports, packages, final bindings, temporaries)`,
+        content: `Debug this Calynda code${args['problem'] ? ` (Problem: ${args['problem']})` : ''}:\n\n\`\`\`cal\n${args['code']}\n\`\`\`\n\n${CALYNDA_LANGUAGE_FACTS}\n\nCheck for:\n- Syntax errors (missing semicolons, incorrect -> arrow syntax)\n- Type mismatches and invalid casts\n- Missing or incorrect start(string[] args) -> { ... }; entry point (must be exactly one)\n- boot() and start() cannot coexist in the same compilation unit\n- Undefined variables or out-of-scope references\n- Incorrect lambda parameter types\n- Template literal interpolation issues (zero-arg callables are auto-called)\n- Incorrect use of throw, exit, return (exit only in void lambdas)\n- internal visibility violations (nested-lambda-only access)\n- Assignment to non-l-values (imports, packages, final bindings, temporaries)\n- manual { } blocks: malloc/calloc/realloc/free only valid inside manual scope`,
       }];
     case 'convert-to-calynda':
       return [{

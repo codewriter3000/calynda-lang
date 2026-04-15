@@ -49,7 +49,9 @@ export function explainTopic(input: ExplainInput): ExplainResult {
     'source tree': SOURCE_TREE,
     'build': `**Build System**\n\nBuild command: \`${BUILD_TARGETS.buildCommand}\`\nTest runner: \`${BUILD_TARGETS.testRunner}\`\n\n**Main binaries:** ${BUILD_TARGETS.mainBinaries.map(b => `${b.name} — ${b.description}`).join('; ')}\n\n**Debug tools:** ${BUILD_TARGETS.debugTools.map(b => `${b.name} — ${b.description}`).join('; ')}\n\n**Test suites (${BUILD_TARGETS.testSuites.length}):** ${BUILD_TARGETS.testSuites.join(', ')}`,
     'error pattern': ERROR_PATTERN,
-    native: `**Native Backend**\n\n${NATIVE_PIPELINE}\n\nTarget: x86_64 SysV ELF\nRegister allocation: rax (return), rdi/rsi/rdx/rcx/r8/r9 (SysV args), r10/r11/r12/r13 (allocatable vregs), r15 (closure environment)`,
+    native: `**Native Backend**\n\n${NATIVE_PIPELINE}\n\nTargets: x86_64 SysV ELF (default) and AArch64 AAPCS64 ELF (--target aarch64-linux).\nRegister allocation uses TargetDescriptor for target-specific register sets and ABI conventions.`,
+    target: `**Target Abstraction**\n\nThe TargetDescriptor abstraction threads target-specific ABI, register, and instruction details through codegen, machine, and asm_emit.\n\nSupported targets:\n- x86_64 (default): x86_64 SysV ELF — rax (return), rdi/rsi/rdx/rcx/r8/r9 (args), r15 (closure env)\n- aarch64-linux: AArch64 AAPCS64 ELF\n\nPass --target aarch64-linux to calynda build for ARM64 output.`,
+    car: `**CAR Source Archives**\n\nThe CAR (Calynda Archive) format bundles multiple .cal source files into a single portable archive.\n\nCLI commands:\n- \`calynda car create archive.car src/\` — create an archive from a directory\n- \`calynda car extract archive.car\` — extract files from an archive\n- \`calynda build project.car\` — build directly from an archive\n- \`calynda run project.car\` — build and run from an archive\n\nIntra-archive imports are stripped; external imports are preserved.`,
   };
 
   for (const [key, explanation] of Object.entries(architectureExplanations)) {
@@ -81,6 +83,10 @@ export function explainTopic(input: ExplainInput): ExplainResult {
     discard: 'The discard expression `_` can be used as an assignment target to explicitly ignore a value: `_ = computeSomething();`',
     varargs: 'Variadic parameters use `Type... name` syntax. Must be the last parameter.',
     internal: 'The `internal` modifier on local bindings restricts access to nested lambda scopes only; the type checker enforces visibility by walking scope boundaries.',
+    asm: '`asm()` is an inline assembly declaration. Syntax: `int32 name = asm(int32 a, int32 b) -> { mov eax, edi; add eax, esi; ret };`. The assembly body is passed through to the assembler unchanged. Parameters follow normal Calynda type syntax and map to ABI registers. The `export` and `static` modifiers are supported.',
+    boot: '`boot()` is a bare-metal entry point that bypasses the Calynda runtime entirely and emits a raw `_start` symbol. Intended for freestanding and embedded targets. Syntax: `boot() -> 0;` or `boot() -> { ... };`. `boot()` and `start()` cannot coexist in the same compilation unit.',
+    manual: '`manual { ... };` opens an experimental unsafe scope for direct memory management. Built-in expressions: `malloc(size)` returns int64, `calloc(count, size)` returns int64, `realloc(addr, size)` returns int64, `free(addr)` returns void. All arguments must be integral types. Return values are raw int64 addresses with no type safety.',
+    arm64: 'ARM64 / AArch64 is a supported compilation target. Pass `--target aarch64-linux` to `calynda build` to produce AArch64 assembly. The default target remains Linux x86_64 SysV.',
   };
 
   for (const [key, explanation] of Object.entries(keywordExplanations)) {

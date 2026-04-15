@@ -1,8 +1,6 @@
 #ifndef CALYNDA_MIR_INTERNAL_H
 #define CALYNDA_MIR_INTERNAL_H
-
 #include "mir.h"
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>

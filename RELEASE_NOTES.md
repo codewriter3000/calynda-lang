@@ -66,10 +66,9 @@ This feature is experimental. The memory model, pointer representation, and
 interaction with the runtime heap are not yet finalized and may change in a future
 release.
 
-## Deferred
+## Small Changes
 
-- One-statement callback shorthand remains deferred pending an explicit
-  auto-lift rule decision.
+- Codebase refactor
 
 ---
 

@@ -55,6 +55,33 @@ export function getCompletions(input: CompleteInput): CompletionItem[] {
     });
   }
 
+  if ('boot'.startsWith(prefix)) {
+    items.push({
+      label: 'boot',
+      kind: 'snippet',
+      detail: 'Bare-metal entry point',
+      insertText: 'boot() -> {\n    ${1}\n};',
+    });
+  }
+
+  if ('manual'.startsWith(prefix)) {
+    items.push({
+      label: 'manual',
+      kind: 'snippet',
+      detail: 'Manual memory boundary (experimental)',
+      insertText: 'manual {\n    ${1}\n};',
+    });
+  }
+
+  if ('asm'.startsWith(prefix)) {
+    items.push({
+      label: 'asm',
+      kind: 'snippet',
+      detail: 'Inline assembly declaration',
+      insertText: '${1:int32} ${2:name} = asm(${3:int32 a}) -> {\n    ${4}\n};',
+    });
+  }
+
   if (prefix === '') {
     items.push(
       {

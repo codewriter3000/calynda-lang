@@ -1,5 +1,4 @@
 #include "ast_internal.h"
-
 void ast_block_free(AstBlock *block) {
     size_t i;
 

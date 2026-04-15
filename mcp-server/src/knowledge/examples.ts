@@ -195,4 +195,47 @@ start(string[] args) -> {
   arr<?> mixed = [1, "hello", true];
 };`,
   },
+  {
+    name: 'inline-asm',
+    description: 'Inline assembly declaration with platform-specific code',
+    tags: ['asm', 'v3', 'backend'],
+    code: `int32 my_add = asm(int32 a, int32 b) -> {
+    mov eax, edi
+    add eax, esi
+    ret
+};`,
+  },
+  {
+    name: 'boot-entry',
+    description: 'Bare-metal entry point bypassing the Calynda runtime',
+    tags: ['boot', 'v3', 'embedded'],
+    code: `boot() -> 0;`,
+  },
+  {
+    name: 'manual-memory',
+    description: 'Manual memory management with malloc and free',
+    tags: ['manual', 'memory', 'v3'],
+    code: `start(string[] args) -> {
+    manual {
+        var addr = malloc(1024);
+        free(addr);
+    };
+    return 0;
+};`,
+  },
+  {
+    name: 'arm64-target',
+    description: 'Compiling for AArch64 Linux target',
+    tags: ['arm64', 'target', 'v3', 'backend'],
+    code: `// Compile with: calynda build --target aarch64-linux main.cal
+start(string[] args) -> 0;`,
+  },
+  {
+    name: 'car-archive',
+    description: 'Working with CAR source archives',
+    tags: ['car', 'archive', 'v3', 'cli'],
+    code: `// Create archive: calynda car create archive.car src/
+// Extract archive: calynda car extract archive.car
+// Build from archive: calynda build project.car`,
+  },
 ];

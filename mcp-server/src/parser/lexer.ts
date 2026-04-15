@@ -1,58 +1,17 @@
-export type TokenType =
-  | 'keyword' | 'type' | 'identifier'
-  | 'integer' | 'float' | 'bool' | 'char' | 'string' | 'null'
-  | 'template_literal'
-  | 'arrow'
-  | 'plus' | 'minus' | 'star' | 'slash' | 'percent'
-  | 'plusplus' | 'minusminus'
-  | 'ellipsis' | 'underscore'
-  | 'amp' | 'pipe' | 'caret' | 'tilde'
-  | 'bang' | 'question' | 'colon'
-  | 'lt' | 'gt' | 'lteq' | 'gteq' | 'eqeq' | 'bangeq'
-  | 'ampamp' | 'pipepipe'
-  | 'tildeamp' | 'tildecaret'
-  | 'ltlt' | 'gtgt'
-  | 'eq' | 'pluseq' | 'minuseq' | 'stareq' | 'slasheq' | 'percenteq'
-  | 'ampeq' | 'pipeeq' | 'careteq' | 'ltlteq' | 'gtgteq'
-  | 'lparen' | 'rparen' | 'lbrace' | 'rbrace' | 'lbracket' | 'rbracket'
-  | 'semicolon' | 'comma' | 'dot'
-  | 'eof';
+import {
+  TokenType, Token, LexError, LexerContext,
+  KEYWORDS, PRIMITIVE_TYPES,
+  readOperatorToken,
+} from './lexer-defs';
 
-export interface Token {
-  type: TokenType;
-  value: string;
-  line: number;
-  column: number;
-  offset: number;
-}
+export { TokenType, Token, LexError } from './lexer-defs';
 
-const KEYWORDS = new Set([
-  'package', 'import', 'public', 'private', 'final', 'var', 'start',
-  'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-  'export', 'as', 'internal', 'static', 'union', 'manual', 'arr',
-  'malloc', 'calloc', 'realloc', 'free',
-]);
-
-const PRIMITIVE_TYPES = new Set([
-  'int8', 'int16', 'int32', 'int64',
-  'uint8', 'uint16', 'uint32', 'uint64',
-  'float32', 'float64',
-  'bool', 'char', 'string',
-  'byte', 'sbyte', 'short', 'int', 'long', 'ulong', 'uint', 'float', 'double',
-]);
-
-export class LexError extends Error {
-  constructor(message: string, public line: number, public column: number) {
-    super(message);
-  }
-}
-
-export class Lexer {
-  private source: string;
-  private pos: number = 0;
-  private line: number = 1;
-  private column: number = 1;
-  private errors: LexError[] = [];
+export class Lexer implements LexerContext {
+  source: string;
+  pos: number = 0;
+  line: number = 1;
+  column: number = 1;
+  errors: LexError[] = [];
 
   constructor(source: string) {
     this.source = source;
@@ -72,18 +31,18 @@ export class Lexer {
     return tokens;
   }
 
-  private peek(offset = 0): string {
+  peek(offset = 0): string {
     return this.source[this.pos + offset] ?? '';
   }
 
-  private advance(): string {
+  advance(): string {
     const ch = this.source[this.pos++];
     if (ch === '\n') { this.line++; this.column = 1; }
     else { this.column++; }
     return ch;
   }
 
-  private makeToken(type: TokenType, value: string, line: number, column: number, offset: number): Token {
+  makeToken(type: TokenType, value: string, line: number, column: number, offset: number): Token {
     return { type, value, line, column, offset };
   }
 
@@ -121,7 +80,7 @@ export class Lexer {
     if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_') {
       return this.readIdentOrKeyword(startLine, startCol, startOffset);
     }
-    return this.readOperator(startLine, startCol, startOffset);
+    return readOperatorToken(this, startLine, startCol, startOffset);
   }
 
   private readIdentOrKeyword(line: number, col: number, offset: number): Token {
@@ -224,84 +183,5 @@ export class Lexer {
       value += this.advance();
     }
     return this.makeToken('template_literal', value, line, col, offset);
-  }
-
-  private readOperator(line: number, col: number, offset: number): Token | null {
-    const ch = this.advance();
-    const next = this.peek();
-
-    switch (ch) {
-      case '-':
-        if (next === '>') { this.advance(); return this.makeToken('arrow', '->', line, col, offset); }
-        if (next === '-') { this.advance(); return this.makeToken('minusminus', '--', line, col, offset); }
-        if (next === '=') { this.advance(); return this.makeToken('minuseq', '-=', line, col, offset); }
-        return this.makeToken('minus', '-', line, col, offset);
-      case '+':
-        if (next === '+') { this.advance(); return this.makeToken('plusplus', '++', line, col, offset); }
-        if (next === '=') { this.advance(); return this.makeToken('pluseq', '+=', line, col, offset); }
-        return this.makeToken('plus', '+', line, col, offset);
-      case '*':
-        if (next === '=') { this.advance(); return this.makeToken('stareq', '*=', line, col, offset); }
-        return this.makeToken('star', '*', line, col, offset);
-      case '/':
-        if (next === '=') { this.advance(); return this.makeToken('slasheq', '/=', line, col, offset); }
-        return this.makeToken('slash', '/', line, col, offset);
-      case '%':
-        if (next === '=') { this.advance(); return this.makeToken('percenteq', '%=', line, col, offset); }
-        return this.makeToken('percent', '%', line, col, offset);
-      case '&':
-        if (next === '&') { this.advance(); return this.makeToken('ampamp', '&&', line, col, offset); }
-        if (next === '=') { this.advance(); return this.makeToken('ampeq', '&=', line, col, offset); }
-        return this.makeToken('amp', '&', line, col, offset);
-      case '|':
-        if (next === '|') { this.advance(); return this.makeToken('pipepipe', '||', line, col, offset); }
-        if (next === '=') { this.advance(); return this.makeToken('pipeeq', '|=', line, col, offset); }
-        return this.makeToken('pipe', '|', line, col, offset);
-      case '^':
-        if (next === '=') { this.advance(); return this.makeToken('careteq', '^=', line, col, offset); }
-        return this.makeToken('caret', '^', line, col, offset);
-      case '~':
-        if (next === '&') { this.advance(); return this.makeToken('tildeamp', '~&', line, col, offset); }
-        if (next === '^') { this.advance(); return this.makeToken('tildecaret', '~^', line, col, offset); }
-        return this.makeToken('tilde', '~', line, col, offset);
-      case '!':
-        if (next === '=') { this.advance(); return this.makeToken('bangeq', '!=', line, col, offset); }
-        return this.makeToken('bang', '!', line, col, offset);
-      case '<':
-        if (next === '<') {
-          this.advance();
-          if (this.peek() === '=') { this.advance(); return this.makeToken('ltlteq', '<<=', line, col, offset); }
-          return this.makeToken('ltlt', '<<', line, col, offset);
-        }
-        if (next === '=') { this.advance(); return this.makeToken('lteq', '<=', line, col, offset); }
-        return this.makeToken('lt', '<', line, col, offset);
-      case '>':
-        if (next === '>') {
-          this.advance();
-          if (this.peek() === '=') { this.advance(); return this.makeToken('gtgteq', '>>=', line, col, offset); }
-          return this.makeToken('gtgt', '>>', line, col, offset);
-        }
-        if (next === '=') { this.advance(); return this.makeToken('gteq', '>=', line, col, offset); }
-        return this.makeToken('gt', '>', line, col, offset);
-      case '=':
-        if (next === '=') { this.advance(); return this.makeToken('eqeq', '==', line, col, offset); }
-        return this.makeToken('eq', '=', line, col, offset);
-      case '?': return this.makeToken('question', '?', line, col, offset);
-      case ':': return this.makeToken('colon', ':', line, col, offset);
-      case '(': return this.makeToken('lparen', '(', line, col, offset);
-      case ')': return this.makeToken('rparen', ')', line, col, offset);
-      case '{': return this.makeToken('lbrace', '{', line, col, offset);
-      case '}': return this.makeToken('rbrace', '}', line, col, offset);
-      case '[': return this.makeToken('lbracket', '[', line, col, offset);
-      case ']': return this.makeToken('rbracket', ']', line, col, offset);
-      case ';': return this.makeToken('semicolon', ';', line, col, offset);
-      case ',': return this.makeToken('comma', ',', line, col, offset);
-      case '.':
-        if (this.peek() === '.' && this.peek(1) === '.') { this.advance(); this.advance(); return this.makeToken('ellipsis', '...', line, col, offset); }
-        return this.makeToken('dot', '.', line, col, offset);
-      default:
-        this.errors.push(new LexError(`Unexpected character: ${ch}`, line, col));
-        return null;
-    }
   }
 }

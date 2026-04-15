@@ -42,4 +42,19 @@ int calynda_run_linker(const char *assembly_path,
                        bool is_boot);
 int calynda_run_child_process(const char *path, char *const argv[]);
 
+/* calynda.c */
+bool has_car_extension(const char *path);
+
+/* calynda_commands.c */
+int calynda_build_program_file(const char *source_path,
+                               const char *output_path,
+                               const TargetDescriptor *target);
+int calynda_run_program_file(const char *source_path,
+                             int argc, char **argv,
+                             const TargetDescriptor *target);
+int calynda_build_car_file(const char *car_path,
+                           const char *output_path,
+                           const TargetDescriptor *target);
+int calynda_pack_directory(const char *dir_path, const char *output_path);
+
 #endif

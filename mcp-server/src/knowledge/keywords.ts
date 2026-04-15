@@ -1,7 +1,7 @@
 export const KEYWORDS = [
-  'package', 'import', 'public', 'private', 'final', 'var', 'start',
+  'package', 'import', 'public', 'private', 'final', 'var', 'start', 'boot',
   'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-  'export', 'as', 'internal', 'static', 'union', 'manual', 'arr',
+  'export', 'as', 'internal', 'static', 'union', 'manual', 'arr', 'asm',
   'malloc', 'calloc', 'realloc', 'free',
 ] as const;
 
