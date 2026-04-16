@@ -1,0 +1,33 @@
+{
+    // Hook configuration for QA agent
+    // Triggered manually via workflow_dispatch, not on pull requests.
+    // The QA agent (calynda-qa.agent.md) implements a multi-week testing
+    // cycle; per-PR regression testing is handled by .github/workflows/ci.yml.
+    "name": "QA Agent Hook",
+    "description": "Manually triggers the Calynda QA agent for a full release-gating cycle",
+    "trigger": {
+        "event": "workflow_dispatch",
+        "inputs": {
+            "phase": {
+                "description": "QA phase to run: plan | implement | execute | evaluate | improve | signoff | all",
+                "required": false,
+                "default": "all"
+            }
+        }
+    },
+    "agent": "calynda-qa.agent.md",
+    "steps": [
+        {
+            "name": "Run QA Phase",
+            "run": "qa-phase",
+            "with": {
+                "phase": "${{ inputs.phase }}"
+            },
+            "failOnError": true
+        }
+    ],
+    "notifications": {
+        "onSuccess": true,
+        "onFailure": true
+    }
+}
