@@ -74,7 +74,7 @@ export function getCompletions(input: CompleteInput): CompletionItem[] {
     items.push({
       label: 'boot',
       kind: 'snippet',
-      detail: 'Bare-metal entry point',
+      detail: 'Freestanding bare-metal entry point',
       insertText: 'boot() -> {\n    ${1}\n};',
     });
   }
@@ -98,8 +98,17 @@ export function getCompletions(input: CompleteInput): CompletionItem[] {
     items.push({
       label: 'spawn',
       kind: 'snippet',
-      detail: 'Spawn a zero-argument void callable',
-      insertText: 'spawn ${1:task}',
+      detail: 'Spawn a zero-argument callable; void returns Thread, value returns Future<T>',
+      insertText: 'spawn () -> {\n    ${1}\n}',
+    });
+  }
+
+  if ('thread_local'.startsWith(prefix)) {
+    items.push({
+      label: 'thread_local',
+      kind: 'snippet',
+      detail: 'Thread-local storage declaration',
+      insertText: 'thread_local ${1:int32} ${2:name} = ${3:0};',
     });
   }
 

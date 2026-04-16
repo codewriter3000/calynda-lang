@@ -151,6 +151,10 @@ bool looks_like_lambda_expression(const Parser *parser) {
 bool looks_like_local_binding_statement(const Parser *parser) {
     size_t index = parser ? parser->current : 0;
 
+    if (parser_token_at(parser, index)->type == TOK_THREAD_LOCAL) {
+        return false;
+    }
+
     if (parser_token_at(parser, index)->type == TOK_INTERNAL) {
         index++;
     }

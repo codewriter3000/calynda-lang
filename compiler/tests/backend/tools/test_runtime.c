@@ -91,8 +91,13 @@ static CalyndaRtWord capture_start_arguments(CalyndaRtWord arguments) {
 void test_runtime_start_process_cleans_hetero_arrays_and_nested_objects(void);
 void test_runtime_checked_stackalloc_uses_tracked_scratch_storage(void);
 void test_runtime_checked_registry_grows_past_legacy_pointer_limit(void);
+void test_runtime_checked_registry_is_thread_safe_under_concurrency(void);
 void test_runtime_thread_and_mutex_helpers(void);
 void test_runtime_deref_sized_and_store_sized_primitive_widths(void);
+/* alpha.2 tests */
+void test_runtime_thread_cancel_stops_thread(void);
+void test_runtime_future_spawn_get_cancel(void);
+void test_runtime_atomic_operations(void);
 
 static void test_runtime_layout_dump_defines_object_model(void) {
     static const char expected[] =
@@ -271,9 +276,14 @@ int main(void) {
     RUN_TEST(test_runtime_start_process_cleans_hetero_arrays_and_nested_objects);
     RUN_TEST(test_runtime_checked_stackalloc_uses_tracked_scratch_storage);
     RUN_TEST(test_runtime_checked_registry_grows_past_legacy_pointer_limit);
+    RUN_TEST(test_runtime_checked_registry_is_thread_safe_under_concurrency);
     RUN_TEST(test_runtime_start_process_boxes_cli_arguments);
     RUN_TEST(test_runtime_thread_and_mutex_helpers);
     RUN_TEST(test_runtime_deref_sized_and_store_sized_primitive_widths);
+    /* alpha.2: future, atomic, cancel */
+    RUN_TEST(test_runtime_thread_cancel_stops_thread);
+    RUN_TEST(test_runtime_future_spawn_get_cancel);
+    RUN_TEST(test_runtime_atomic_operations);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

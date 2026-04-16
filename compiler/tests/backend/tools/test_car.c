@@ -69,6 +69,7 @@ void test_car_read_bad_version(void);
 void test_car_empty_archive(void);
 void test_car_add_directory(void);
 void test_car_many_files(void);
+void test_car_build_reports_parse_span(void);
 
 
 /* ================================================================
@@ -87,6 +88,7 @@ int main(void) {
     RUN_TEST(test_car_empty_archive);
     RUN_TEST(test_car_add_directory);
     RUN_TEST(test_car_many_files);
+    RUN_TEST(test_car_build_reports_parse_span);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

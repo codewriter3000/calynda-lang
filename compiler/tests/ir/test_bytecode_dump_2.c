@@ -149,11 +149,76 @@ static void test_bytecode_dump_deduplicates_string_constants(void) {
     free(dump);
 }
 
+static void test_bytecode_dump_lowers_checked_manual_helpers(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual checked {\n"
+        "        int64 p = malloc(64);\n"
+        "        free(p);\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump), "build checked manual bytecode dump");
+    ASSERT_CONTAINS("__calynda_bc_malloc", dump, "manual checked malloc lowers to bounds-checked helper");
+    ASSERT_CONTAINS("__calynda_bc_free", dump, "manual checked free lowers to bounds-checked helper");
+    free(dump);
+}
+
+static void test_bytecode_dump_lowers_checked_ptr_helpers(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        ptr<int64, checked> p = malloc(16);\n"
+        "        ptr<int64, checked> q = offset(p, 1);\n"
+        "        store(q, 5);\n"
+        "        int64 v = deref(q);\n"
+        "        free(p);\n"
+        "        return int32(v);\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump), "build checked ptr bytecode dump");
+    ASSERT_CONTAINS("__calynda_bc_offset", dump, "checked ptr offset lowers to bounds-checked helper");
+    ASSERT_CONTAINS("__calynda_bc_store", dump, "checked ptr store lowers to bounds-checked helper");
+    ASSERT_CONTAINS("__calynda_bc_deref", dump, "checked ptr deref lowers to bounds-checked helper");
+    free(dump);
+}
+
+static void test_bytecode_dump_lowers_stackalloc_cleanup(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        int64 p = stackalloc(8);\n"
+        "        return 1;\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    const char *cleanup_call;
+    const char *return_stmt;
+    char *dump;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump), "build stackalloc bytecode dump");
+    cleanup_call = strstr(dump, "BC_CALL void <- global(");
+    return_stmt = strstr(dump, "BC_RETURN const(");
+    ASSERT_CONTAINS("__calynda_stackalloc", dump, "stackalloc lowers to runtime helper call");
+    ASSERT_CONTAINS("symbol \"free\"", dump, "stackalloc registers free as deferred cleanup");
+    ASSERT_TRUE(cleanup_call != NULL && return_stmt != NULL && cleanup_call < return_stmt,
+                "stackalloc cleanup call stays ahead of the enclosing return");
+    free(dump);
+}
+
 int main(void) {
     printf("Running bytecode dump tests (part 2)...\n\n");
 
     RUN_TEST(test_bytecode_dump_lowers_binary_unary_store_index_store_member);
     RUN_TEST(test_bytecode_dump_deduplicates_string_constants);
+    RUN_TEST(test_bytecode_dump_lowers_checked_manual_helpers);
+    RUN_TEST(test_bytecode_dump_lowers_checked_ptr_helpers);
+    RUN_TEST(test_bytecode_dump_lowers_stackalloc_cleanup);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

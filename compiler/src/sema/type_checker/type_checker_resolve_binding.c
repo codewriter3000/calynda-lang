@@ -48,6 +48,20 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
             entry->is_resolving = false;
             return NULL;
         }
+        {
+            CheckedType generic_arg_type;
+
+            if (tc_type_check_info_first_generic_arg(checker,
+                                                     NULL,
+                                                     symbol->declared_type,
+                                                     &generic_arg_type)) {
+                tc_type_check_info_set_first_generic_arg(&resolved_info, generic_arg_type);
+            }
+            if (checker->has_error) {
+                entry->is_resolving = false;
+                return NULL;
+            }
+        }
         break;
 
     case SYMBOL_KIND_TOP_LEVEL_BINDING:
@@ -99,6 +113,20 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
             entry->is_resolving = false;
             return NULL;
         }
+        {
+            CheckedType generic_arg_type;
+
+            if (tc_type_check_info_first_generic_arg(checker,
+                                                     NULL,
+                                                     symbol->declared_type,
+                                                     &generic_arg_type)) {
+                tc_type_check_info_set_first_generic_arg(&resolved_info, generic_arg_type);
+            }
+            if (checker->has_error) {
+                entry->is_resolving = false;
+                return NULL;
+            }
+        }
         break;
 
     case SYMBOL_KIND_LAYOUT:
@@ -131,6 +159,10 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
     CheckedType source_type;
     char source_text[64];
     char target_text[64];
+    CheckedType target_generic_arg;
+    CheckedType source_generic_arg;
+    bool has_target_generic_arg = false;
+    bool has_source_generic_arg = false;
 
     if (is_inferred_type) {
         initializer_info = tc_check_expression(checker, initializer);
@@ -161,6 +193,13 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
     if (checker->has_error) {
         return false;
     }
+    has_target_generic_arg = tc_type_check_info_first_generic_arg(checker,
+                                                                  NULL,
+                                                                  declared_type,
+                                                                  &target_generic_arg);
+    if (checker->has_error) {
+        return false;
+    }
 
     if (initializer && initializer->kind == AST_EXPR_LAMBDA) {
         initializer_info = tc_check_lambda_expression(checker,
@@ -186,6 +225,13 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
     }
 
     source_type = tc_type_check_source_type(initializer_info);
+    has_source_generic_arg = tc_type_check_info_first_generic_arg(checker,
+                                                                  initializer_info,
+                                                                  NULL,
+                                                                  &source_generic_arg);
+    if (checker->has_error) {
+        return false;
+    }
     if (!(initializer_info->is_callable && source_type.kind == CHECKED_TYPE_EXTERNAL) &&
         !tc_checked_type_assignable(target_type, source_type)) {
         checked_type_to_string(source_type, source_text, sizeof(source_text));
@@ -201,8 +247,33 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
         return false;
     }
 
+    if (has_target_generic_arg && has_source_generic_arg &&
+        !tc_checked_type_assignable(target_generic_arg, source_generic_arg)) {
+        char source_generic_text[64];
+        char target_generic_text[64];
+
+        checked_type_to_string(source_generic_arg,
+                               source_generic_text,
+                               sizeof(source_generic_text));
+        checked_type_to_string(target_generic_arg,
+                               target_generic_text,
+                               sizeof(target_generic_text));
+        tc_set_error_at(checker,
+                        initializer ? initializer->source_span : symbol->declaration_span,
+                        &symbol->declaration_span,
+                        "Cannot assign expression with generic value type %s to %s '%s' expecting %s.",
+                        source_generic_text,
+                        symbol_kind_name(symbol->kind),
+                        symbol->name ? symbol->name : "<anonymous>",
+                        target_generic_text);
+        return false;
+    }
+
     *info = *initializer_info;
     info->type = target_type;
+    if (has_target_generic_arg) {
+        tc_type_check_info_set_first_generic_arg(info, target_generic_arg);
+    }
     if (initializer_info->is_callable) {
         info->callable_return_type = target_type;
     }

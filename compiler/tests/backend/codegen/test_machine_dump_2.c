@@ -89,7 +89,15 @@ void test_runtime_abi_dump_defines_helper_surface(void) {
         "  helper __calynda_rt_thread_join return=void args=[rdi=thread_value]\n"
         "  helper __calynda_rt_mutex_new return=rax args=[]\n"
         "  helper __calynda_rt_mutex_lock return=void args=[rdi=mutex_value]\n"
-        "  helper __calynda_rt_mutex_unlock return=void args=[rdi=mutex_value]\n";
+        "  helper __calynda_rt_mutex_unlock return=void args=[rdi=mutex_value]\n"
+        "  helper __calynda_rt_thread_cancel return=void args=[rdi=thread_value]\n"
+        "  helper __calynda_rt_future_spawn return=rax args=[rdi=callable]\n"
+        "  helper __calynda_rt_future_get return=rax args=[rdi=future_value]\n"
+        "  helper __calynda_rt_future_cancel return=void args=[rdi=future_value]\n"
+        "  helper __calynda_rt_atomic_new return=rax args=[rdi=atomic_new_value]\n"
+        "  helper __calynda_rt_atomic_load return=rax args=[rdi=atomic_value]\n"
+        "  helper __calynda_rt_atomic_store return=void args=[rdi=atomic_value, rsi=atomic_new_value]\n"
+        "  helper __calynda_rt_atomic_exchange return=rax args=[rdi=atomic_value, rsi=atomic_new_value]\n";
     char *dump;
 
     dump = runtime_abi_dump_surface_to_string(CODEGEN_TARGET_X86_64_SYSV_ELF);
@@ -130,6 +138,14 @@ void test_machine_dump_emits_minimal_direct_instruction_stream(void) {
         "  helper __calynda_rt_mutex_new return=rax args=[]\n"
         "  helper __calynda_rt_mutex_lock return=void args=[rdi=mutex_value]\n"
         "  helper __calynda_rt_mutex_unlock return=void args=[rdi=mutex_value]\n"
+        "  helper __calynda_rt_thread_cancel return=void args=[rdi=thread_value]\n"
+        "  helper __calynda_rt_future_spawn return=rax args=[rdi=callable]\n"
+        "  helper __calynda_rt_future_get return=rax args=[rdi=future_value]\n"
+        "  helper __calynda_rt_future_cancel return=void args=[rdi=future_value]\n"
+        "  helper __calynda_rt_atomic_new return=rax args=[rdi=atomic_new_value]\n"
+        "  helper __calynda_rt_atomic_load return=rax args=[rdi=atomic_value]\n"
+        "  helper __calynda_rt_atomic_store return=void args=[rdi=atomic_value, rsi=atomic_new_value]\n"
+        "  helper __calynda_rt_atomic_exchange return=rax args=[rdi=atomic_value, rsi=atomic_new_value]\n"
         "  Unit name=add kind=binding return=int32 frame_slots=2 spills=0 helper_slots=0 outgoing_stack=0 blocks=1\n"
         "    Blocks:\n"
         "      Block bb0:\n"

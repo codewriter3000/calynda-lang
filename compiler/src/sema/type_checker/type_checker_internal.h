@@ -71,6 +71,15 @@ TypeCheckInfo tc_type_check_info_make_callable(CheckedType return_type,
                                                const AstParameterList *parameters);
 TypeCheckInfo tc_type_check_info_make_external_value(void);
 TypeCheckInfo tc_type_check_info_make_external_callable(void);
+void tc_type_check_info_set_first_generic_arg(TypeCheckInfo *info,
+                                              CheckedType generic_arg_type);
+bool tc_checked_type_first_generic_arg_from_ast_type(TypeChecker *checker,
+                                                     const AstType *type,
+                                                     CheckedType *generic_arg_type);
+bool tc_type_check_info_first_generic_arg(TypeChecker *checker,
+                                          const TypeCheckInfo *info,
+                                          const AstType *fallback_type,
+                                          CheckedType *generic_arg_type);
 CheckedType tc_type_check_source_type(const TypeCheckInfo *info);
 const AstSourceSpan *tc_block_context_related_span(const BlockContext *context,
                                                    AstSourceSpan primary_span);
@@ -82,6 +91,10 @@ void tc_set_error_at(TypeChecker *checker,
                      AstSourceSpan primary_span,
                      const AstSourceSpan *related_span,
                      const char *format, ...);
+void tc_set_warning_at(TypeChecker *checker,
+                       AstSourceSpan primary_span,
+                       const AstSourceSpan *related_span,
+                       const char *format, ...);
 TypeCheckExpressionEntry *tc_ensure_expression_entry(TypeChecker *checker,
                                                      const AstExpression *expression);
 TypeCheckSymbolEntry *tc_ensure_symbol_entry(TypeChecker *checker,

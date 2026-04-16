@@ -185,8 +185,18 @@ bool mr_lower_memory_op_expression(MirUnitBuildContext *context,
         }
         break;
     default:
-        function_name = "malloc";
-        break;
+        /*
+         * Unknown memory-op kind. Future/atomic/cancellation operations are
+         * NOT lowered through HIR_EXPR_MEMORY_OP; they go through the normal
+         * HIR_EXPR_CALL path produced by hr_make_helper_call in hir_lower_expr.c.
+         * If we reach this path with an unknown kind it is a compiler bug.
+         */
+        mr_set_error(context->build,
+                     expression->source_span,
+                     NULL,
+                     "Internal error: unhandled memory-op kind %d in MIR lowering.",
+                     (int)expression->as.memory_op.kind);
+        return false;
     }
 
     if (!mr_append_memory_call(context,

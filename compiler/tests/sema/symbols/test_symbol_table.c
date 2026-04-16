@@ -77,6 +77,8 @@ void test_symbol_table_import_alias(void);
 void test_symbol_table_import_selective(void);
 void test_symbol_table_ambiguous_selective_import(void);
 void test_symbol_table_export_static_flags(void);
+void test_symbol_table_thread_local_flag(void);
+void test_symbol_table_allows_future_atomic_builtin_identifiers(void);
 void test_symbol_table_internal_flag(void);
 void test_symbol_table_union_and_type_params(void);
 void test_symbol_table_union_no_generics(void);
@@ -96,6 +98,8 @@ int main(void) {
     RUN_TEST(test_symbol_table_import_selective);
     RUN_TEST(test_symbol_table_ambiguous_selective_import);
     RUN_TEST(test_symbol_table_export_static_flags);
+    RUN_TEST(test_symbol_table_thread_local_flag);
+    RUN_TEST(test_symbol_table_allows_future_atomic_builtin_identifiers);
     RUN_TEST(test_symbol_table_internal_flag);
     RUN_TEST(test_symbol_table_union_and_type_params);
     RUN_TEST(test_symbol_table_union_no_generics);

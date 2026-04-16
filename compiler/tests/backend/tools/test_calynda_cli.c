@@ -171,6 +171,8 @@ void test_calynda_cli_help_and_emitters(void);
 void test_calynda_cli_builds_native_executable(void);
 void test_calynda_cli_missing_source_file(void);
 void test_calynda_cli_malformed_source(void);
+void test_calynda_cli_unknown_option_reports_usage(void);
+void test_calynda_cli_malformed_source_reports_span(void);
 
 
 int main(void) {
@@ -180,6 +182,8 @@ int main(void) {
     RUN_TEST(test_calynda_cli_builds_native_executable);
     RUN_TEST(test_calynda_cli_missing_source_file);
     RUN_TEST(test_calynda_cli_malformed_source);
+    RUN_TEST(test_calynda_cli_unknown_option_reports_usage);
+    RUN_TEST(test_calynda_cli_malformed_source_reports_span);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

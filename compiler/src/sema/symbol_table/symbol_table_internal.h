@@ -16,7 +16,7 @@ Symbol *st_symbol_new(SymbolTable *table, SymbolKind kind,
                       const AstType *declared_type,
                       bool is_inferred_type, bool is_final,
                       bool is_exported, bool is_static,
-                      bool is_internal,
+                      bool is_internal, bool is_thread_local,
                       AstSourceSpan declaration_span,
                       const void *declaration, Scope *scope);
 bool st_scope_append_symbol(SymbolTable *table, Scope *scope, Symbol *symbol);

@@ -1,5 +1,7 @@
 #include "type_checker_internal.h"
 
+static bool g_type_checker_strict_race_check = false;
+
 void type_checker_init(TypeChecker *checker) {
     if (!checker) {
         return;
@@ -25,6 +27,14 @@ const TypeCheckError *type_checker_get_error(const TypeChecker *checker) {
     }
 
     return &checker->error;
+}
+
+const TypeCheckError *type_checker_get_warning(const TypeChecker *checker) {
+    if (!checker || !checker->has_warning) {
+        return NULL;
+    }
+
+    return &checker->warning;
 }
 
 bool type_checker_format_error(const TypeCheckError *error,
@@ -60,6 +70,14 @@ bool type_checker_format_error(const TypeCheckError *error,
     }
 
     return true;
+}
+
+void type_checker_set_global_strict_race_check(bool enabled) {
+    g_type_checker_strict_race_check = enabled;
+}
+
+bool type_checker_get_global_strict_race_check(void) {
+    return g_type_checker_strict_race_check;
 }
 
 const TypeCheckInfo *type_checker_get_expression_info(const TypeChecker *checker,

@@ -36,6 +36,7 @@ const char *token_type_name(TokenType type) {
     case TOK_AS:             return "AS";
     case TOK_INTERNAL:       return "INTERNAL";
     case TOK_STATIC:         return "STATIC";
+    case TOK_THREAD_LOCAL:   return "THREAD_LOCAL";
     case TOK_UNION:          return "UNION";
     case TOK_TYPE:           return "TYPE";
     case TOK_MANUAL:         return "MANUAL";

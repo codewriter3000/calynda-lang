@@ -140,8 +140,9 @@ void test_hir_builder_rejects_programs_with_type_errors(void) {
     SymbolTable symbols;
     TypeChecker checker;
     HirProgram hir_program;
+    const TypeCheckError *type_error;
     char diagnostic[256];
-    char *diagnostic_text = diagnostic;
+    char expected[256];
 
     symbol_table_init(&symbols);
     type_checker_init(&checker);
@@ -151,13 +152,21 @@ void test_hir_builder_rejects_programs_with_type_errors(void) {
     REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for invalid HIR input");
     ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
                 "type check fails before HIR lowering");
+    type_error = type_checker_get_error(&checker);
+    REQUIRE_TRUE(type_error != NULL, "type checker exposes structured error for invalid HIR input");
+    REQUIRE_TRUE(type_checker_format_error(type_error, expected, sizeof(expected)),
+                 "format type checker error for invalid HIR input");
     ASSERT_TRUE(!hir_build_program(&hir_program, &program, &symbols, &checker),
                 "HIR lowering rejects type-invalid program");
     REQUIRE_TRUE(hir_format_error(hir_get_error(&hir_program), diagnostic, sizeof(diagnostic)),
                  "format HIR build error");
-    ASSERT_EQ_STR("Cannot lower program to HIR while the type checker reports errors.",
-                  diagnostic_text,
-                  "formatted HIR build precondition error");
+    ASSERT_TRUE(strcmp(expected, diagnostic) == 0,
+                "HIR build error preserves the type checker diagnostic text");
+    ASSERT_TRUE(hir_get_error(&hir_program)->primary_span.start_line ==
+                    type_error->primary_span.start_line &&
+                hir_get_error(&hir_program)->primary_span.start_column ==
+                    type_error->primary_span.start_column,
+                "HIR build error preserves the primary diagnostic span");
 
     hir_program_free(&hir_program);
     type_checker_free(&checker);
@@ -215,4 +224,3 @@ void test_hir_dump_lowers_v2_expressions(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
-

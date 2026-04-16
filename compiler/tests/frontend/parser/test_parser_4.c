@@ -159,6 +159,25 @@ void test_parse_v2_modifiers(void) {
     parser_free(&parser);
 }
 
+void test_parse_thread_local_binding_modifier(void) {
+    const char *source = "thread_local int32 counter = 5;\n";
+    Parser parser;
+    AstProgram program;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse thread_local binding");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for thread_local");
+    ASSERT_EQ_INT(1, program.top_level_count, "one top-level decl");
+    ASSERT_EQ_INT(1, program.top_level_decls[0]->as.binding_decl.modifier_count,
+                  "thread_local decl modifier count");
+    ASSERT_EQ_INT(AST_MODIFIER_THREAD_LOCAL,
+                  program.top_level_decls[0]->as.binding_decl.modifiers[0],
+                  "thread_local modifier");
+
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 
 /* ------------------------------------------------------------------ */
 /* V2 feature: import alias, wildcard, selective                      */
@@ -243,4 +262,3 @@ void test_parse_java_primitive_aliases(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
-

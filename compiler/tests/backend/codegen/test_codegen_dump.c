@@ -66,6 +66,7 @@ void test_codegen_dump_distinguishes_runtime_backed_operations(void);
 void test_codegen_dump_allocates_registers_then_spills(void);
 void test_codegen_dump_routes_throw_through_runtime_helper(void);
 void test_codegen_error_api_returns_null_on_success(void);
+void test_codegen_builder_preserves_upstream_error_spans(void);
 
 
 int main(void) {
@@ -76,6 +77,7 @@ int main(void) {
     RUN_TEST(test_codegen_dump_allocates_registers_then_spills);
     RUN_TEST(test_codegen_dump_routes_throw_through_runtime_helper);
     RUN_TEST(test_codegen_error_api_returns_null_on_success);
+    RUN_TEST(test_codegen_builder_preserves_upstream_error_spans);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

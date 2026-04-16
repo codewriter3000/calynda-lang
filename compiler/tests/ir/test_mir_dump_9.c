@@ -171,3 +171,51 @@ void test_mir_dump_error_api_format_null_is_safe(void) {
                 "mir_format_error with NULL error and valid buffer returns false");
     mir_program_free(&fresh);
 }
+
+void test_mir_build_rejects_programs_with_hir_errors(void) {
+    static const char source[] = "start(string[] args) -> missing + 1;\n";
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    const HirBuildError *hir_error;
+    char expected[256];
+    char diagnostic[256];
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    parser_init(&parser, source);
+
+    REQUIRE_TRUE(parser_parse_program(&parser, &ast_program), "parse invalid MIR input");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &ast_program), "build symbols for invalid MIR input");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &ast_program, &symbols),
+                "type check fails before MIR lowering");
+    ASSERT_TRUE(!hir_build_program(&hir_program, &ast_program, &symbols, &checker),
+                "HIR lowering rejects type-invalid MIR input");
+    hir_error = hir_get_error(&hir_program);
+    REQUIRE_TRUE(hir_error != NULL, "HIR exposes structured error for invalid MIR input");
+    REQUIRE_TRUE(hir_format_error(hir_error, expected, sizeof(expected)),
+                 "format HIR error for MIR propagation test");
+    ASSERT_TRUE(!mir_build_program(&mir_program, &hir_program, false),
+                "MIR lowering rejects HIR-invalid program");
+    REQUIRE_TRUE(mir_format_error(mir_get_error(&mir_program), diagnostic, sizeof(diagnostic)),
+                 "format MIR build error");
+    ASSERT_TRUE(strcmp(expected, diagnostic) == 0,
+                "MIR build error preserves the HIR diagnostic text");
+    ASSERT_TRUE(mir_get_error(&mir_program)->primary_span.start_line ==
+                    hir_error->primary_span.start_line &&
+                mir_get_error(&mir_program)->primary_span.start_column ==
+                    hir_error->primary_span.start_column,
+                "MIR build error preserves the primary diagnostic span");
+
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+}

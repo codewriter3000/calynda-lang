@@ -1,6 +1,6 @@
 # Calynda
 
-Calynda is a compiled functional systems programming language. It targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files.
+Calynda is a compiled functional systems programming language. The current 1.0.0-alpha.2 surface targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files.
 
 ## Repository Layout
 
@@ -38,14 +38,20 @@ There is no interpreter path. AST or IR interpretation is not part of the design
 - Deferred cleanup via `cleanup(value, fn)`, which runs `fn(value)` when the enclosing manual scope exits — including on `return` and `throw` paths
 - Scope-local scratch storage via `stackalloc(size)`, reclaimed at manual-scope exit
 - `manual checked` keeps a growable runtime bounds registry for safer pointer tracking
+- Threading via `spawn`, `Thread`, `Future<T>`, and `Mutex`
+- `Thread.join()` / `Thread.cancel()` and `Future<T>.get()` / `Future<T>.cancel()`
+- `Atomic<T>` cells with `Atomic<T>.new(value)`, `.load()`, `.store(value)`, and `.exchange(value)` for first-class single-word runtime values
+- `thread_local` storage for cross-thread identity (not ordinary stack locals)
 - Inline assembly declarations via `asm()`
-- Bare-metal entry point via `boot()` for environments without a standard runtime
+- Bare-metal entry point via `boot()` for freestanding environments without weakening the bare-metal contract to Linux-only exit behavior
 - Template literals with string interpolation
 - Ternary expressions, member access, index access, and casts
 - CAR source archives for bundling `.cal` files
 - `throw` for error propagation
 
 The standard entry point is `start(string[] args)`. Bare-metal programs use `boot()` instead.
+
+For concurrency, `spawn` of a zero-argument `void` callable returns `Thread`; `spawn` of a zero-argument non-`void` callable returns `Future<T>`.
 
 For heterogeneous arrays, indexed reads produce `<external>` values, indexed writes are rejected, and equality on extracted values requires an explicit cast.
 
@@ -132,21 +138,25 @@ calynda run hello.cal world
 The current CLI commands are:
 
 ```text
-calynda build [--manual-bounds-check] [--target T] <source> [-o output]
-calynda run [--manual-bounds-check] [--target T] <source> [args...]
+calynda --version
+calynda build [--strict-race-check] [--target T] <source> [-o output]
+calynda run [--strict-race-check] [--target T] <source> [args...]
 calynda pack <directory> [-o output.car]
-calynda asm [--manual-bounds-check] [--target T] <source.cal>
+calynda asm [--strict-race-check] [--target T] <source.cal>
 calynda bytecode <source.cal>
 calynda help
 ```
 
 What they do:
 
-- `build`: compile a `.cal` or `.car` source input to a native executable, optionally with bounds-checked manual memory
+- `--version`: print the CLI version metadata
+- `build`: compile a `.cal` or `.car` source input to a native executable, optionally with the strict race checker enabled
 - `run`: build a temporary native executable and execute it
 - `pack`: bundle a directory of `.cal` files into a `.car` archive
 - `asm`: emit native assembly to stdout (x86_64 by default, or `--target aarch64-linux` / `--target riscv64-linux`)
 - `bytecode`: emit `portable-v1` bytecode text to stdout
+
+`--strict-race-check` is the exact alpha.2 flag spelling for the stricter shared-state race checker.
 
 ## Grammar
 
@@ -196,6 +206,9 @@ See [mcp-server/README.md](mcp-server/README.md) for installation and configurat
 
 - Native compilation currently targets Linux x86_64 SysV ELF, with cross-compilation support for AArch64 and RISC-V 64.
 - Final native linking currently uses `gcc`.
+- `Atomic<T>` is currently limited to first-class single-word runtime values.
+- Forced cancellation uses pthread cancellation semantics; `Thread.cancel()` / `Future<T>.cancel()` do not yet guarantee Calynda-level cleanup execution for `manual` or `manual checked` scopes.
+- `thread_local` is currently limited to storage with cross-thread identity, not arbitrary stack locals.
 - The runtime surface is deliberately small and only covers the helpers the compiler lowers to today.
 - The bytecode backend emits a portable compiled form, but this repository does not yet ship a bytecode runner.
 

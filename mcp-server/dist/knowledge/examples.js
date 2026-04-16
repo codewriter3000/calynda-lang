@@ -193,24 +193,22 @@ start(string[] args) -> {
 };`,
     },
     {
-        name: 'alpha-threading-aliases',
-        description: 'Alpha.1 threading, mutex, type alias, and numeric literal separator example',
-        tags: ['alpha-1', 'spawn', 'thread', 'mutex', 'type-alias', 'numeric-literal'],
+        name: 'alpha-concurrency-surface',
+        description: 'Alpha.2 spawn, Future<T>, Atomic<T>, thread_local, type alias, and numeric literal example',
+        tags: ['alpha-2', 'spawn', 'thread', 'future', 'atomic', 'thread_local', 'type-alias', 'numeric-literal'],
         code: `type Counter = int32;
+thread_local Counter workerCache = 0;
 
 start(string[] args) -> {
-    Counter shared = 1_000;
-    Mutex guard = Mutex.new();
-    void work = () -> {
-        guard.lock();
-        Counter next = shared + 0x10_00;
-        shared = next;
-        guard.unlock();
+    Atomic<int32> shared = Atomic.new(1_000);
+    Thread worker = spawn () -> {
+        workerCache = shared.exchange(0x10_00);
         exit;
     };
-    Thread worker = spawn work;
     worker.join();
-    return 0;
+    Future<int32> reader = spawn () -> shared.load();
+    Counter latest = reader.get();
+    return latest;
 };`,
     },
 ];

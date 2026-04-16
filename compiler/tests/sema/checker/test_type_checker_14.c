@@ -160,10 +160,190 @@ void test_type_checker_accepts_threading_builtins_and_type_alias(void) {
     parser_free(&parser);
 }
 
-void test_type_checker_rejects_spawn_non_void_callable(void) {
+void test_type_checker_accepts_spawn_non_void_callable_as_future(void) {
     static const char source[] =
         "start(string[] args) -> {\n"
-        "    Thread t = spawn () -> 1;\n"
+        "    Future<int32> t = spawn () -> 1;\n"
+        "    return t.get();\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse future spawn source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols future spawn");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "spawn accepts non-void callable as Future<T>");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_accepts_future_and_atomic_builtins(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    Future<int32> future = spawn () -> 41;\n"
+        "    Atomic<int32> counter = Atomic.new(1);\n"
+        "    int32 value = future.get();\n"
+        "    final int32 oldValue = counter.exchange(value);\n"
+        "    Thread worker = spawn () -> {\n"
+        "        _ = counter.exchange(oldValue);\n"
+        "        exit;\n"
+        "    };\n"
+        "    future.cancel();\n"
+        "    worker.cancel();\n"
+        "    worker.join();\n"
+        "    return counter.load();\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse future/atomic source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols future/atomic");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "future/thread/atomic builtins type check");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_warns_on_spawn_mutable_capture(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32 shared = 1;\n"
+        "    Thread worker = spawn () -> {\n"
+        "        int32 copy = shared;\n"
+        "        _ = copy;\n"
+        "        exit;\n"
+        "    };\n"
+        "    worker.join();\n"
+        "    return 0;\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *warning;
+
+    type_checker_set_global_strict_race_check(false);
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse race warning source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols race warning");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "non-strict race capture remains a warning");
+
+    warning = type_checker_get_warning(&checker);
+    REQUIRE_TRUE(warning != NULL, "race warning is recorded");
+    REQUIRE_TRUE(type_checker_format_error(warning, diagnostic, sizeof(diagnostic)),
+                 "format race warning");
+    ASSERT_CONTAINS("Possible data race", diagnostic, "warning text mentions race");
+    ASSERT_CONTAINS("4:", diagnostic, "warning keeps source span");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_rejects_spawn_mutable_capture_in_strict_mode(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32 shared = 1;\n"
+        "    Thread worker = spawn () -> {\n"
+        "        int32 copy = shared;\n"
+        "        _ = copy;\n"
+        "        exit;\n"
+        "    };\n"
+        "    worker.join();\n"
+        "    return 0;\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *error;
+
+    type_checker_set_global_strict_race_check(true);
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse strict race source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols strict race");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
+                "strict race capture is rejected");
+    error = type_checker_get_error(&checker);
+    REQUIRE_TRUE(error != NULL, "strict race error exists");
+    REQUIRE_TRUE(type_checker_format_error(error, diagnostic, sizeof(diagnostic)),
+                 "format strict race error");
+    ASSERT_CONTAINS("Possible data race", diagnostic, "strict error mentions race");
+    ASSERT_CONTAINS("Related location", diagnostic, "strict error points at declaration");
+
+    type_checker_set_global_strict_race_check(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_allows_spawn_atomic_capture(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    Atomic<int32> shared = Atomic.new(0);\n"
+        "    Thread worker = spawn () -> {\n"
+        "        _ = shared.exchange(1);\n"
+        "        exit;\n"
+        "    };\n"
+        "    worker.join();\n"
+        "    return shared.load();\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse atomic capture source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols atomic capture");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "atomic capture is accepted");
+    ASSERT_TRUE(type_checker_get_warning(&checker) == NULL,
+                "atomic capture produces no race warning");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_allows_spawn_thread_local_capture(void) {
+    static const char source[] =
+        "thread_local int32 shared = 1;\n"
+        "start(string[] args) -> {\n"
+        "    Thread worker = spawn () -> {\n"
+        "        int32 copy = shared;\n"
+        "        _ = copy;\n"
+        "        exit;\n"
+        "    };\n"
+        "    worker.join();\n"
         "    return 0;\n"
         "};\n";
     Parser parser;
@@ -174,10 +354,12 @@ void test_type_checker_rejects_spawn_non_void_callable(void) {
     symbol_table_init(&symbols);
     type_checker_init(&checker);
     parser_init(&parser, source);
-    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse bad spawn source");
-    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols bad spawn");
-    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
-                "spawn rejects non-void callable");
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse thread_local capture source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols thread_local capture");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "thread_local capture is accepted");
+    ASSERT_TRUE(type_checker_get_warning(&checker) == NULL,
+                "thread_local capture produces no warning");
 
     type_checker_free(&checker);
     symbol_table_free(&symbols);

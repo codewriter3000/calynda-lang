@@ -31,6 +31,14 @@ bool collect_lambda_local_symbols(MirBuildContext *context,
                                       source_span)) {
             return false;
         }
+        if (statement->kind == HIR_STMT_MANUAL &&
+            statement->as.manual.body &&
+            !collect_lambda_local_symbols(context,
+                                          statement->as.manual.body,
+                                          bound,
+                                          source_span)) {
+            return false;
+        }
     }
 
     return true;

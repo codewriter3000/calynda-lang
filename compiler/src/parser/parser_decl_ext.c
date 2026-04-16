@@ -48,7 +48,8 @@ AstTopLevelDecl *parse_asm_decl(Parser *parser) {
     /* Parse modifiers */
     while (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
            parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_EXPORT) ||
-           parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL)) {
+           parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL) ||
+           parser_check(parser, TOK_THREAD_LOCAL)) {
         AstModifier modifier;
 
         switch (parser_current_token(parser)->type) {
@@ -67,6 +68,11 @@ AstTopLevelDecl *parse_asm_decl(Parser *parser) {
         case TOK_INTERNAL:
             modifier = AST_MODIFIER_INTERNAL;
             break;
+        case TOK_THREAD_LOCAL:
+            parser_set_error(parser, *parser_current_token(parser),
+                             "'thread_local' is only valid on top-level bindings.");
+            ast_top_level_decl_free(decl);
+            return NULL;
         default:
             modifier = AST_MODIFIER_FINAL;
             break;

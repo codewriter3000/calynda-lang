@@ -61,6 +61,7 @@ bool ast_dump_top_level_decl(AstDumpBuilder *builder, const AstTopLevelDecl *dec
             case AST_MODIFIER_FINAL:    mod_name = "final";    break;
             case AST_MODIFIER_STATIC:   mod_name = "static";   break;
             case AST_MODIFIER_INTERNAL: mod_name = "internal"; break;
+            case AST_MODIFIER_THREAD_LOCAL: mod_name = "thread_local"; break;
             }
             if (mod_name && (!ast_dump_builder_append(builder, " ") ||
                              !ast_dump_builder_append(builder, mod_name))) {

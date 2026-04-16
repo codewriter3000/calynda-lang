@@ -49,6 +49,8 @@ extern bool run_capture(const char *path,
                         size_t buffer_size,
                         int *exit_code);
 
+void test_calynda_cli_unknown_option_reports_usage(void);
+
 
 /* ------------------------------------------------------------------ */
 /*  G-CLI-3: Missing source file produces non-zero exit               */
@@ -101,4 +103,21 @@ void test_calynda_cli_malformed_source(void) {
                 "malformed source produces non-zero exit code");
 
     unlink(source_path);
+}
+
+void test_calynda_cli_unknown_option_reports_usage(void) {
+    char output[4096];
+    char *argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        (char *)"--strict-race",
+        (char *)"fake.cal",
+        NULL
+    };
+    int exit_code = 0;
+
+    REQUIRE_TRUE(run_capture("./build/calynda", argv, output, sizeof(output), &exit_code),
+                 "run calynda asm with unknown option");
+    ASSERT_TRUE(exit_code != 0,
+                "unknown CLI option produces non-zero exit code");
 }

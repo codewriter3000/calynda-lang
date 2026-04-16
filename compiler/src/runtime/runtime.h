@@ -2,6 +2,7 @@
 #define CALYNDA_RUNTIME_H
 
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -22,7 +23,9 @@ typedef enum {
     CALYNDA_RT_OBJECT_UNION,
     CALYNDA_RT_OBJECT_HETERO_ARRAY,
     CALYNDA_RT_OBJECT_THREAD,
-    CALYNDA_RT_OBJECT_MUTEX
+    CALYNDA_RT_OBJECT_MUTEX,
+    CALYNDA_RT_OBJECT_FUTURE,
+    CALYNDA_RT_OBJECT_ATOMIC
 } CalyndaRtObjectKind;
 
 typedef enum {
@@ -127,11 +130,44 @@ typedef struct {
     pthread_mutex_t       mutex;
 } CalyndaRtMutex;
 
+/*
+ * Future<T>: spawned from a non-void callable.
+ * The thread trampoline writes `result` before exiting; pthread_join()
+ * in future_get provides the required happens-before guarantee so no
+ * additional mutex is needed for the result field itself.
+ */
+typedef struct {
+    CalyndaRtObjectHeader header;
+    pthread_t             thread;
+    bool                  joined;
+    CalyndaRtWord         result;
+    CalyndaRtWord         callable; /* strong ref keeps callable alive */
+} CalyndaRtFuture;
+
+/*
+ * Atomic<T>: single-word value backed by C11 _Atomic.
+ * Supports load, store, and exchange with sequentially-consistent ordering.
+ */
+typedef struct {
+    CalyndaRtObjectHeader   header;
+    _Atomic CalyndaRtWord   value;
+} CalyndaRtAtomic;
+
 #define CALYNDA_RT_THREAD_SPAWN   "__calynda_rt_thread_spawn"
 #define CALYNDA_RT_THREAD_JOIN    "__calynda_rt_thread_join"
+#define CALYNDA_RT_THREAD_CANCEL  "__calynda_rt_thread_cancel"
 #define CALYNDA_RT_MUTEX_NEW      "__calynda_rt_mutex_new"
 #define CALYNDA_RT_MUTEX_LOCK     "__calynda_rt_mutex_lock"
 #define CALYNDA_RT_MUTEX_UNLOCK   "__calynda_rt_mutex_unlock"
+/* Future helpers (alpha.2) */
+#define CALYNDA_RT_FUTURE_SPAWN   "__calynda_rt_future_spawn"
+#define CALYNDA_RT_FUTURE_GET     "__calynda_rt_future_get"
+#define CALYNDA_RT_FUTURE_CANCEL  "__calynda_rt_future_cancel"
+/* Atomic helpers (alpha.2) */
+#define CALYNDA_RT_ATOMIC_NEW      "__calynda_rt_atomic_new"
+#define CALYNDA_RT_ATOMIC_LOAD     "__calynda_rt_atomic_load"
+#define CALYNDA_RT_ATOMIC_STORE    "__calynda_rt_atomic_store"
+#define CALYNDA_RT_ATOMIC_EXCHANGE "__calynda_rt_atomic_exchange"
 
 extern CalyndaRtPackage __calynda_pkg_stdlib;
 
@@ -190,9 +226,24 @@ CalyndaRtTypeTag __calynda_rt_hetero_array_get_tag(CalyndaRtWord target, Calynda
 
 CalyndaRtWord __calynda_rt_thread_spawn(CalyndaRtWord callable);
 void          __calynda_rt_thread_join(CalyndaRtWord thread_handle);
+void          __calynda_rt_thread_cancel(CalyndaRtWord thread_handle);
 CalyndaRtWord __calynda_rt_mutex_new(void);
 void          __calynda_rt_mutex_lock(CalyndaRtWord mutex_handle);
 void          __calynda_rt_mutex_unlock(CalyndaRtWord mutex_handle);
+
+/* Future helpers (alpha.2): spawn returns Future object, get joins and
+   returns the stored result, cancel calls pthread_cancel + join. */
+CalyndaRtWord __calynda_rt_future_spawn(CalyndaRtWord callable);
+CalyndaRtWord __calynda_rt_future_get(CalyndaRtWord future_handle);
+void          __calynda_rt_future_cancel(CalyndaRtWord future_handle);
+
+/* Atomic helpers (alpha.2): single-word SC atomic operations. */
+CalyndaRtWord __calynda_rt_atomic_new(CalyndaRtWord initial_value);
+CalyndaRtWord __calynda_rt_atomic_load(CalyndaRtWord atomic_handle);
+void          __calynda_rt_atomic_store(CalyndaRtWord atomic_handle,
+                                        CalyndaRtWord value);
+CalyndaRtWord __calynda_rt_atomic_exchange(CalyndaRtWord atomic_handle,
+                                           CalyndaRtWord new_value);
 
 /* Manual memory pointer operations */
 CalyndaRtWord __calynda_deref(CalyndaRtWord ptr);

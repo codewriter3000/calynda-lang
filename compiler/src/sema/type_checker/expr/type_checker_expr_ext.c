@@ -1,5 +1,157 @@
 #include "type_checker_internal.h"
 
+static bool tc_checked_type_is_named_type(CheckedType type, const char *name) {
+    return type.kind == CHECKED_TYPE_NAMED &&
+           type.array_depth == 0 &&
+           type.name != NULL &&
+           strcmp(type.name, name) == 0;
+}
+
+static bool tc_check_builtin_concurrency_call(TypeChecker *checker,
+                                              const AstExpression *expression,
+                                              TypeCheckInfo *info) {
+    const AstExpression *target;
+    const char *member_name;
+
+    if (!expression || expression->kind != AST_EXPR_CALL ||
+        !expression->as.call.callee ||
+        expression->as.call.callee->kind != AST_EXPR_MEMBER ||
+        !info) {
+        return false;
+    }
+
+    target = expression->as.call.callee->as.member.target;
+    member_name = expression->as.call.callee->as.member.member;
+    if (!target || !member_name) {
+        return false;
+    }
+
+    if (target->kind == AST_EXPR_IDENTIFIER &&
+        target->as.identifier &&
+        strcmp(target->as.identifier, "Atomic") == 0 &&
+        strcmp(member_name, "new") == 0) {
+        const TypeCheckInfo *argument_info;
+
+        if (expression->as.call.arguments.count != 1) {
+            tc_set_error_at(checker,
+                            expression->source_span,
+                            NULL,
+                            "Atomic.new expects exactly 1 argument but got %zu.",
+                            expression->as.call.arguments.count);
+            return true;
+        }
+
+        argument_info = tc_check_expression(checker,
+                                            expression->as.call.arguments.items[0]);
+        if (!argument_info) {
+            return true;
+        }
+        if (tc_type_check_source_type(argument_info).kind == CHECKED_TYPE_VOID) {
+            tc_set_error_at(checker,
+                            expression->as.call.arguments.items[0]->source_span,
+                            NULL,
+                            "Atomic.new cannot be initialized from a void expression.");
+            return true;
+        }
+
+        *info = tc_type_check_info_make(tc_checked_type_named("Atomic", 1, 0));
+        tc_type_check_info_set_first_generic_arg(info,
+                                                 tc_type_check_source_type(argument_info));
+        return true;
+    }
+
+    {
+        const TypeCheckInfo *target_info = tc_check_expression(checker, target);
+        CheckedType target_generic_arg;
+        bool has_target_generic_arg;
+
+        if (!target_info) {
+            return true;
+        }
+
+        has_target_generic_arg = tc_type_check_info_first_generic_arg(checker,
+                                                                      target_info,
+                                                                      NULL,
+                                                                      &target_generic_arg);
+        if (checker->has_error) {
+            return true;
+        }
+
+        if (!tc_checked_type_is_named_type(target_info->type, "Atomic")) {
+            return false;
+        }
+
+        if (strcmp(member_name, "load") == 0) {
+            if (expression->as.call.arguments.count != 0) {
+                tc_set_error_at(checker,
+                                expression->source_span,
+                                NULL,
+                                "Atomic.load expects 0 arguments but got %zu.",
+                                expression->as.call.arguments.count);
+                return true;
+            }
+
+            *info = tc_type_check_info_make(has_target_generic_arg
+                                                ? target_generic_arg
+                                                : tc_checked_type_external());
+            return true;
+        }
+
+        if (strcmp(member_name, "store") == 0 ||
+            strcmp(member_name, "exchange") == 0) {
+            const TypeCheckInfo *argument_info;
+
+            if (expression->as.call.arguments.count != 1) {
+                tc_set_error_at(checker,
+                                expression->source_span,
+                                NULL,
+                                "Atomic.%s expects exactly 1 argument but got %zu.",
+                                member_name,
+                                expression->as.call.arguments.count);
+                return true;
+            }
+
+            argument_info = tc_check_expression(checker,
+                                                expression->as.call.arguments.items[0]);
+            if (!argument_info) {
+                return true;
+            }
+
+            if (has_target_generic_arg &&
+                !tc_checked_type_assignable(target_generic_arg,
+                                            tc_type_check_source_type(argument_info))) {
+                char expected_text[64];
+                char actual_text[64];
+
+                checked_type_to_string(target_generic_arg,
+                                       expected_text,
+                                       sizeof(expected_text));
+                checked_type_to_string(tc_type_check_source_type(argument_info),
+                                       actual_text,
+                                       sizeof(actual_text));
+                tc_set_error_at(checker,
+                                expression->as.call.arguments.items[0]->source_span,
+                                &target->source_span,
+                                "Atomic.%s expects %s but got %s.",
+                                member_name,
+                                expected_text,
+                                actual_text);
+                return true;
+            }
+
+            *info = tc_type_check_info_make(
+                strcmp(member_name, "store") == 0
+                    ? tc_checked_type_void()
+                    : (has_target_generic_arg
+                           ? target_generic_arg
+                           : tc_checked_type_external()));
+            return true;
+        }
+    }
+
+    return false;
+}
+
 const TypeCheckInfo *tc_check_expression_ext(TypeChecker *checker,
                                              const AstExpression *expression) {
     TypeCheckInfo info = tc_type_check_info_make(tc_checked_type_invalid());
@@ -146,8 +298,15 @@ const TypeCheckInfo *tc_check_expression_ext(TypeChecker *checker,
 
     case AST_EXPR_CALL:
         {
+            if (tc_check_builtin_concurrency_call(checker, expression, &info)) {
+                if (checker->has_error) {
+                    return NULL;
+                }
+                break;
+            }
+
             const TypeCheckInfo *callee_info = tc_check_expression(checker,
-                                                                    expression->as.call.callee);
+                                                                     expression->as.call.callee);
             size_t i;
 
             if (!callee_info) {

@@ -20,6 +20,10 @@ const char *calynda_rt_object_kind_name(CalyndaRtObjectKind kind) {
         return "thread";
     case CALYNDA_RT_OBJECT_MUTEX:
         return "mutex";
+    case CALYNDA_RT_OBJECT_FUTURE:
+        return "future";
+    case CALYNDA_RT_OBJECT_ATOMIC:
+        return "atomic";
     }
 
     return "unknown";

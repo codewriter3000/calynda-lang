@@ -40,9 +40,17 @@ bool ae_emit_program_entry_glue_riscv64(AsmEmitContext *context, FILE *out) {
 
     if (start_unit->is_boot) {
         /*
-         * Boot entry: freestanding _start that calls the boot unit directly
-         * and exits via Linux syscall (sys_exit = 93).
-         *   s0 = 0 (frame pointer), ra = 0, s11 = 0 (closure env).
+         * Freestanding boot entry (_start):
+         *   - Zero-initialise frame pointer, return address, and closure-env
+         *     register so the boot unit starts in a clean state.
+         *   - Call the boot unit; its return value is left in a0 (unused by
+         *     the freestanding ABI — the boot unit is expected to never
+         *     return, or to handle shutdown itself via MMIO / WFI).
+         *   - After the boot unit returns, spin in an infinite loop.
+         *     This is the correct bare-metal contract: there is no OS to
+         *     hand an exit-code to, and making a Linux ecall here would
+         *     silently break any non-Linux target (real hardware, QEMU
+         *     system-mode, custom SBI environments, etc.).
          */
         if (!ae_emit_line(out,
                        ".globl _start\n"
@@ -51,8 +59,8 @@ bool ae_emit_program_entry_glue_riscv64(AsmEmitContext *context, FILE *out) {
                        "    li ra, 0\n"
                        "    li s11, 0\n"
                        "    call %s\n"
-                       "    li a7, 93\n"
-                       "    ecall\n",
+                       "1:\n"
+                       "    j 1b\n",
                        start_symbol->symbol)) {
             return false;
         }

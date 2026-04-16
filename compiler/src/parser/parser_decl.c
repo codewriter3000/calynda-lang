@@ -9,7 +9,8 @@ static bool looks_like_asm_decl(const Parser *parser) {
     while (true) {
         TokenType t = parser_token_at(parser, ahead)->type;
         if (t == TOK_PUBLIC || t == TOK_PRIVATE || t == TOK_FINAL ||
-            t == TOK_EXPORT || t == TOK_STATIC || t == TOK_INTERNAL) {
+            t == TOK_EXPORT || t == TOK_STATIC || t == TOK_INTERNAL ||
+            t == TOK_THREAD_LOCAL) {
             ahead++;
         } else {
             break;
@@ -35,6 +36,39 @@ static bool looks_like_asm_decl(const Parser *parser) {
 
     /* Check asm */
     return parser_token_at(parser, ahead)->type == TOK_ASM;
+}
+
+static bool binding_decl_accepts_modifier(Parser *parser,
+                                          AstBindingDecl *decl,
+                                          AstModifier modifier,
+                                          const Token *token) {
+    if (modifier == AST_MODIFIER_THREAD_LOCAL) {
+        if (ast_decl_has_modifier(decl->modifiers,
+                                  decl->modifier_count,
+                                  AST_MODIFIER_THREAD_LOCAL)) {
+            parser_set_error(parser, *token,
+                             "Duplicate 'thread_local' modifier.");
+            return false;
+        }
+        if (ast_decl_has_modifier(decl->modifiers,
+                                  decl->modifier_count,
+                                  AST_MODIFIER_STATIC)) {
+            parser_set_error(parser, *token,
+                             "'thread_local' is redundant with 'static'.");
+            return false;
+        }
+    }
+
+    if (modifier == AST_MODIFIER_STATIC &&
+        ast_decl_has_modifier(decl->modifiers,
+                              decl->modifier_count,
+                              AST_MODIFIER_THREAD_LOCAL)) {
+        parser_set_error(parser, *token,
+                         "'static' is redundant on a 'thread_local' binding.");
+        return false;
+    }
+
+    return parser_add_modifier(parser, decl, modifier);
 }
 
 bool parser_parse_lambda_body(Parser *parser, AstLambdaBody *body) {
@@ -99,12 +133,14 @@ AstTopLevelDecl *parse_top_level_decl(Parser *parser) {
     /* Peek past any modifier tokens to decide binding vs union. */
     if (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
         parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_EXPORT) ||
-        parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL)) {
+        parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL) ||
+        parser_check(parser, TOK_THREAD_LOCAL)) {
         size_t ahead = parser->current;
         while (true) {
             TokenType t = parser_token_at(parser, ahead)->type;
             if (t == TOK_PUBLIC || t == TOK_PRIVATE || t == TOK_FINAL ||
-                t == TOK_EXPORT || t == TOK_STATIC || t == TOK_INTERNAL) {
+                t == TOK_EXPORT || t == TOK_STATIC || t == TOK_INTERNAL ||
+                t == TOK_THREAD_LOCAL) {
                 ahead++;
             } else {
                 break;
@@ -143,7 +179,7 @@ AstTopLevelDecl *parse_type_alias_decl(Parser *parser) {
     }
 
     while (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
-           parser_check(parser, TOK_EXPORT)) {
+           parser_check(parser, TOK_EXPORT) || parser_check(parser, TOK_THREAD_LOCAL)) {
         AstModifier modifier = AST_MODIFIER_PUBLIC;
 
         switch (parser_current_token(parser)->type) {
@@ -153,6 +189,11 @@ AstTopLevelDecl *parse_type_alias_decl(Parser *parser) {
         case TOK_EXPORT:
             modifier = AST_MODIFIER_EXPORT;
             break;
+        case TOK_THREAD_LOCAL:
+            parser_set_error(parser, *parser_current_token(parser),
+                             "'thread_local' is only valid on top-level bindings.");
+            ast_top_level_decl_free(decl);
+            return NULL;
         default:
             break;
         }
@@ -248,8 +289,10 @@ AstTopLevelDecl *parse_binding_decl(Parser *parser) {
 
     while (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
            parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_EXPORT) ||
-           parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL)) {
+           parser_check(parser, TOK_STATIC) || parser_check(parser, TOK_INTERNAL) ||
+           parser_check(parser, TOK_THREAD_LOCAL)) {
         AstModifier modifier;
+        const Token *modifier_token = parser_current_token(parser);
 
         switch (parser_current_token(parser)->type) {
         case TOK_PUBLIC:
@@ -267,13 +310,19 @@ AstTopLevelDecl *parse_binding_decl(Parser *parser) {
         case TOK_INTERNAL:
             modifier = AST_MODIFIER_INTERNAL;
             break;
+        case TOK_THREAD_LOCAL:
+            modifier = AST_MODIFIER_THREAD_LOCAL;
+            break;
         default:
             modifier = AST_MODIFIER_FINAL;
             break;
         }
 
         parser_advance(parser);
-        if (!parser_add_modifier(parser, &decl->as.binding_decl, modifier)) {
+        if (!binding_decl_accepts_modifier(parser,
+                                           &decl->as.binding_decl,
+                                           modifier,
+                                           modifier_token)) {
             ast_top_level_decl_free(decl);
             return NULL;
         }

@@ -101,10 +101,15 @@ bool bytecode_build_program(BytecodeProgram *program, const MirProgram *mir_prog
     context.mir_program = mir_program;
 
     if (mir_get_error(mir_program) != NULL) {
+        const MirBuildError *mir_error = mir_get_error(mir_program);
+
         bc_set_error(&context,
-                     (AstSourceSpan){0},
-                     NULL,
-                     "Cannot lower bytecode while the MIR reports errors.");
+                     mir_error->primary_span,
+                     mir_error->has_related_span
+                         ? &mir_error->related_span
+                         : NULL,
+                     "%s",
+                     mir_error->message);
         return false;
     }
 
@@ -128,4 +133,3 @@ bool bytecode_build_program(BytecodeProgram *program, const MirProgram *mir_prog
 
     return true;
 }
-

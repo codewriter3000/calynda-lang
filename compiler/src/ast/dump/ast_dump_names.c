@@ -14,6 +14,8 @@ const char *ast_dump_modifier_name(AstModifier modifier) {
         return "static";
     case AST_MODIFIER_INTERNAL:
         return "internal";
+    case AST_MODIFIER_THREAD_LOCAL:
+        return "thread_local";
     }
 
     return "unknown";

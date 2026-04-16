@@ -84,12 +84,17 @@ bool parser_parse_type(Parser *parser, AstType *type) {
             ast_type_init_thread(&parsed_type);
         } else if (strcmp(name, "Mutex") == 0) {
             ast_type_init_mutex(&parsed_type);
+        } else if (strcmp(name, "Future") == 0) {
+            ast_type_init_future(&parsed_type);
+        } else if (strcmp(name, "Atomic") == 0) {
+            ast_type_init_atomic(&parsed_type);
         } else {
             ast_type_init_named(&parsed_type, name);
         }
         free(name);
         if (!parsed_type.name) {
-            if (parsed_type.kind == AST_TYPE_THREAD || parsed_type.kind == AST_TYPE_MUTEX) {
+            if (parsed_type.kind == AST_TYPE_THREAD || parsed_type.kind == AST_TYPE_MUTEX ||
+                parsed_type.kind == AST_TYPE_FUTURE || parsed_type.kind == AST_TYPE_ATOMIC) {
                 /* no-op */
             } else {
                 parser_set_oom_error(parser);
@@ -115,7 +120,8 @@ bool parser_parse_type(Parser *parser, AstType *type) {
 
     /* Optional generic arguments. */
     if ((parsed_type.kind == AST_TYPE_NAMED || parsed_type.kind == AST_TYPE_ARR ||
-         parsed_type.kind == AST_TYPE_PTR) &&
+         parsed_type.kind == AST_TYPE_PTR || parsed_type.kind == AST_TYPE_FUTURE ||
+         parsed_type.kind == AST_TYPE_ATOMIC) &&
         parser_check(parser, TOK_LT)) {
         if (!parser_parse_generic_args(parser, &parsed_type)) {
             ast_type_free(&parsed_type);

@@ -40,12 +40,15 @@ bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *prog
                                    ast_decl_has_modifier(binding_decl->modifiers,
                                                          binding_decl->modifier_count,
                                                          AST_MODIFIER_STATIC),
-                                   ast_decl_has_modifier(binding_decl->modifiers,
-                                                         binding_decl->modifier_count,
-                                                         AST_MODIFIER_INTERNAL),
-                                   binding_decl->name_span,
-                                   binding_decl,
-                                   table->root_scope);
+                                    ast_decl_has_modifier(binding_decl->modifiers,
+                                                          binding_decl->modifier_count,
+                                                          AST_MODIFIER_INTERNAL),
+                                    ast_decl_has_modifier(binding_decl->modifiers,
+                                                          binding_decl->modifier_count,
+                                                          AST_MODIFIER_THREAD_LOCAL),
+                                    binding_decl->name_span,
+                                    binding_decl,
+                                    table->root_scope);
             if (!symbol) {
                 return false;
             }
@@ -79,13 +82,13 @@ bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *prog
                                    ast_decl_has_modifier(union_decl->modifiers,
                                                          union_decl->modifier_count,
                                                          AST_MODIFIER_EXPORT),
-                                   ast_decl_has_modifier(union_decl->modifiers,
-                                                         union_decl->modifier_count,
-                                                         AST_MODIFIER_STATIC),
-                                   false,
-                                   union_decl->name_span,
-                                   union_decl,
-                                   table->root_scope);
+                                    ast_decl_has_modifier(union_decl->modifiers,
+                                                          union_decl->modifier_count,
+                                                          AST_MODIFIER_STATIC),
+                                    false, false,
+                                    union_decl->name_span,
+                                    union_decl,
+                                    table->root_scope);
             if (!symbol) {
                 return false;
             }
@@ -119,14 +122,13 @@ bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *prog
                                    type_alias_decl->name, NULL,
                                    &type_alias_decl->target_type,
                                    false, true,
-                                   ast_decl_has_modifier(type_alias_decl->modifiers,
-                                                         type_alias_decl->modifier_count,
-                                                         AST_MODIFIER_EXPORT),
-                                   false,
-                                   false,
-                                   type_alias_decl->name_span,
-                                   type_alias_decl,
-                                   table->root_scope);
+                                    ast_decl_has_modifier(type_alias_decl->modifiers,
+                                                          type_alias_decl->modifier_count,
+                                                          AST_MODIFIER_EXPORT),
+                                    false, false, false,
+                                    type_alias_decl->name_span,
+                                    type_alias_decl,
+                                    table->root_scope);
             if (!symbol) {
                 return false;
             }
@@ -165,12 +167,15 @@ bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *prog
                                    ast_decl_has_modifier(asm_decl->modifiers,
                                                          asm_decl->modifier_count,
                                                          AST_MODIFIER_STATIC),
-                                   ast_decl_has_modifier(asm_decl->modifiers,
-                                                         asm_decl->modifier_count,
-                                                         AST_MODIFIER_INTERNAL),
-                                   asm_decl->name_span,
-                                   asm_decl,
-                                   table->root_scope);
+                                    ast_decl_has_modifier(asm_decl->modifiers,
+                                                          asm_decl->modifier_count,
+                                                          AST_MODIFIER_INTERNAL),
+                                    ast_decl_has_modifier(asm_decl->modifiers,
+                                                          asm_decl->modifier_count,
+                                                          AST_MODIFIER_THREAD_LOCAL),
+                                    asm_decl->name_span,
+                                    asm_decl,
+                                    table->root_scope);
             if (!symbol) {
                 return false;
             }
@@ -200,7 +205,7 @@ bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *prog
 
             symbol = st_symbol_new(table, SYMBOL_KIND_LAYOUT,
                                    layout_decl->name, NULL,
-                                   NULL, false, false, false, false, false,
+                                   NULL, false, false, false, false, false, false,
                                    layout_decl->name_span,
                                    layout_decl,
                                    table->root_scope);

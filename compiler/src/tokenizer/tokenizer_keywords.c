@@ -29,6 +29,7 @@ static const Keyword keywords[] = {
     {"as",       TOK_AS},
     {"internal", TOK_INTERNAL},
     {"static",   TOK_STATIC},
+    {"thread_local", TOK_THREAD_LOCAL},
     {"union",    TOK_UNION},
     {"type",     TOK_TYPE},
     {"manual",   TOK_MANUAL},

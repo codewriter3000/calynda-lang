@@ -61,6 +61,11 @@ bool sd_dump_symbols(SemanticDumpBuilder *builder,
                 return false;
             }
         }
+        if (symbol->is_thread_local) {
+            if (!sd_builder_append(builder, " thread_local=true")) {
+                return false;
+            }
+        }
         if (symbol->kind == SYMBOL_KIND_TYPE_ALIAS) {
             if (!sd_builder_append(builder, " transparent=true")) {
                 return false;

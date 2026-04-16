@@ -25,6 +25,7 @@ bool st_add_package_symbol(SymbolTable *table, const AstProgram *program) {
                                           name, qualified_name,
                                           NULL, false, false,
                                           false, false, false,
+                                          false,
                                           program->package_name.tail_span,
                                           &program->package_name, NULL);
     free(name);
@@ -71,6 +72,7 @@ bool st_add_import_symbols(SymbolTable *table, const AstProgram *program) {
             symbol = st_symbol_new(table, SYMBOL_KIND_IMPORT, name, qualified_name,
                                    NULL, false, false,
                                    false, false, false,
+                                   false,
                                    imp->module_name.tail_span,
                                    imp, table->root_scope);
             free(name);
@@ -104,6 +106,7 @@ bool st_add_import_symbols(SymbolTable *table, const AstProgram *program) {
             symbol = st_symbol_new(table, SYMBOL_KIND_IMPORT, imp->alias, qualified_name,
                                    NULL, false, false,
                                    false, false, false,
+                                   false,
                                    imp->module_name.tail_span,
                                    imp, table->root_scope);
             free(qualified_name);
@@ -167,6 +170,7 @@ bool st_add_import_symbols(SymbolTable *table, const AstProgram *program) {
                                        imp->selected_names[j], sel_qualified,
                                        NULL, false, false,
                                        false, false, false,
+                                       false,
                                        imp->module_name.tail_span,
                                        imp, table->root_scope);
                 free(sel_qualified);

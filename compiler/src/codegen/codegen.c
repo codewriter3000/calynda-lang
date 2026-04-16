@@ -70,6 +70,7 @@ bool codegen_build_program(CodegenProgram *program,
                            const LirProgram *lir_program,
                            const TargetDescriptor *target) {
     CodegenBuildContext context;
+    const LirBuildError *lir_error;
     size_t i;
 
     if (!program || !lir_program) {
@@ -89,11 +90,15 @@ bool codegen_build_program(CodegenProgram *program,
     context.lir_program = lir_program;
     context.target = program->target_desc;
 
-    if (lir_get_error(lir_program) != NULL) {
+    lir_error = lir_get_error(lir_program);
+    if (lir_error != NULL) {
         cg_set_error(&context,
-                     (AstSourceSpan){0},
-                     NULL,
-                     "Cannot build codegen plan while the LIR reports errors.");
+                     lir_error->primary_span,
+                     lir_error->has_related_span
+                         ? &lir_error->related_span
+                         : NULL,
+                     "%s",
+                     lir_error->message);
         return false;
     }
 

@@ -125,6 +125,7 @@ void test_machine_dump_includes_static_union_type_descriptors(void);
 void test_machine_dump_routes_throw_terminator_to_runtime_helper(void);
 void test_machine_dump_routes_union_tag_and_payload_helpers(void);
 void test_machine_error_api_returns_null_on_success(void);
+void test_machine_builder_preserves_upstream_error_spans(void);
 
 void test_machine_dump_includes_static_hetero_array_type_descriptors(void) {
     static const char source[] =
@@ -171,6 +172,7 @@ int main(void) {
     RUN_TEST(test_machine_dump_routes_throw_terminator_to_runtime_helper);
     RUN_TEST(test_machine_dump_routes_union_tag_and_payload_helpers);
     RUN_TEST(test_machine_error_api_returns_null_on_success);
+    RUN_TEST(test_machine_builder_preserves_upstream_error_spans);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

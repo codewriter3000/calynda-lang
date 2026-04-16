@@ -12,6 +12,12 @@ bool parser_add_statement(Parser *parser, AstBlock *block,
 }
 
 AstStatement *parse_statement(Parser *parser) {
+    if (parser_check(parser, TOK_THREAD_LOCAL)) {
+        parser_set_error(parser, *parser_current_token(parser),
+                         "'thread_local' is only valid on top-level bindings.");
+        return NULL;
+    }
+
     if (parser_check(parser, TOK_RETURN)) {
         AstStatement *statement = ast_statement_new(AST_STMT_RETURN);
 

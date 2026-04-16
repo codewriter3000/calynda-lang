@@ -66,6 +66,7 @@ void test_lir_dump_lowers_union_descriptors(void);
 void test_lir_dump_lowers_throw_terminator(void);
 void test_lir_dump_lowers_union_tag_and_payload_access(void);
 void test_lir_error_api_returns_null_on_success(void);
+void test_lir_builder_preserves_upstream_error_spans(void);
 
 
 int main(void) {
@@ -78,6 +79,7 @@ int main(void) {
     RUN_TEST(test_lir_dump_lowers_throw_terminator);
     RUN_TEST(test_lir_dump_lowers_union_tag_and_payload_access);
     RUN_TEST(test_lir_error_api_returns_null_on_success);
+    RUN_TEST(test_lir_builder_preserves_upstream_error_spans);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

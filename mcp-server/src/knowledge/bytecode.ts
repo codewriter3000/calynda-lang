@@ -54,9 +54,19 @@ Each block keeps: label, linear instruction sequence, one terminator.
   BC_BRANCH cond true_blk false_blk   — conditional branch
   BC_THROW value                      — throw exception
 
+## Concurrency Helper Lowering
+
+Alpha.2 concurrency stays on the existing helper-call boundary. There are no
+new bytecode opcodes for threads, futures, mutexes, or atomics.
+
+\`spawn\`, \`Thread.join()\`, \`Thread.cancel()\`, \`Future<T>.get()\`,
+\`Future<T>.cancel()\`, \`Mutex.new()\`, \`Mutex.lock()\`, \`Mutex.unlock()\`,
+and \`Atomic<T>.new/load/store/exchange\` all lower as \`BC_CALL\`
+instructions targeting well-known \`__calynda_rt_*\` runtime symbols.
+
 ## Backend Boundary
 
-  Native:   AST → HIR → MIR → LIR → Codegen → Machine → x86_64 asm → executable
+  Native:   AST → HIR → MIR → LIR → Codegen → Machine → target asm → executable
   Bytecode: AST → HIR → MIR → BytecodeProgram (portable-v1)
 `;
 

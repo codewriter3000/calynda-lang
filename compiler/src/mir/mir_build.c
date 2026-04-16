@@ -124,10 +124,15 @@ bool mir_build_program(MirProgram *program, const HirProgram *hir_program,
     context.global_bounds_check = global_bounds_check;
 
     if (hir_get_error(hir_program) != NULL) {
+        const HirBuildError *hir_error = hir_get_error(hir_program);
+
         mr_set_error(&context,
-                      (AstSourceSpan){0},
-                      NULL,
-                      "Cannot lower program to MIR while the HIR reports errors.");
+                     hir_error->primary_span,
+                     hir_error->has_related_span
+                         ? &hir_error->related_span
+                         : NULL,
+                     "%s",
+                     hir_error->message);
         return false;
     }
 

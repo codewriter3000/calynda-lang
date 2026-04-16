@@ -138,6 +138,14 @@ static bool tr_resolve_declared_type_impl(TypeResolver *resolver,
         resolved_type = tr_resolved_type_named("Thread", 0, type->dimension_count);
     } else if (type->kind == AST_TYPE_MUTEX) {
         resolved_type = tr_resolved_type_named("Mutex", 0, type->dimension_count);
+    } else if (type->kind == AST_TYPE_FUTURE) {
+        resolved_type = tr_resolved_type_named("Future",
+                                               type->generic_args.count,
+                                               type->dimension_count);
+    } else if (type->kind == AST_TYPE_ATOMIC) {
+        resolved_type = tr_resolved_type_named("Atomic",
+                                               type->generic_args.count,
+                                               type->dimension_count);
     } else if (type->kind == AST_TYPE_NAMED) {
         const AstTypeAliasDecl *alias_decl = tr_find_alias_decl(resolver, type->name);
 

@@ -48,6 +48,7 @@ typedef enum {
     TOK_AS,
     TOK_INTERNAL,
     TOK_STATIC,
+    TOK_THREAD_LOCAL,
     TOK_UNION,
     TOK_TYPE,
     TOK_MANUAL,

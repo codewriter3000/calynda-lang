@@ -16,6 +16,18 @@ bool mr_lower_assignment_expression(MirUnitBuildContext *context,
     stored_value = mr_invalid_value();
     *value = mr_invalid_value();
 
+    if (expression->as.assignment.target &&
+        expression->as.assignment.target->kind == HIR_EXPR_DISCARD) {
+        if (expression->as.assignment.operator != AST_ASSIGN_OP_ASSIGN) {
+            mr_set_error(context->build,
+                          expression->source_span,
+                          NULL,
+                          "Internal error: discard target only supports simple assignment.");
+            return false;
+        }
+        return mr_lower_expression(context, expression->as.assignment.value, value);
+    }
+
     if (!mr_lower_assignment_target(context, expression->as.assignment.target, &lvalue)) {
         return false;
     }

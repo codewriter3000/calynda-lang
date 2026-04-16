@@ -55,12 +55,6 @@ static bool cross_compiler_available(const char *cc) {
     return system(command) == 0;
 }
 
-static bool tool_available(const char *tool) {
-    char command[128];
-    snprintf(command, sizeof(command), "which %s > /dev/null 2>&1", tool);
-    return system(command) == 0;
-}
-
 static bool compile_assembly_text_cross(const char *assembly, const char *cc) {
     char src_template[] = "/tmp/calynda-xasm-XXXXXX";
     char object_path[64];
@@ -126,15 +120,6 @@ static bool cross_link_boot(const char *assembly, const char *cc,
     }
     memcpy(exe_path, out_template, strlen(out_template) + 1);
     return true;
-}
-
-static int run_qemu(const char *qemu_cmd, const char *exe_path) {
-    char command[512];
-    snprintf(command, sizeof(command), "%s %s > /dev/null 2>&1",
-             qemu_cmd, exe_path);
-    int rc = system(command);
-    if (WIFEXITED(rc)) return WEXITSTATUS(rc);
-    return -1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -209,31 +194,43 @@ void test_cross_build_riscv64_boot_links(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  RV64 QEMU user-mode execution                                     */
+/*  RV64 QEMU user-mode execution — replaced by freestanding check   */
 /* ------------------------------------------------------------------ */
 
+/*
+ * After the alpha.2 freestanding boot() fix, the RISC-V _start entry no
+ * longer emits a Linux exit ecall.  The boot unit's return value is NOT
+ * forwarded to the OS; instead, _start spins in an infinite loop after
+ * the boot unit returns.  This is the correct bare-metal contract for
+ * pointer/MMIO firmware targets.
+ *
+ * This test verifies the freestanding contract at the assembly-text level:
+ *  - the assembly MUST contain the infinite-loop spin (j 1b)
+ *  - the assembly MUST NOT contain the Linux-only ecall exit sequence
+ *    (li a7, 93 / ecall) that would break any non-Linux target.
+ */
 void test_cross_run_riscv64_boot_qemu(void) {
     static const char *cc = "riscv64-linux-gnu-gcc";
-    static const char *qemu = "qemu-riscv64";
     static const char source[] = "boot() -> 42;\n";
     char *assembly;
-    char exe_path[128];
-    int exit_code;
 
-    if (!cross_compiler_available(cc) || !tool_available(qemu)) {
-        printf("    [SKIP] %s or %s not found\n", cc, qemu);
+    if (!cross_compiler_available(cc)) {
+        printf("    [SKIP] %s not found\n", cc);
         return;
     }
 
     REQUIRE_TRUE(build_assembly_from_source_with_target(
                      source, &assembly,
                      target_get_descriptor(TARGET_KIND_RISCV64_LP64D_ELF)),
-                 "emit rv64 boot assembly for QEMU");
-    REQUIRE_TRUE(cross_link_boot(assembly, cc, exe_path, sizeof(exe_path)),
-                 "cross-link rv64 boot for QEMU");
-    exit_code = run_qemu(qemu, exe_path);
-    ASSERT_TRUE(exit_code == 42,
-                "rv64 boot program exits with 42 under qemu-riscv64");
-    unlink(exe_path);
+                 "emit rv64 boot assembly for freestanding contract check");
+
+    /* Freestanding: _start must spin after the boot unit returns. */
+    ASSERT_TRUE(strstr(assembly, "j 1b") != NULL,
+                "rv64 freestanding boot entry spins (j 1b) instead of Linux exit");
+
+    /* Linux-only exit must be gone. */
+    ASSERT_TRUE(strstr(assembly, "li a7, 93") == NULL,
+                "rv64 freestanding boot entry does not emit Linux sys_exit ecall");
+
     free(assembly);
 }

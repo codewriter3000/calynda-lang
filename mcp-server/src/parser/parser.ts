@@ -20,7 +20,7 @@ export const PRIMITIVE_TYPES = new Set([
   'bool', 'char', 'string',
 ]);
 
-export const MODIFIERS = new Set(['public', 'private', 'final', 'export', 'static', 'internal']);
+export const MODIFIERS = new Set(['public', 'private', 'final', 'export', 'static', 'internal', 'thread_local']);
 
 export const ASSIGNMENT_OPS = new Set(['=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=']);
 

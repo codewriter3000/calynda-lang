@@ -19,7 +19,7 @@ exports.PRIMITIVE_TYPES = new Set([
     'float32', 'float64',
     'bool', 'char', 'string',
 ]);
-exports.MODIFIERS = new Set(['public', 'private', 'final', 'export', 'static', 'internal']);
+exports.MODIFIERS = new Set(['public', 'private', 'final', 'export', 'static', 'internal', 'thread_local']);
 exports.ASSIGNMENT_OPS = new Set(['=', '+=', '-=', '*=', '/=', '%=', '&=', '|=', '^=', '<<=', '>>=']);
 class ParserState {
     tokens;

@@ -29,6 +29,16 @@ bool sd_append_ast_type(SemanticDumpBuilder *builder,
             return false;
         }
         break;
+    case AST_TYPE_FUTURE:
+        if (!sd_builder_append(builder, "Future")) {
+            return false;
+        }
+        break;
+    case AST_TYPE_ATOMIC:
+        if (!sd_builder_append(builder, "Atomic")) {
+            return false;
+        }
+        break;
     case AST_TYPE_PRIMITIVE:
         if (!sd_builder_append(builder, sd_primitive_type_name(type->primitive))) {
             return false;

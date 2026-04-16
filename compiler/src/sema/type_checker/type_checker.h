@@ -33,6 +33,8 @@ typedef struct {
     bool                    is_callable;
     CheckedType             callable_return_type;
     const AstParameterList *parameters;
+    bool                    has_first_generic_arg;
+    CheckedType             first_generic_arg_type;
 } TypeCheckInfo;
 
 typedef struct {
@@ -64,6 +66,8 @@ typedef struct {
     TypeCheckSymbolEntry       *symbol_entries;
     size_t                      symbol_count;
     size_t                      symbol_capacity;
+    TypeCheckError              warning;
+    bool                        has_warning;
     TypeCheckError              error;
     bool                        has_error;
 } TypeChecker;
@@ -75,9 +79,12 @@ bool type_checker_check_program(TypeChecker *checker,
                                 const SymbolTable *symbols);
 
 const TypeCheckError *type_checker_get_error(const TypeChecker *checker);
+const TypeCheckError *type_checker_get_warning(const TypeChecker *checker);
 bool type_checker_format_error(const TypeCheckError *error,
                                char *buffer,
                                size_t buffer_size);
+void type_checker_set_global_strict_race_check(bool enabled);
+bool type_checker_get_global_strict_race_check(void);
 
 const TypeCheckInfo *type_checker_get_expression_info(const TypeChecker *checker,
                                                       const AstExpression *expression);

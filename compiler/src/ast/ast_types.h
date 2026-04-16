@@ -10,7 +10,8 @@ typedef enum {
     AST_MODIFIER_FINAL,
     AST_MODIFIER_EXPORT,
     AST_MODIFIER_STATIC,
-    AST_MODIFIER_INTERNAL
+    AST_MODIFIER_INTERNAL,
+    AST_MODIFIER_THREAD_LOCAL
 } AstModifier;
 
 typedef enum {
@@ -45,7 +46,9 @@ typedef enum {
     AST_TYPE_PTR,
     AST_TYPE_NAMED,
     AST_TYPE_THREAD,
-    AST_TYPE_MUTEX
+    AST_TYPE_MUTEX,
+    AST_TYPE_FUTURE,
+    AST_TYPE_ATOMIC
 } AstTypeKind;
 
 typedef struct {

@@ -28,7 +28,7 @@ const PIPELINE_STAGES_BACKEND = [
     {
         name: 'Codegen Planning',
         dir: 'compiler/src/codegen/',
-        description: 'Target-aware code generation via TargetDescriptor abstraction (x86_64 SysV ELF and AArch64 AAPCS64 ELF). Classifies LIR ops into direct machine-pattern candidates vs runtime helpers. Uses target-specific register sets for allocation.',
+        description: 'Target-aware code generation via TargetDescriptor abstraction (x86_64 SysV ELF, AArch64 AAPCS64 ELF, and RISC-V 64 LP64D ELF). Classifies LIR ops into direct machine-pattern candidates vs runtime helpers. Uses target-specific register sets for allocation.',
         keyTypes: [
             'CodegenProgram', 'TargetDescriptor', 'CodegenRegister',
             'CodegenVRegAllocation', 'CodegenDirectPattern',
@@ -44,7 +44,7 @@ const PIPELINE_STAGES_BACKEND = [
     {
         name: 'Machine Emission',
         dir: 'compiler/src/backend/',
-        description: 'Target-agnostic machine layer consuming LIR + codegen plan. Emits instruction streams, helper-call setup, prologue/epilogue, and conservative register preservation. All operations use TargetDescriptor for register names and ABI conventions. Supports x86_64 and AArch64.',
+        description: 'Target-agnostic machine layer consuming LIR + codegen plan. Emits instruction streams, helper-call setup, prologue/epilogue, and conservative register preservation. All operations use TargetDescriptor for register names and ABI conventions. Supports x86_64, AArch64, and RISC-V 64.',
         keyTypes: ['MachineProgram', 'MachineUnit', 'MachineInstruction', 'MachineBlock'],
         keyFunctions: ['machine_build_program', 'machine_dump_program'],
         files: [
@@ -57,7 +57,7 @@ const PIPELINE_STAGES_BACKEND = [
     {
         name: 'Assembly Emission',
         dir: 'compiler/src/backend/',
-        description: 'Lowers MachineProgram into GNU assembler text with concrete stack addresses, rodata literals, global storage, string-object data, runtime helper calls, main entry glue, and .note.GNU-stack. Dispatches to x86_64 or AArch64 emitters based on target.',
+        description: 'Lowers MachineProgram into GNU assembler text with concrete stack addresses, rodata literals, global storage, string-object data, runtime helper calls, main entry glue, and .note.GNU-stack. Dispatches to x86_64, AArch64, or RISC-V emitters based on target.',
         keyTypes: [],
         keyFunctions: ['asm_emit_program', 'asm_emit_program_to_string'],
         files: [
@@ -79,7 +79,7 @@ const PIPELINE_STAGES_BACKEND = [
     {
         name: 'Runtime',
         dir: 'compiler/src/runtime/',
-        description: 'Concrete runtime objects and values. Values are raw machine words or registered heap-object handles. Object kinds: strings, arrays, closures, packages, extern callables, template-part packs, and unions. Includes process startup that boxes argv into Calynda string[] and registers static string objects.',
+        description: 'Concrete runtime objects and values. Values are raw machine words or registered heap-object handles. Object kinds include strings, arrays, closures, packages, extern callables, template-part packs, unions, threads, futures, mutexes, and atomics. Includes process startup that boxes argv into Calynda string[] and registers static string objects.',
         keyTypes: [
             'CalyndaRtWord', 'CalyndaRtString', 'CalyndaRtArray',
             'CalyndaRtClosure', 'CalyndaRtTypeTag', 'CalyndaRtTypeDescriptor',
@@ -109,7 +109,7 @@ const PIPELINE_STAGES_BACKEND = [
     {
         name: 'CLI',
         dir: 'compiler/src/cli/',
-        description: 'Command-line tools: the calynda compiler driver (supports --target flag for x86_64/aarch64), AST dumper, semantic dumper, assembly emitter, bytecode emitter, native builder, and CAR archive commands (pack/build/run). The native builder resolves runtime.o relative to the executable directory.',
+        description: 'Command-line tools: the calynda compiler driver (supports --version, --strict-race-check, and --target for x86_64/aarch64/riscv64), AST dumper, semantic dumper, assembly emitter, bytecode emitter, native builder, and CAR archive commands (pack/build/run). The native builder resolves the runtime archive relative to the executable directory.',
         keyTypes: [],
         keyFunctions: [],
         files: [
@@ -152,9 +152,9 @@ exports.NATIVE_PIPELINE = 'Source → Tokenizer → Parser → AST → SymbolTab
 exports.BYTECODE_PIPELINE = 'Source → Tokenizer → Parser → AST → SymbolTable → TypeResolution → TypeChecker → HIR → MIR → BytecodeProgram (portable-v1)';
 exports.BACKEND_STRATEGY = `Calynda has two compiler backends and rejects any interpreter path:
 
-Primary backend — native (x86_64 SysV ELF and AArch64 AAPCS64 ELF):
+Primary backend — native (x86_64 SysV ELF, AArch64 AAPCS64 ELF, and RISC-V 64 LP64D ELF):
   ${exports.NATIVE_PIPELINE}
-  Pass --target aarch64-linux for ARM64 output (default: x86_64).
+  Pass --target aarch64-linux or --target riscv64-linux for cross-target output (default: x86_64).
 
 Secondary backend — portable-v1 bytecode:
   ${exports.BYTECODE_PIPELINE}
@@ -183,8 +183,8 @@ exports.SOURCE_TREE = `compiler/
     lir/                — Low-level IR (11 files)
     bytecode/           — Portable-v1 bytecode backend (13 files)
     codegen/            — Target-aware register allocation + instruction selection (8 files)
-    backend/            — Machine emission, asm emission (x86_64 + AArch64), runtime ABI, target descriptors
-    runtime/            — Runtime objects + helpers (6 files)
+    backend/            — Machine emission, asm emission (x86_64 + AArch64 + RISC-V), runtime ABI, target descriptors
+    runtime/            — Runtime objects + helpers, including threading/future/atomic support
     car/                — CAR source archive format (read, write, directory listing)
     cli/                — Driver + diagnostic tools + CAR commands (12 files)
   tests/                — 19 test suites (~1405 tests total)

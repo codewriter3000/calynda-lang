@@ -38,24 +38,28 @@ exports.PROMPTS = [
 const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Compiled functional systems programming language with ~200 C source files
 - Two backends: native x86_64 SysV ELF / AArch64 AAPCS64 ELF / RISC-V 64 LP64D ELF and portable-v1 bytecode (no interpreter)
+- CLI version metadata is available via calynda --version
+- Strict race-checker flag spelling: --strict-race-check
 - All functions are lambdas: (type param) -> expr or (type param) -> { ... }
 - Entry point: start(string[] args) -> { ... }; returns int32 (exit code)
-- Bare-metal entry point: boot() -> expr; bypasses runtime, emits _start (cannot coexist with start)
+- Bare-metal entry point: boot() -> expr; bypasses runtime, emits freestanding _start, and cannot coexist with start
 - Inline assembly: int32 name = asm(int32 a) -> { ... }; passed through to assembler unchanged
 - Stable unsafe manual memory: manual { ... }; / manual checked { ... }; with malloc/calloc/realloc/free, cleanup(value, fn), stackalloc(size), deref/store/offset/addr, and ptr<T>
-- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<?>, ptr<T>, layout types, Thread, Mutex, void
+- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<?>, ptr<T>, layout types, Thread, Future<T>, Mutex, Atomic<T>, void
 - Java-style aliases: byte, sbyte, short, int, long, ulong, uint, float, double
 - Type aliases: type Name = ExistingType;
-- Threading: spawn launches a zero-arg void callable and returns Thread; Mutex.new() creates a mutex with .lock()/.unlock()
+- Threading: spawn launches a zero-arg callable; void returns Thread, non-void returns Future<T>; Thread has .join()/.cancel(); Future<T> has .get()/.cancel(); Mutex.new() creates a mutex with .lock()/.unlock()
+- thread_local exists for storage with cross-thread identity, not ordinary stack locals
+- Atomic<T> is alpha.2-only and limited to first-class single-word runtime values
 - Tagged unions with reified generics: union Option<T> { Some(T), None }; union values expose read-only .tag and .payload
 - Heterogeneous arrays: arr<?> mixed = [1, "hello", true]; indexed reads produce external values and indexed writes remain rejected
-- Layout declarations exist for ptr<T> use; layout fields are limited to scalar primitive types in 0.5.0
+- Layout declarations exist for ptr<T> use; layout fields are limited to scalar primitive types
 - Numeric literals support underscore separators; the tokenizer strips underscores before parsing
 - Template literals with \${} interpolation (backtick strings)
 - No built-in if/else or loops — use ternary for conditionals, library functions for iteration
 - throw keyword for errors, exit; is sugar for return; in void lambdas
 - var keyword for type inference
-- Modifiers: export, public, private, final, static, internal
+- Modifiers: export, public, private, final, static, internal, thread_local
 - Import styles: plain, alias ("as"), wildcard (".*"), selective (".{a, b}")
 - Closures capture outer locals/parameters; ++ and -- prefix/postfix operators
 - Discard expression: _ = expr; to explicitly ignore values

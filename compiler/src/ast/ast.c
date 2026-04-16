@@ -152,6 +152,22 @@ void ast_type_init_mutex(AstType *type) {
     type->kind = AST_TYPE_MUTEX;
 }
 
+void ast_type_init_future(AstType *type) {
+    if (!type) {
+        return;
+    }
+    memset(type, 0, sizeof(*type));
+    type->kind = AST_TYPE_FUTURE;
+}
+
+void ast_type_init_atomic(AstType *type) {
+    if (!type) {
+        return;
+    }
+    memset(type, 0, sizeof(*type));
+    type->kind = AST_TYPE_ATOMIC;
+}
+
 void ast_type_free(AstType *type) {
     size_t i;
 

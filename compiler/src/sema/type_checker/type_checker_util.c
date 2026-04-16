@@ -35,6 +35,28 @@ void tc_set_error_at(TypeChecker *checker,
     va_end(args);
 }
 
+void tc_set_warning_at(TypeChecker *checker,
+                       AstSourceSpan primary_span,
+                       const AstSourceSpan *related_span,
+                       const char *format, ...) {
+    va_list args;
+
+    if (!checker || checker->has_warning) {
+        return;
+    }
+
+    checker->has_warning = true;
+    checker->warning.primary_span = primary_span;
+    if (related_span && tc_source_span_is_valid(*related_span)) {
+        checker->warning.related_span = *related_span;
+        checker->warning.has_related_span = true;
+    }
+
+    va_start(args, format);
+    vsnprintf(checker->warning.message, sizeof(checker->warning.message), format, args);
+    va_end(args);
+}
+
 TypeCheckExpressionEntry *tc_ensure_expression_entry(TypeChecker *checker,
                                                      const AstExpression *expression) {
     size_t i;

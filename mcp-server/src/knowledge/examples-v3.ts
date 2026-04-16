@@ -13,9 +13,19 @@ export const EXAMPLES_V3: Example[] = [
   },
   {
     name: 'boot-entry',
-    description: 'Bare-metal entry point bypassing the Calynda runtime',
+    description: 'Freestanding bare-metal entry point that bypasses the Calynda runtime without promising Linux-only exit behavior',
     tags: ['boot', 'v3', 'embedded'],
     code: `boot() -> 0;`,
+  },
+  {
+    name: 'future-value',
+    description: 'Non-void spawn returning a Future<T>',
+    tags: ['future', 'spawn', 'alpha-2'],
+    code: `start(string[] args) -> {
+    Future<int32> job = spawn () -> 42;
+    int32 value = job.get();
+    return value;
+};`,
   },
   {
     name: 'manual-memory',

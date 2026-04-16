@@ -204,7 +204,8 @@ void test_build_native_stackalloc_store_deref(void),
      test_build_native_stackalloc_typed_ptr(void),
      test_build_native_formats_hetero_arrays(void),
      test_build_native_indexes_hetero_arrays(void),
-    test_build_native_compares_hetero_arrays_by_identity(void),
+     test_build_native_compares_hetero_arrays_by_identity(void),
+     test_build_native_dispatches_union_tag_and_payload(void),
      test_build_native_formats_union_variants(void),
      test_build_native_layout_field_access(void);
 void test_build_native_double_capture_closure(void),
@@ -213,15 +214,14 @@ void test_build_native_double_capture_closure(void),
      test_build_native_template_literal(void),
      test_build_native_threading_helpers(void);
 void test_build_native_manual_checked_abort(void),
-     test_build_native_car_multifile(void);
+     test_build_native_car_multifile(void),
+     test_build_native_malformed_source_reports_span(void);
 int main(int argc, char **argv) {
     test_binary_path = argc > 0 ? argv[0] : NULL;
     printf("Running native build tests...\n\n");
 
-    RUN_TEST(test_build_native_runs_simple_start_program);
-    RUN_TEST(test_build_native_handles_direct_eight_argument_calls);
-    RUN_TEST(test_build_native_runs_runtime_lambda_program);
-    RUN_TEST(test_build_native_auto_calls_zero_arg_template_callable);
+    RUN_TEST(test_build_native_runs_simple_start_program); RUN_TEST(test_build_native_handles_direct_eight_argument_calls);
+    RUN_TEST(test_build_native_runs_runtime_lambda_program); RUN_TEST(test_build_native_auto_calls_zero_arg_template_callable);
     RUN_TEST(test_build_native_runs_boot_program);
     RUN_TEST(test_build_native_runs_boot_program_with_block);
     RUN_TEST(test_build_native_runs_manual_malloc_free);
@@ -230,15 +230,15 @@ int main(int argc, char **argv) {
     RUN_TEST(test_build_native_stackalloc_typed_ptr);
     RUN_TEST(test_build_native_formats_hetero_arrays); RUN_TEST(test_build_native_indexes_hetero_arrays);
     RUN_TEST(test_build_native_compares_hetero_arrays_by_identity);
+    RUN_TEST(test_build_native_dispatches_union_tag_and_payload);
     RUN_TEST(test_build_native_formats_union_variants);
     RUN_TEST(test_build_native_layout_field_access);
-    RUN_TEST(test_build_native_double_capture_closure);
-    RUN_TEST(test_build_native_primitive_types);
-    RUN_TEST(test_build_native_varargs_passthrough);
-    RUN_TEST(test_build_native_template_literal);
+    RUN_TEST(test_build_native_double_capture_closure); RUN_TEST(test_build_native_primitive_types);
+    RUN_TEST(test_build_native_varargs_passthrough); RUN_TEST(test_build_native_template_literal);
     RUN_TEST(test_build_native_threading_helpers);
     RUN_TEST(test_build_native_manual_checked_abort);
     RUN_TEST(test_build_native_car_multifile);
+    RUN_TEST(test_build_native_malformed_source_reports_span);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

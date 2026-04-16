@@ -148,11 +148,13 @@ void test_type_and_spawn_keywords(void) {
     Tokenizer t;
     Token tok;
 
-    tokenizer_init(&t, "type spawn");
+    tokenizer_init(&t, "type spawn thread_local");
     tok = tokenizer_next(&t);
     ASSERT_EQ_INT(TOK_TYPE, tok.type, "type keyword");
     tok = tokenizer_next(&t);
     ASSERT_EQ_INT(TOK_SPAWN, tok.type, "spawn keyword");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_THREAD_LOCAL, tok.type, "thread_local keyword");
 }
 
 

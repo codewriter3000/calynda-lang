@@ -19,6 +19,21 @@ typedef struct {
 static BcEntry *bc_entries = NULL;
 static size_t   bc_count = 0;
 static size_t   bc_capacity = 0;
+static pthread_mutex_t bc_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void bc_lock(void) {
+    if (pthread_mutex_lock(&bc_mutex) != 0) {
+        fprintf(stderr, "calynda bounds-check: mutex lock failed\n");
+        abort();
+    }
+}
+
+static void bc_unlock(void) {
+    if (pthread_mutex_unlock(&bc_mutex) != 0) {
+        fprintf(stderr, "calynda bounds-check: mutex unlock failed\n");
+        abort();
+    }
+}
 
 static void bc_ensure_capacity(size_t needed) {
     BcEntry *grown_entries;
@@ -97,7 +112,9 @@ CalyndaRtWord __calynda_bc_malloc(CalyndaRtWord size) {
         fprintf(stderr, "calynda bounds-check: malloc failed\n");
         abort();
     }
+    bc_lock();
     bc_register((uintptr_t)p, (size_t)size);
+    bc_unlock();
     return (CalyndaRtWord)(uintptr_t)p;
 }
 
@@ -107,7 +124,9 @@ CalyndaRtWord __calynda_bc_calloc(CalyndaRtWord n, CalyndaRtWord size) {
         fprintf(stderr, "calynda bounds-check: calloc failed\n");
         abort();
     }
+    bc_lock();
     bc_register((uintptr_t)p, (size_t)(n * size));
+    bc_unlock();
     return (CalyndaRtWord)(uintptr_t)p;
 }
 
@@ -115,20 +134,26 @@ CalyndaRtWord __calynda_bc_realloc(CalyndaRtWord ptr, CalyndaRtWord new_size) {
     void *old_p = (void *)(uintptr_t)ptr;
     void *new_p;
 
+    bc_lock();
     bc_unregister((uintptr_t)old_p);
     new_p = realloc(old_p, (size_t)new_size);
     if (!new_p) {
+        bc_unlock();
         fprintf(stderr, "calynda bounds-check: realloc failed\n");
         abort();
     }
     bc_register((uintptr_t)new_p, (size_t)new_size);
+    bc_unlock();
     return (CalyndaRtWord)(uintptr_t)new_p;
 }
 
 void __calynda_bc_free(CalyndaRtWord ptr) {
     void *p = (void *)(uintptr_t)ptr;
+
+    bc_lock();
     bc_unregister((uintptr_t)p);
     free(p);
+    bc_unlock();
 }
 
 CalyndaRtWord __calynda_bc_stackalloc(CalyndaRtWord size) {
@@ -136,18 +161,28 @@ CalyndaRtWord __calynda_bc_stackalloc(CalyndaRtWord size) {
 }
 
 CalyndaRtWord __calynda_bc_deref(CalyndaRtWord ptr) {
+    CalyndaRtWord value;
+
+    bc_lock();
     bc_check_access((uintptr_t)ptr);
-    return *((CalyndaRtWord *)(uintptr_t)ptr);
+    value = *((CalyndaRtWord *)(uintptr_t)ptr);
+    bc_unlock();
+    return value;
 }
 
 void __calynda_bc_store(CalyndaRtWord ptr, CalyndaRtWord value) {
+    bc_lock();
     bc_check_access((uintptr_t)ptr);
     *((CalyndaRtWord *)(uintptr_t)ptr) = value;
+    bc_unlock();
 }
 
 CalyndaRtWord __calynda_bc_offset(CalyndaRtWord ptr, CalyndaRtWord idx,
                                   CalyndaRtWord elem_size) {
     uintptr_t result = (uintptr_t)ptr + (uintptr_t)(idx * elem_size);
+
+    bc_lock();
     bc_check_access((uintptr_t)ptr);
+    bc_unlock();
     return (CalyndaRtWord)result;
 }

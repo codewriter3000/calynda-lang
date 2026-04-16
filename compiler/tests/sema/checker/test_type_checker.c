@@ -126,7 +126,12 @@ void test_type_checker_rejects_non_primitive_layout_field(void);
 void test_type_checker_error_has_source_span(void);
 void test_type_checker_accepts_pre_increment(void);
 void test_type_checker_accepts_threading_builtins_and_type_alias(void);
-void test_type_checker_rejects_spawn_non_void_callable(void);
+void test_type_checker_accepts_spawn_non_void_callable_as_future(void);
+void test_type_checker_accepts_future_and_atomic_builtins(void);
+void test_type_checker_warns_on_spawn_mutable_capture(void);
+void test_type_checker_rejects_spawn_mutable_capture_in_strict_mode(void);
+void test_type_checker_allows_spawn_atomic_capture(void);
+void test_type_checker_allows_spawn_thread_local_capture(void);
 
 
 int main(void) {
@@ -191,7 +196,12 @@ int main(void) {
     RUN_TEST(test_type_checker_error_has_source_span);
     RUN_TEST(test_type_checker_accepts_pre_increment);
     RUN_TEST(test_type_checker_accepts_threading_builtins_and_type_alias);
-    RUN_TEST(test_type_checker_rejects_spawn_non_void_callable);
+    RUN_TEST(test_type_checker_accepts_spawn_non_void_callable_as_future);
+    RUN_TEST(test_type_checker_accepts_future_and_atomic_builtins);
+    RUN_TEST(test_type_checker_warns_on_spawn_mutable_capture);
+    RUN_TEST(test_type_checker_rejects_spawn_mutable_capture_in_strict_mode);
+    RUN_TEST(test_type_checker_allows_spawn_atomic_capture);
+    RUN_TEST(test_type_checker_allows_spawn_thread_local_capture);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

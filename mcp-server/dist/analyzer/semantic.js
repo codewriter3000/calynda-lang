@@ -3,7 +3,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.analyze = analyze;
 const BUILTIN_SYMBOLS = [
     ['Thread', { kind: 'named', name: 'Thread', genericArgs: [] }],
+    ['Future', { kind: 'named', name: 'Future', genericArgs: [] }],
     ['Mutex', { kind: 'named', name: 'Mutex', genericArgs: [] }],
+    ['Atomic', { kind: 'named', name: 'Atomic', genericArgs: [] }],
 ];
 class SemanticAnalyzer {
     diagnostics = [];

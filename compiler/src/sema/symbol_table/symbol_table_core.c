@@ -128,7 +128,7 @@ Symbol *st_symbol_new(SymbolTable *table, SymbolKind kind,
                       const AstType *declared_type,
                       bool is_inferred_type, bool is_final,
                       bool is_exported, bool is_static,
-                      bool is_internal,
+                      bool is_internal, bool is_thread_local,
                       AstSourceSpan declaration_span,
                       const void *declaration, Scope *scope) {
     Symbol *symbol = calloc(1, sizeof(*symbol));
@@ -145,6 +145,7 @@ Symbol *st_symbol_new(SymbolTable *table, SymbolKind kind,
     symbol->is_exported = is_exported;
     symbol->is_static = is_static;
     symbol->is_internal = is_internal;
+    symbol->is_thread_local = is_thread_local;
     symbol->declaration_span = declaration_span;
     symbol->declaration = declaration;
     symbol->scope = scope;

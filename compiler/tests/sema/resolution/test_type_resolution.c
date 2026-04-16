@@ -65,6 +65,7 @@ void test_type_resolver_rejects_void_array_element(void);
 void test_type_resolver_resolves_type_alias_and_threading_types(void);
 void test_type_resolver_rejects_circular_type_alias(void);
 void test_type_resolver_resolves_ptr_generic_type(void);
+void test_type_resolver_resolves_future_and_atomic_types(void);
 
 
 int main(void) {
@@ -80,6 +81,7 @@ int main(void) {
     RUN_TEST(test_type_resolver_resolves_type_alias_and_threading_types);
     RUN_TEST(test_type_resolver_rejects_circular_type_alias);
     RUN_TEST(test_type_resolver_resolves_ptr_generic_type);
+    RUN_TEST(test_type_resolver_resolves_future_and_atomic_types);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

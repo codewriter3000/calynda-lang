@@ -90,6 +90,18 @@ Terminator opcodes are:
 - `BC_BRANCH`
 - `BC_THROW`
 
+## Concurrency Helper Lowering
+
+Portable bytecode keeps alpha.2 concurrency on the existing helper-call path.
+There are no new concurrency-specific opcodes. `spawn`, `Thread.join()`,
+`Thread.cancel()`, `Future<T>.get()`, `Future<T>.cancel()`, `Mutex.new()`,
+`Mutex.lock()`, `Mutex.unlock()`, and `Atomic<T>.new/load/store/exchange`
+lower as `BC_CALL` operations targeting the well-known `__calynda_rt_*`
+runtime symbols.
+
+Bytecode execution therefore still depends on a runtime that implements the
+threading, future, mutex, and atomic helper surface.
+
 ## Backend Boundary
 
 The backend split is now:

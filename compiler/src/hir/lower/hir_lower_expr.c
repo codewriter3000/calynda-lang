@@ -81,20 +81,21 @@ static HirExpression *hr_make_helper_call(HirBuildContext *context,
     HirExpression *call_expr;
     HirExpression *callee;
     size_t i;
-    CheckedType parameter_types[1];
+    /* Support up to 4 parameters (current max for alpha.2 helpers). */
+    CheckedType parameter_types[4];
 
     if (!expression || (!arguments && argument_count != 0)) {
         return NULL;
     }
 
-    if (argument_count == 1) {
-        parameter_types[0] = arguments[0]->type;
+    for (i = 0; i < argument_count && i < 4; i++) {
+        parameter_types[i] = arguments[i]->type;
     }
 
     callee = hr_make_helper_symbol(context,
                                    helper_name,
                                    return_type,
-                                   argument_count == 1 ? parameter_types : NULL,
+                                   argument_count > 0 ? parameter_types : NULL,
                                    argument_count,
                                    expression->source_span);
     if (!callee) {
@@ -149,6 +150,24 @@ static bool hr_is_builtin_mutex_new_call(const AstExpression *expression) {
            strcmp(expression->as.call.callee->as.member.member, "new") == 0;
 }
 
+/*
+ * Detect Atomic.new(value) — syntactic: callee is `Atomic.new`, one argument.
+ * The type checker may not know about Atomic yet; we pattern-match the AST
+ * node directly so HIR lowering can redirect to the runtime helper.
+ */
+static bool hr_is_builtin_atomic_new_call(const AstExpression *expression) {
+    return expression &&
+           expression->kind == AST_EXPR_CALL &&
+           expression->as.call.callee &&
+           expression->as.call.callee->kind == AST_EXPR_MEMBER &&
+           expression->as.call.arguments.count == 1 &&
+           expression->as.call.callee->as.member.target &&
+           expression->as.call.callee->as.member.target->kind == AST_EXPR_IDENTIFIER &&
+           expression->as.call.callee->as.member.target->as.identifier &&
+           strcmp(expression->as.call.callee->as.member.target->as.identifier, "Atomic") == 0 &&
+           strcmp(expression->as.call.callee->as.member.member, "new") == 0;
+}
+
 static bool hr_is_builtin_thread_or_mutex_call(HirBuildContext *context,
                                                const AstExpression *expression,
                                                const char **helper_name_out) {
@@ -158,8 +177,7 @@ static bool hr_is_builtin_thread_or_mutex_call(HirBuildContext *context,
 
     if (!expression || expression->kind != AST_EXPR_CALL ||
         !expression->as.call.callee ||
-        expression->as.call.callee->kind != AST_EXPR_MEMBER ||
-        expression->as.call.arguments.count != 0) {
+        expression->as.call.callee->kind != AST_EXPR_MEMBER) {
         return false;
     }
 
@@ -170,31 +188,93 @@ static bool hr_is_builtin_thread_or_mutex_call(HirBuildContext *context,
         return true;
     }
 
+    /* Atomic.new(value) handled separately in hr_lower_expression */
+
     member_target = expression->as.call.callee->as.member.target;
     target_info = type_checker_get_expression_info(context->checker, member_target);
     if (!target_info) {
         return false;
     }
     target_type = target_info->type;
+
+    /* Thread methods */
     if (target_type.kind == CHECKED_TYPE_NAMED && target_type.name &&
-        strcmp(target_type.name, "Thread") == 0 &&
-        strcmp(expression->as.call.callee->as.member.member, "join") == 0) {
-        if (helper_name_out) {
-            *helper_name_out = "__calynda_rt_thread_join";
+        strcmp(target_type.name, "Thread") == 0) {
+        if (expression->as.call.arguments.count == 0) {
+            if (strcmp(expression->as.call.callee->as.member.member, "join") == 0) {
+                if (helper_name_out) {
+                    *helper_name_out = "__calynda_rt_thread_join";
+                }
+                return true;
+            }
+            if (strcmp(expression->as.call.callee->as.member.member, "cancel") == 0) {
+                if (helper_name_out) {
+                    *helper_name_out = "__calynda_rt_thread_cancel";
+                }
+                return true;
+            }
         }
-        return true;
     }
+
+    /* Mutex methods */
     if (target_type.kind == CHECKED_TYPE_NAMED && target_type.name &&
         strcmp(target_type.name, "Mutex") == 0) {
-        if (strcmp(expression->as.call.callee->as.member.member, "lock") == 0) {
+        if (expression->as.call.arguments.count == 0) {
+            if (strcmp(expression->as.call.callee->as.member.member, "lock") == 0) {
+                if (helper_name_out) {
+                    *helper_name_out = "__calynda_rt_mutex_lock";
+                }
+                return true;
+            }
+            if (strcmp(expression->as.call.callee->as.member.member, "unlock") == 0) {
+                if (helper_name_out) {
+                    *helper_name_out = "__calynda_rt_mutex_unlock";
+                }
+                return true;
+            }
+        }
+    }
+
+    /* Future methods (alpha.2) */
+    if (target_type.kind == CHECKED_TYPE_NAMED && target_type.name &&
+        strcmp(target_type.name, "Future") == 0) {
+        if (expression->as.call.arguments.count == 0) {
+            if (strcmp(expression->as.call.callee->as.member.member, "get") == 0) {
+                if (helper_name_out) {
+                    *helper_name_out = "__calynda_rt_future_get";
+                }
+                return true;
+            }
+            if (strcmp(expression->as.call.callee->as.member.member, "cancel") == 0) {
+                if (helper_name_out) {
+                    *helper_name_out = "__calynda_rt_future_cancel";
+                }
+                return true;
+            }
+        }
+    }
+
+    /* Atomic methods (alpha.2): load/store/exchange dispatched on Atomic type */
+    if (target_type.kind == CHECKED_TYPE_NAMED && target_type.name &&
+        strcmp(target_type.name, "Atomic") == 0) {
+        if (expression->as.call.arguments.count == 0 &&
+            strcmp(expression->as.call.callee->as.member.member, "load") == 0) {
             if (helper_name_out) {
-                *helper_name_out = "__calynda_rt_mutex_lock";
+                *helper_name_out = "__calynda_rt_atomic_load";
             }
             return true;
         }
-        if (strcmp(expression->as.call.callee->as.member.member, "unlock") == 0) {
+        if (expression->as.call.arguments.count == 1 &&
+            strcmp(expression->as.call.callee->as.member.member, "store") == 0) {
             if (helper_name_out) {
-                *helper_name_out = "__calynda_rt_mutex_unlock";
+                *helper_name_out = "__calynda_rt_atomic_store";
+            }
+            return true;
+        }
+        if (expression->as.call.arguments.count == 1 &&
+            strcmp(expression->as.call.callee->as.member.member, "exchange") == 0) {
+            if (helper_name_out) {
+                *helper_name_out = "__calynda_rt_atomic_exchange";
             }
             return true;
         }
@@ -232,13 +312,20 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
     if (expression->kind == AST_EXPR_SPAWN) {
         HirExpression *argument = hr_lower_expression(context, expression->as.spawn.callable);
         HirExpression *arguments[1];
+        const char *helper_name = "__calynda_rt_thread_spawn";
+
         if (!argument) {
             return NULL;
+        }
+        if (info->type.kind == CHECKED_TYPE_NAMED &&
+            info->type.name &&
+            strcmp(info->type.name, "Future") == 0) {
+            helper_name = "__calynda_rt_future_spawn";
         }
         arguments[0] = argument;
         return hr_make_helper_call(context,
                                    expression,
-                                   "__calynda_rt_thread_spawn",
+                                   helper_name,
                                    info->type,
                                    arguments,
                                    1);
@@ -253,17 +340,58 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
                                    0);
     }
 
+    if (hr_is_builtin_atomic_new_call(expression)) {
+        HirExpression *argument =
+            hr_lower_expression(context, expression->as.call.arguments.items[0]);
+        HirExpression *arguments[1];
+
+        if (!argument) {
+            return NULL;
+        }
+        arguments[0] = argument;
+        return hr_make_helper_call(context,
+                                   expression,
+                                   "__calynda_rt_atomic_new",
+                                   info->type,
+                                   arguments,
+                                   1);
+    }
+
     if (expression->kind == AST_EXPR_CALL && expression->as.call.callee &&
         expression->as.call.callee->kind == AST_EXPR_MEMBER) {
         const char *helper_name = NULL;
         if (hr_is_builtin_thread_or_mutex_call(context, expression, &helper_name)) {
-            HirExpression *argument =
-                hr_lower_expression(context, expression->as.call.callee->as.member.target);
-            HirExpression *arguments[1];
-            if (!argument) {
+            /* Determine how many arguments the helper takes:
+             *   - target value is always argument[0]
+             *   - single extra call argument (if any) is argument[1] */
+            size_t extra_arg_count = expression->as.call.arguments.count;
+            HirExpression *arg_target;
+            HirExpression *arguments[2];
+
+            arg_target = hr_lower_expression(context,
+                                             expression->as.call.callee->as.member.target);
+            if (!arg_target) {
                 return NULL;
             }
-            arguments[0] = argument;
+            arguments[0] = arg_target;
+
+            if (extra_arg_count == 1) {
+                HirExpression *extra_arg =
+                    hr_lower_expression(context,
+                                        expression->as.call.arguments.items[0]);
+                if (!extra_arg) {
+                    hir_expression_free(arg_target);
+                    return NULL;
+                }
+                arguments[1] = extra_arg;
+                return hr_make_helper_call(context,
+                                           expression,
+                                           helper_name,
+                                           info->type,
+                                           arguments,
+                                           2);
+            }
+
             return hr_make_helper_call(context,
                                        expression,
                                        helper_name,

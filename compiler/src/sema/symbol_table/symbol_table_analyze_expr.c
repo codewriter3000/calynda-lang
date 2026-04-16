@@ -38,7 +38,9 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
 
             if (expression->as.identifier &&
                 (strcmp(expression->as.identifier, "Mutex") == 0 ||
-                 strcmp(expression->as.identifier, "Thread") == 0)) {
+                 strcmp(expression->as.identifier, "Thread") == 0 ||
+                 strcmp(expression->as.identifier, "Future") == 0 ||
+                 strcmp(expression->as.identifier, "Atomic") == 0)) {
                 return true;
             }
 
@@ -147,7 +149,7 @@ bool st_add_parameter_symbols(SymbolTable *table,
                                parameter->name, NULL,
                                &parameter->type,
                                false, false,
-                               false, false, false,
+                               false, false, false, false,
                                parameter->name_span,
                                parameter, scope);
         if (!symbol) {
@@ -185,7 +187,7 @@ bool st_add_local_symbol(SymbolTable *table,
                            binding->is_inferred_type,
                            binding->is_final,
                            false, false,
-                           binding->is_internal,
+                           binding->is_internal, false,
                            binding->name_span,
                            binding, scope);
     if (!symbol) {

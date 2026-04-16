@@ -16,6 +16,8 @@ void ast_type_init_arr(AstType *type);
 void ast_type_init_named(AstType *type, const char *name);
 void ast_type_init_thread(AstType *type);
 void ast_type_init_mutex(AstType *type);
+void ast_type_init_future(AstType *type);
+void ast_type_init_atomic(AstType *type);
 void ast_type_free(AstType *type);
 bool ast_type_add_dimension(AstType *type, bool has_size, const char *size_literal);
 bool ast_type_add_generic_arg(AstType *type, AstGenericArg *arg);

@@ -10,7 +10,9 @@ export interface AnalysisResult {
 type Scope = Map<string, CalyndaType>;
 const BUILTIN_SYMBOLS: Array<[string, CalyndaType]> = [
   ['Thread', { kind: 'named', name: 'Thread', genericArgs: [] }],
+  ['Future', { kind: 'named', name: 'Future', genericArgs: [] }],
   ['Mutex', { kind: 'named', name: 'Mutex', genericArgs: [] }],
+  ['Atomic', { kind: 'named', name: 'Atomic', genericArgs: [] }],
 ];
 
 class SemanticAnalyzer {

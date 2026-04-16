@@ -77,12 +77,28 @@ const char *codegen_runtime_helper_name(CodegenRuntimeHelper helper) {
         return CALYNDA_RT_THREAD_SPAWN;
     case CODEGEN_RUNTIME_THREAD_JOIN:
         return CALYNDA_RT_THREAD_JOIN;
+    case CODEGEN_RUNTIME_THREAD_CANCEL:
+        return CALYNDA_RT_THREAD_CANCEL;
     case CODEGEN_RUNTIME_MUTEX_NEW:
         return CALYNDA_RT_MUTEX_NEW;
     case CODEGEN_RUNTIME_MUTEX_LOCK:
         return CALYNDA_RT_MUTEX_LOCK;
     case CODEGEN_RUNTIME_MUTEX_UNLOCK:
         return CALYNDA_RT_MUTEX_UNLOCK;
+    case CODEGEN_RUNTIME_FUTURE_SPAWN:
+        return CALYNDA_RT_FUTURE_SPAWN;
+    case CODEGEN_RUNTIME_FUTURE_GET:
+        return CALYNDA_RT_FUTURE_GET;
+    case CODEGEN_RUNTIME_FUTURE_CANCEL:
+        return CALYNDA_RT_FUTURE_CANCEL;
+    case CODEGEN_RUNTIME_ATOMIC_NEW:
+        return CALYNDA_RT_ATOMIC_NEW;
+    case CODEGEN_RUNTIME_ATOMIC_LOAD:
+        return CALYNDA_RT_ATOMIC_LOAD;
+    case CODEGEN_RUNTIME_ATOMIC_STORE:
+        return CALYNDA_RT_ATOMIC_STORE;
+    case CODEGEN_RUNTIME_ATOMIC_EXCHANGE:
+        return CALYNDA_RT_ATOMIC_EXCHANGE;
     }
 
     return "__calynda_rt_unknown";

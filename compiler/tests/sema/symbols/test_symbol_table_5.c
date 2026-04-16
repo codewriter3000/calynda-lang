@@ -206,3 +206,59 @@ void test_symbol_table_export_static_flags(void) {
     parser_free(&parser);
 }
 
+void test_symbol_table_thread_local_flag(void) {
+    const char *source =
+        "thread_local int32 tlsCounter = 0;\n"
+        "int32 plain = 2;\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable table;
+    const Scope *root;
+    const Symbol *sym;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse thread_local flag");
+
+    symbol_table_init(&table);
+    REQUIRE_TRUE(symbol_table_build(&table, &program), "build symbols thread_local");
+
+    root = symbol_table_root_scope(&table);
+    REQUIRE_TRUE(root != NULL, "root scope exists");
+
+    sym = scope_lookup_local(root, "tlsCounter");
+    REQUIRE_TRUE(sym != NULL, "tlsCounter symbol found");
+    ASSERT_TRUE(sym->is_thread_local, "tlsCounter is_thread_local");
+    ASSERT_TRUE(!sym->is_static, "tlsCounter not is_static");
+
+    sym = scope_lookup_local(root, "plain");
+    REQUIRE_TRUE(sym != NULL, "plain symbol found");
+    ASSERT_TRUE(!sym->is_thread_local, "plain not is_thread_local");
+
+    symbol_table_free(&table);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_symbol_table_allows_future_atomic_builtin_identifiers(void) {
+    const char *source =
+        "start(string[] args) -> {\n"
+        "    Future<int32> futureValue = Future.new();\n"
+        "    Atomic<int32> atomicValue = Atomic.new();\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable table;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse Future/Atomic builtin identifiers");
+
+    symbol_table_init(&table);
+    REQUIRE_TRUE(symbol_table_build(&table, &program), "build symbols Future/Atomic builtin identifiers");
+    ASSERT_EQ_INT(0, (int)table.unresolved_count,
+                  "Future/Atomic builtin identifiers do not become unresolved");
+
+    symbol_table_free(&table);
+    ast_program_free(&program);
+    parser_free(&parser);
+}

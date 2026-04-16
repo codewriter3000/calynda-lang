@@ -109,6 +109,15 @@ static void registry_free_owned_object(void *pointer) {
     case CALYNDA_RT_OBJECT_MUTEX:
         pthread_mutex_destroy(&((CalyndaRtMutex *)pointer)->mutex);
         break;
+    case CALYNDA_RT_OBJECT_FUTURE:
+        if (!((CalyndaRtFuture *)pointer)->joined) {
+            pthread_join(((CalyndaRtFuture *)pointer)->thread, NULL);
+            ((CalyndaRtFuture *)pointer)->joined = true;
+        }
+        break;
+    case CALYNDA_RT_OBJECT_ATOMIC:
+        /* No extra cleanup needed for atomic objects. */
+        break;
     case CALYNDA_RT_OBJECT_PACKAGE:
     case CALYNDA_RT_OBJECT_EXTERN_CALLABLE:
     case CALYNDA_RT_OBJECT_UNION:
@@ -254,6 +263,38 @@ CalyndaRtMutex *rt_new_mutex_object(void) {
     }
     return mutex_object;
 }
+
+CalyndaRtFuture *rt_new_future_object(CalyndaRtWord callable) {
+    CalyndaRtFuture *future_object = calloc(1, sizeof(*future_object));
+
+    if (!future_object) {
+        return NULL;
+    }
+    future_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
+    future_object->header.kind = CALYNDA_RT_OBJECT_FUTURE;
+    future_object->callable = callable;
+    if (!rt_register_object_pointer(future_object)) {
+        free(future_object);
+        return NULL;
+    }
+    return future_object;
+}
+
+CalyndaRtAtomic *rt_new_atomic_object(void) {
+    CalyndaRtAtomic *atomic_object = calloc(1, sizeof(*atomic_object));
+
+    if (!atomic_object) {
+        return NULL;
+    }
+    atomic_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
+    atomic_object->header.kind = CALYNDA_RT_OBJECT_ATOMIC;
+    if (!rt_register_object_pointer(atomic_object)) {
+        free(atomic_object);
+        return NULL;
+    }
+    return atomic_object;
+}
+
 bool calynda_rt_is_object(CalyndaRtWord word) { return calynda_rt_as_object(word) != NULL; }
 
 const CalyndaRtObjectHeader *calynda_rt_as_object(CalyndaRtWord word) {

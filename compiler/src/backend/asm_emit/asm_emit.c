@@ -5,12 +5,73 @@
 #include <stdlib.h>
 #include <string.h>
 
+static bool ae_source_span_is_valid(AstSourceSpan span) {
+    return span.start_line > 0 && span.start_column > 0;
+}
+
+bool asm_emit_get_error(const MachineProgram *program, AsmEmitError *out) {
+    const MachineBuildError *machine_error;
+
+    if (!program || !out) {
+        return false;
+    }
+
+    memset(out, 0, sizeof(*out));
+    machine_error = machine_get_error(program);
+    if (!machine_error) {
+        return false;
+    }
+
+    out->primary_span = machine_error->primary_span;
+    out->related_span = machine_error->related_span;
+    out->has_related_span = machine_error->has_related_span;
+    memcpy(out->message, machine_error->message, sizeof(out->message));
+    return true;
+}
+
+bool asm_emit_format_error(const AsmEmitError *error,
+                           char *buffer,
+                           size_t buffer_size) {
+    int written;
+
+    if (!error || !buffer || buffer_size == 0) {
+        return false;
+    }
+
+    if (ae_source_span_is_valid(error->primary_span)) {
+        if (error->has_related_span && ae_source_span_is_valid(error->related_span)) {
+            written = snprintf(buffer,
+                               buffer_size,
+                               "%d:%d: %s Related location at %d:%d.",
+                               error->primary_span.start_line,
+                               error->primary_span.start_column,
+                               error->message,
+                               error->related_span.start_line,
+                               error->related_span.start_column);
+        } else {
+            written = snprintf(buffer,
+                               buffer_size,
+                               "%d:%d: %s",
+                               error->primary_span.start_line,
+                               error->primary_span.start_column,
+                               error->message);
+        }
+    } else {
+        written = snprintf(buffer, buffer_size, "%s", error->message);
+    }
+
+    return written >= 0 && (size_t)written < buffer_size;
+}
+
 bool asm_emit_program(FILE *out, const MachineProgram *program) {
     AsmEmitContext context;
     size_t unit_index;
     bool is_arm64;
 
     if (!out || !program) {
+        return false;
+    }
+    if (machine_get_error(program) != NULL) {
         return false;
     }
 

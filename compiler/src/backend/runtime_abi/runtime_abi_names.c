@@ -50,6 +50,12 @@ const char *runtime_abi_argument_role_name(RuntimeAbiArgumentRole role) {
         return "thread_value";
     case RUNTIME_ABI_ARG_MUTEX_VALUE:
         return "mutex_value";
+    case RUNTIME_ABI_ARG_FUTURE_VALUE:
+        return "future_value";
+    case RUNTIME_ABI_ARG_ATOMIC_VALUE:
+        return "atomic_value";
+    case RUNTIME_ABI_ARG_ATOMIC_NEW_VALUE:
+        return "atomic_new_value";
     }
 
     return "unknown";

@@ -71,6 +71,7 @@ bool lir_format_error(const LirBuildError *error,
 
 bool lir_build_program(LirProgram *program, const MirProgram *mir_program) {
     LirBuildContext context;
+    const MirBuildError *mir_error;
     size_t i;
 
     if (!program || !mir_program) {
@@ -84,11 +85,15 @@ bool lir_build_program(LirProgram *program, const MirProgram *mir_program) {
     context.program = program;
     context.mir_program = mir_program;
 
-    if (mir_get_error(mir_program) != NULL) {
+    mir_error = mir_get_error(mir_program);
+    if (mir_error != NULL) {
         lr_set_error(&context,
-                     (AstSourceSpan){0},
-                     NULL,
-                     "Cannot lower program to LIR while the MIR reports errors.");
+                     mir_error->primary_span,
+                     mir_error->has_related_span
+                         ? &mir_error->related_span
+                         : NULL,
+                     "%s",
+                     mir_error->message);
         return false;
     }
 

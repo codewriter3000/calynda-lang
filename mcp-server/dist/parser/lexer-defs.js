@@ -15,7 +15,7 @@ exports.LexError = LexError;
 exports.KEYWORDS = new Set([
     'package', 'import', 'public', 'private', 'final', 'var', 'start', 'boot',
     'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-    'export', 'as', 'internal', 'static', 'type', 'union', 'manual', 'arr', 'ptr', 'layout',
+    'export', 'as', 'internal', 'static', 'thread_local', 'type', 'union', 'manual', 'arr', 'ptr', 'layout',
     'spawn', 'checked', 'asm', 'malloc', 'calloc', 'realloc', 'free', 'deref', 'store',
     'offset', 'addr', 'cleanup', 'stackalloc',
 ]);

@@ -1,5 +1,34 @@
 #include "type_checker_internal.h"
 
+static CheckedType tc_checked_type_from_generic_ast(const AstType *type) {
+    if (!type) {
+        return tc_checked_type_invalid();
+    }
+
+    switch (type->kind) {
+    case AST_TYPE_VOID:
+        return tc_checked_type_void();
+    case AST_TYPE_PRIMITIVE:
+        return tc_checked_type_value(type->primitive, type->dimension_count);
+    case AST_TYPE_ARR:
+        return tc_checked_type_named("arr", type->generic_args.count, type->dimension_count);
+    case AST_TYPE_PTR:
+        return tc_checked_type_named("ptr", 1, type->dimension_count);
+    case AST_TYPE_NAMED:
+        return tc_checked_type_named(type->name, type->generic_args.count, type->dimension_count);
+    case AST_TYPE_THREAD:
+        return tc_checked_type_named("Thread", 0, type->dimension_count);
+    case AST_TYPE_MUTEX:
+        return tc_checked_type_named("Mutex", 0, type->dimension_count);
+    case AST_TYPE_FUTURE:
+        return tc_checked_type_named("Future", 1, type->dimension_count);
+    case AST_TYPE_ATOMIC:
+        return tc_checked_type_named("Atomic", 1, type->dimension_count);
+    }
+
+    return tc_checked_type_invalid();
+}
+
 CheckedType tc_promote_numeric_types(CheckedType left, CheckedType right) {
     int width;
 
@@ -236,6 +265,60 @@ TypeCheckInfo tc_type_check_info_make_external_callable(void) {
     TypeCheckInfo info = tc_type_check_info_make_callable(tc_checked_type_external(), NULL);
     info.type = tc_checked_type_external();
     return info;
+}
+
+void tc_type_check_info_set_first_generic_arg(TypeCheckInfo *info,
+                                              CheckedType generic_arg_type) {
+    if (!info) {
+        return;
+    }
+
+    info->has_first_generic_arg = true;
+    info->first_generic_arg_type = generic_arg_type;
+}
+
+bool tc_checked_type_first_generic_arg_from_ast_type(TypeChecker *checker,
+                                                     const AstType *type,
+                                                     CheckedType *generic_arg_type) {
+    bool supported_generic_host = false;
+
+    if (!checker || !type || !generic_arg_type ||
+        type->generic_args.count == 0 ||
+        type->generic_args.items[0].kind != AST_GENERIC_ARG_TYPE ||
+        !type->generic_args.items[0].type) {
+        return false;
+    }
+
+    supported_generic_host = type->kind == AST_TYPE_FUTURE ||
+                             type->kind == AST_TYPE_ATOMIC ||
+                             (type->kind == AST_TYPE_NAMED &&
+                              type->name != NULL &&
+                              (strcmp(type->name, "Future") == 0 ||
+                               strcmp(type->name, "Atomic") == 0));
+    if (!supported_generic_host) {
+        return false;
+    }
+
+    *generic_arg_type = tc_checked_type_from_generic_ast(type->generic_args.items[0].type);
+    return generic_arg_type->kind != CHECKED_TYPE_INVALID;
+}
+
+bool tc_type_check_info_first_generic_arg(TypeChecker *checker,
+                                          const TypeCheckInfo *info,
+                                          const AstType *fallback_type,
+                                          CheckedType *generic_arg_type) {
+    if (!generic_arg_type) {
+        return false;
+    }
+
+    if (info && info->has_first_generic_arg) {
+        *generic_arg_type = info->first_generic_arg_type;
+        return true;
+    }
+
+    return tc_checked_type_first_generic_arg_from_ast_type(checker,
+                                                           fallback_type,
+                                                           generic_arg_type);
 }
 
 CheckedType tc_type_check_source_type(const TypeCheckInfo *info) {

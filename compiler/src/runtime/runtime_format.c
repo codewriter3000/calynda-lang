@@ -67,6 +67,10 @@ bool rt_format_word_internal(CalyndaRtWord word, char *buffer, size_t buffer_siz
         return snprintf(buffer, buffer_size, "<thread>") >= 0;
     case CALYNDA_RT_OBJECT_MUTEX:
         return snprintf(buffer, buffer_size, "<mutex>") >= 0;
+    case CALYNDA_RT_OBJECT_FUTURE:
+        return snprintf(buffer, buffer_size, "<future>") >= 0;
+    case CALYNDA_RT_OBJECT_ATOMIC:
+        return snprintf(buffer, buffer_size, "<atomic>") >= 0;
     }
 
     return false;

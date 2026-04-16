@@ -203,7 +203,14 @@ void test_asm_emit_boot_riscv64_emits_start_label(void) {
     REQUIRE_TRUE(build_riscv64_assembly(source, &assembly),
                  "emit boot rv64 assembly text");
     ASSERT_CONTAINS(".globl _start", assembly, "boot rv64 emits _start label");
-    ASSERT_CONTAINS("ecall", assembly, "boot rv64 exits via ecall");
+    /*
+     * alpha.2 freestanding contract: after the boot unit returns, _start
+     * spins in an infinite loop (j 1b).  No Linux exit ecall is emitted —
+     * that assumption broke any non-Linux target.
+     */
+    ASSERT_CONTAINS("j 1b", assembly, "boot rv64 spins after boot unit returns (freestanding)");
+    ASSERT_TRUE(strstr(assembly, "li a7, 93") == NULL,
+                "boot rv64 does not emit Linux sys_exit (ecall) sequence");
     ASSERT_TRUE(strstr(assembly, ".globl main") == NULL,
                 "boot rv64 does not emit main entry point");
     ASSERT_TRUE(strstr(assembly, "calynda_program_start") == NULL,

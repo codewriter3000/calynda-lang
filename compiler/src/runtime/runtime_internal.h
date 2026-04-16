@@ -33,6 +33,8 @@ long long rt_signed_from_word(CalyndaRtWord value);
 bool rt_is_runtime_string_word(CalyndaRtWord word);
 CalyndaRtThread *rt_new_thread_object(void);
 CalyndaRtMutex *rt_new_mutex_object(void);
+CalyndaRtFuture *rt_new_future_object(CalyndaRtWord callable);
+CalyndaRtAtomic *rt_new_atomic_object(void);
 CalyndaRtWord rt_dispatch_extern_callable(const CalyndaRtExternCallable *callable,
                                           size_t argument_count,
                                           const CalyndaRtWord *arguments);

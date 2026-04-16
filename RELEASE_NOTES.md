@@ -1,3 +1,25 @@
+# Calynda 1.0.0-alpha.2
+
+April 16, 2026
+
+## Highlights
+
+- The CLI now exposes version metadata via `calynda --version`.
+- The strict race-checker flag is frozen as `--strict-race-check`.
+- `spawn` now selects its result type by callable return: zero-argument `void` callables return `Thread`, and zero-argument non-`void` callables return `Future<T>`.
+- The shipped alpha.2 member surface is `Thread.join()` / `Thread.cancel()`, `Future<T>.get()` / `Future<T>.cancel()`, and `Atomic<T>.new(value)` / `.load()` / `.store(value)` / `.exchange(value)`.
+- `thread_local` storage exists for cross-thread identity, but it is not a general stack-local mechanism.
+- `Atomic<T>` is currently limited to first-class single-word runtime values.
+- `boot()` remains a freestanding entry contract; the RISC-V `_start` path no longer advertises Linux-only exit behavior.
+
+## Concurrency Notes
+
+- Cancellation uses pthread cancellation semantics.
+- Forced cancellation does **not** yet guarantee Calynda-level cleanup execution for `manual { ... };` or `manual checked { ... };` scopes.
+- Alpha.2 documentation, bytecode notes, roadmap closeout text, and MCP/help surfaces are now aligned to the landed concurrency contract.
+
+---
+
 # Calynda 0.4.0
 
 April 16, 2026

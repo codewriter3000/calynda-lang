@@ -121,6 +121,7 @@ bool hir_build_program(HirProgram *program,
                        const SymbolTable *symbols,
                        const TypeChecker *checker) {
     HirBuildContext context;
+    const TypeCheckError *checker_error;
     size_t i;
 
     if (!program || !ast_program || !symbols || !checker) {
@@ -136,11 +137,15 @@ bool hir_build_program(HirProgram *program,
     context.symbols = symbols;
     context.checker = checker;
 
-    if (type_checker_get_error(checker) != NULL) {
+    checker_error = type_checker_get_error(checker);
+    if (checker_error != NULL) {
         hr_set_error(&context,
-                     (AstSourceSpan){0},
-                     NULL,
-                     "Cannot lower program to HIR while the type checker reports errors.");
+                     checker_error->primary_span,
+                     checker_error->has_related_span
+                         ? &checker_error->related_span
+                         : NULL,
+                     "%s",
+                     checker_error->message);
         return false;
     }
 

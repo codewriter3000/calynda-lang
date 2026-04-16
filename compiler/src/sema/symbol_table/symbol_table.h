@@ -41,6 +41,7 @@ struct Symbol {
     bool            is_exported;
     bool            is_static;
     bool            is_internal;
+    bool            is_thread_local;
     size_t          generic_param_count;
     AstSourceSpan   declaration_span;
     const void     *declaration;

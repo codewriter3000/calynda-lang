@@ -103,6 +103,7 @@ void test_dump_program_to_string(void);
 void test_dump_expression_to_string(void);
 void test_dump_expression_to_file(void);
 void test_dump_manual_block_with_memory_ops(void);
+void test_dump_program_parse_error_has_span(void);
 
 
 int main(void) {
@@ -112,6 +113,7 @@ int main(void) {
     RUN_TEST(test_dump_expression_to_string);
     RUN_TEST(test_dump_expression_to_file);
     RUN_TEST(test_dump_manual_block_with_memory_ops);
+    RUN_TEST(test_dump_program_parse_error_has_span);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

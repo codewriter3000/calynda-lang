@@ -232,6 +232,91 @@ const RuntimeAbiHelperSignature runtime_abi_helpers[] = {
         },
         1,
         RUNTIME_ABI_PACK_NONE
+    },
+    /* Thread cancel (alpha.2) */
+    {
+        CODEGEN_RUNTIME_THREAD_CANCEL,
+        CALYNDA_RT_THREAD_CANCEL,
+        RUNTIME_ABI_RETURN_VOID,
+        {
+            { RUNTIME_ABI_ARG_THREAD_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    /* Future helpers (alpha.2) */
+    {
+        CODEGEN_RUNTIME_FUTURE_SPAWN,
+        CALYNDA_RT_FUTURE_SPAWN,
+        RUNTIME_ABI_RETURN_VALUE,
+        {
+            { RUNTIME_ABI_ARG_CALLABLE_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_FUTURE_GET,
+        CALYNDA_RT_FUTURE_GET,
+        RUNTIME_ABI_RETURN_VALUE,
+        {
+            { RUNTIME_ABI_ARG_FUTURE_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_FUTURE_CANCEL,
+        CALYNDA_RT_FUTURE_CANCEL,
+        RUNTIME_ABI_RETURN_VOID,
+        {
+            { RUNTIME_ABI_ARG_FUTURE_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    /* Atomic helpers (alpha.2) */
+    {
+        CODEGEN_RUNTIME_ATOMIC_NEW,
+        CALYNDA_RT_ATOMIC_NEW,
+        RUNTIME_ABI_RETURN_VALUE,
+        {
+            { RUNTIME_ABI_ARG_ATOMIC_NEW_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_ATOMIC_LOAD,
+        CALYNDA_RT_ATOMIC_LOAD,
+        RUNTIME_ABI_RETURN_VALUE,
+        {
+            { RUNTIME_ABI_ARG_ATOMIC_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_ATOMIC_STORE,
+        CALYNDA_RT_ATOMIC_STORE,
+        RUNTIME_ABI_RETURN_VOID,
+        {
+            { RUNTIME_ABI_ARG_ATOMIC_VALUE,     CODEGEN_REG_RDI },
+            { RUNTIME_ABI_ARG_ATOMIC_NEW_VALUE, CODEGEN_REG_RSI }
+        },
+        2,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_ATOMIC_EXCHANGE,
+        CALYNDA_RT_ATOMIC_EXCHANGE,
+        RUNTIME_ABI_RETURN_VALUE,
+        {
+            { RUNTIME_ABI_ARG_ATOMIC_VALUE,     CODEGEN_REG_RDI },
+            { RUNTIME_ABI_ARG_ATOMIC_NEW_VALUE, CODEGEN_REG_RSI }
+        },
+        2,
+        RUNTIME_ABI_PACK_NONE
     }
 };
 

@@ -74,7 +74,15 @@ void test_calynda_cli_help_and_emitters(void) {
     char output[4096];
     const char *captured_output;
     char *help_argv[] = { (char *)"./build/calynda", (char *)"help", NULL };
+    char *version_argv[] = { (char *)"./build/calynda", (char *)"--version", NULL };
     char *asm_argv[] = { (char *)"./build/calynda", (char *)"asm", source_path, NULL };
+    char *strict_asm_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        (char *)"--strict-race-check",
+        source_path,
+        NULL
+    };
     char *bytecode_argv[] = { (char *)"./build/calynda", (char *)"bytecode", source_path, NULL };
     int exit_code;
 
@@ -86,12 +94,27 @@ void test_calynda_cli_help_and_emitters(void) {
     captured_output = output;
     ASSERT_EQ_INT(0, exit_code, "calynda help exits successfully");
     ASSERT_CONTAINS("build", captured_output, "help text lists build command");
+    ASSERT_CONTAINS("--version", captured_output, "help text lists version flag");
+    ASSERT_CONTAINS("--strict-race-check", captured_output, "help text lists strict race flag");
+    ASSERT_CONTAINS("Compiler options", captured_output, "help text includes compiler options");
+
+    REQUIRE_TRUE(run_capture("./build/calynda", version_argv, output, sizeof(output), &exit_code),
+                 "run calynda version");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "calynda version exits successfully");
+    ASSERT_CONTAINS("1.0.0-alpha.2", captured_output, "version text prints alpha.2 metadata");
 
     REQUIRE_TRUE(run_capture("./build/calynda", asm_argv, output, sizeof(output), &exit_code),
                  "run calynda asm");
     captured_output = output;
     ASSERT_EQ_INT(0, exit_code, "calynda asm exits successfully");
     ASSERT_CONTAINS(".globl main", captured_output, "calynda asm emits executable assembly");
+
+    REQUIRE_TRUE(run_capture("./build/calynda", strict_asm_argv, output, sizeof(output), &exit_code),
+                 "run calynda asm with strict race flag");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "calynda asm with strict race flag exits successfully");
+    ASSERT_CONTAINS(".globl main", captured_output, "strict race flag preserves asm emission");
 
     REQUIRE_TRUE(run_capture("./build/calynda", bytecode_argv, output, sizeof(output), &exit_code),
                  "run calynda bytecode");
@@ -136,4 +159,3 @@ void test_calynda_cli_builds_native_executable(void) {
     unlink(source_path);
     unlink(output_path);
 }
-

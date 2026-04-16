@@ -21,6 +21,8 @@ export const TYPE_DOCS: Record<string, TypeInfo> = {
   char: { name: 'char', description: 'Single Unicode character', size: '4 bytes', examples: ["char letter = 'A';", "char newline = '\\n';"] },
   string: { name: 'string', description: 'Immutable UTF-8 string', examples: ['string greeting = "hello";', 'string name = "world";'] },
   void: { name: 'void', description: 'No return value (functions implicitly return null)', examples: ['void doSomething = () -> { exit; };'] },
-  thread: { name: 'Thread', description: 'Opaque handle to a running thread. Created by spawn. Supports .join().', examples: ['Thread worker = spawn work;', 'worker.join();'] },
+  thread: { name: 'Thread', description: 'Opaque handle to a running thread. Created by spawning a zero-argument void callable. Supports .join() and .cancel(). Cancellation follows pthread cancellation semantics.', examples: ['Thread worker = spawn () -> { exit; };', 'worker.join();', 'worker.cancel();'] },
+  future: { name: 'Future<T>', description: 'Opaque handle to a spawned zero-argument non-void callable. Supports .get() and .cancel().', examples: ['Future<int32> job = spawn () -> 42;', 'int32 value = job.get();', 'job.cancel();'] },
   mutex: { name: 'Mutex', description: 'Mutual exclusion lock. Created with Mutex.new(). Supports .lock() and .unlock().', examples: ['Mutex guard = Mutex.new();', 'guard.lock();', 'guard.unlock();'] },
+  atomic: { name: 'Atomic<T>', description: 'Alpha.2 atomic cell for first-class single-word runtime values. Construct with Atomic.new(value); supported operations are load, store, and exchange.', examples: ['Atomic<int32> cell = Atomic.new(0);', 'int32 current = cell.load();', 'cell.store(1);', 'int32 old = cell.exchange(2);'] },
 };

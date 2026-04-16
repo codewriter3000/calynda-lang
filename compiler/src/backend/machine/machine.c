@@ -86,9 +86,11 @@ bool machine_format_error(const MachineBuildError *error,
 }
 
 bool machine_build_program(MachineProgram *program,
-                          const LirProgram *lir_program,
-                          const CodegenProgram *codegen_program) {
+                           const LirProgram *lir_program,
+                           const CodegenProgram *codegen_program) {
     MachineBuildContext context;
+    const LirBuildError *lir_error;
+    const CodegenBuildError *codegen_error;
     size_t i;
 
     if (!program || !lir_program || !codegen_program) {
@@ -103,18 +105,26 @@ bool machine_build_program(MachineProgram *program,
     context.lir_program = lir_program;
     context.codegen_program = codegen_program;
 
-    if (lir_get_error(lir_program) != NULL) {
+    lir_error = lir_get_error(lir_program);
+    if (lir_error != NULL) {
         mc_set_error(&context,
-                     (AstSourceSpan){0},
-                     NULL,
-                     "Cannot emit machine instructions while the LIR reports errors.");
+                     lir_error->primary_span,
+                     lir_error->has_related_span
+                         ? &lir_error->related_span
+                         : NULL,
+                     "%s",
+                     lir_error->message);
         return false;
     }
-    if (codegen_get_error(codegen_program) != NULL) {
+    codegen_error = codegen_get_error(codegen_program);
+    if (codegen_error != NULL) {
         mc_set_error(&context,
-                     (AstSourceSpan){0},
-                     NULL,
-                     "Cannot emit machine instructions while the codegen plan reports errors.");
+                     codegen_error->primary_span,
+                     codegen_error->has_related_span
+                         ? &codegen_error->related_span
+                         : NULL,
+                     "%s",
+                     codegen_error->message);
         return false;
     }
     if (codegen_program->target != CODEGEN_TARGET_X86_64_SYSV_ELF &&

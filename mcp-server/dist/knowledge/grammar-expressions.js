@@ -146,7 +146,7 @@ MultiplicativeExpression
 (* --- Unary prefix ----------------------------------------------- *)
 
 SpawnExpr
-    = "spawn" UnaryExpression
+    = "spawn" UnaryExpression                                   (* void -> Thread; value -> Future<T> *)
     ;
 
 UnaryExpression

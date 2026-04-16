@@ -1,7 +1,11 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "runtime.h"
 
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
+#include <pthread.h>
 
 extern int tests_run;
 extern int tests_passed;
@@ -69,6 +73,68 @@ void test_runtime_checked_registry_grows_past_legacy_pointer_limit(void) {
                    __calynda_bc_deref(handles[0]),
                    "checked registry remains reusable after releasing many tracked allocations");
     __calynda_bc_free(handles[0]);
+}
+
+typedef struct {
+    size_t thread_index;
+    int    failures;
+} CheckedRegistryThreadArgs;
+
+static void *run_checked_registry_thread(void *opaque) {
+    enum {
+        CONCURRENT_THREAD_ITERATIONS = 128,
+        CONCURRENT_THREAD_ALLOCS = 16
+    };
+    CheckedRegistryThreadArgs *args = (CheckedRegistryThreadArgs *)opaque;
+    size_t iteration;
+
+    for (iteration = 0; iteration < CONCURRENT_THREAD_ITERATIONS; iteration++) {
+        CalyndaRtWord handles[CONCURRENT_THREAD_ALLOCS];
+        size_t slot;
+
+        for (slot = 0; slot < CONCURRENT_THREAD_ALLOCS; slot++) {
+            CalyndaRtWord expected =
+                (CalyndaRtWord)(args->thread_index * 100000 + iteration * 100 + slot);
+            handles[slot] = __calynda_bc_malloc(sizeof(CalyndaRtWord));
+            __calynda_bc_store(handles[slot], expected);
+            if (__calynda_bc_deref(handles[slot]) != expected) {
+                args->failures++;
+            }
+        }
+
+        for (slot = 0; slot < CONCURRENT_THREAD_ALLOCS; slot++) {
+            __calynda_bc_free(handles[slot]);
+        }
+    }
+
+    return NULL;
+}
+
+void test_runtime_checked_registry_is_thread_safe_under_concurrency(void) {
+    enum { CONCURRENT_THREAD_COUNT = 6 };
+    pthread_t threads[CONCURRENT_THREAD_COUNT];
+    CheckedRegistryThreadArgs args[CONCURRENT_THREAD_COUNT];
+    size_t i;
+
+    for (i = 0; i < CONCURRENT_THREAD_COUNT; i++) {
+        args[i].thread_index = i + 1;
+        args[i].failures = 0;
+        ASSERT_EQ_WORD(0,
+                       (CalyndaRtWord)pthread_create(&threads[i],
+                                                     NULL,
+                                                     run_checked_registry_thread,
+                                                     &args[i]),
+                       "checked registry spawns worker threads");
+    }
+
+    for (i = 0; i < CONCURRENT_THREAD_COUNT; i++) {
+        ASSERT_EQ_WORD(0,
+                       (CalyndaRtWord)pthread_join(threads[i], NULL),
+                       "checked registry joins worker threads");
+        ASSERT_EQ_WORD(0,
+                       (CalyndaRtWord)args[i].failures,
+                       "checked registry preserves values under concurrent access");
+    }
 }
 
 static CalyndaRtWord hetero_cleanup_array = 0;
@@ -140,4 +206,130 @@ void test_runtime_deref_sized_and_store_sized_primitive_widths(void) {
     ASSERT_EQ_WORD((CalyndaRtWord)0x0102030405060708LL,
                    __calynda_deref_sized(ptr, 8),
                    "8-byte store/deref round-trip");
+}
+
+/* ------------------------------------------------------------------ */
+/*  alpha.2: Thread cancel                                            */
+/* ------------------------------------------------------------------ */
+
+static volatile int cancel_thread_ran = 0;
+
+static CalyndaRtWord cancel_thread_body(const CalyndaRtWord *captures,
+                                        size_t capture_count,
+                                        const CalyndaRtWord *arguments,
+                                        size_t argument_count) {
+    (void)captures;
+    (void)capture_count;
+    (void)arguments;
+    (void)argument_count;
+    cancel_thread_ran = 1;
+    /* Sleep long enough for the test to cancel us */
+    struct timespec ts = { 10, 0 };
+    nanosleep(&ts, NULL);
+    return 0;
+}
+
+void test_runtime_thread_cancel_stops_thread(void) {
+    CalyndaRtWord closure  = __calynda_rt_closure_new(cancel_thread_body, 0, NULL);
+    CalyndaRtWord thread   = __calynda_rt_thread_spawn(closure);
+
+    /* Give the thread a moment to start */
+    struct timespec ts = { 0, 20000000 }; /* 20 ms */
+    nanosleep(&ts, NULL);
+
+    __calynda_rt_thread_cancel(thread);
+
+    ASSERT_TRUE(calynda_rt_is_object(thread), "thread cancel: handle is still a valid object");
+    /* A second cancel on an already-joined thread must not crash */
+    __calynda_rt_thread_cancel(thread);
+    ASSERT_TRUE(1, "thread cancel: double-cancel does not crash");
+}
+
+/* ------------------------------------------------------------------ */
+/*  alpha.2: Future spawn / get / cancel                              */
+/* ------------------------------------------------------------------ */
+
+static CalyndaRtWord future_return_99(const CalyndaRtWord *captures,
+                                      size_t capture_count,
+                                      const CalyndaRtWord *arguments,
+                                      size_t argument_count) {
+    (void)captures;
+    (void)capture_count;
+    (void)arguments;
+    (void)argument_count;
+    return 99;
+}
+
+static CalyndaRtWord future_sleep_and_return(const CalyndaRtWord *captures,
+                                             size_t capture_count,
+                                             const CalyndaRtWord *arguments,
+                                             size_t argument_count) {
+    (void)captures;
+    (void)capture_count;
+    (void)arguments;
+    (void)argument_count;
+    struct timespec ts = { 10, 0 };
+    nanosleep(&ts, NULL);
+    return 77;
+}
+
+void test_runtime_future_spawn_get_cancel(void) {
+    CalyndaRtWord closure_get;
+    CalyndaRtWord closure_cancel;
+    CalyndaRtWord future_get;
+    CalyndaRtWord future_cancel;
+    CalyndaRtWord result;
+
+    /* future_get: spawn a fast callable, get its result */
+    closure_get = __calynda_rt_closure_new(future_return_99, 0, NULL);
+    future_get  = __calynda_rt_future_spawn(closure_get);
+    ASSERT_TRUE(calynda_rt_is_object(future_get), "future spawn returns a valid object");
+
+    result = __calynda_rt_future_get(future_get);
+    ASSERT_EQ_WORD(99, result, "future get returns the callable's return value");
+
+    /* Double-get must not crash */
+    result = __calynda_rt_future_get(future_get);
+    ASSERT_EQ_WORD(99, result, "future get on already-joined future returns stored result");
+
+    /* future_cancel: spawn a slow callable, cancel it before it finishes */
+    closure_cancel = __calynda_rt_closure_new(future_sleep_and_return, 0, NULL);
+    future_cancel  = __calynda_rt_future_spawn(closure_cancel);
+    ASSERT_TRUE(calynda_rt_is_object(future_cancel), "future cancel: spawn returns valid object");
+
+    struct timespec ts = { 0, 10000000 }; /* 10 ms */
+    nanosleep(&ts, NULL);
+
+    __calynda_rt_future_cancel(future_cancel);
+    ASSERT_TRUE(1, "future cancel completes without crash");
+
+    /* Double-cancel must not crash */
+    __calynda_rt_future_cancel(future_cancel);
+    ASSERT_TRUE(1, "future double-cancel does not crash");
+}
+
+/* ------------------------------------------------------------------ */
+/*  alpha.2: Atomic<T> new / load / store / exchange                 */
+/* ------------------------------------------------------------------ */
+
+void test_runtime_atomic_operations(void) {
+    CalyndaRtWord atom;
+    CalyndaRtWord loaded;
+    CalyndaRtWord old_val;
+
+    atom = __calynda_rt_atomic_new(42);
+    ASSERT_TRUE(calynda_rt_is_object(atom), "atomic new returns a valid object");
+
+    loaded = __calynda_rt_atomic_load(atom);
+    ASSERT_EQ_WORD(42, loaded, "atomic load reads the initial value");
+
+    __calynda_rt_atomic_store(atom, 100);
+    loaded = __calynda_rt_atomic_load(atom);
+    ASSERT_EQ_WORD(100, loaded, "atomic store updates the value");
+
+    old_val = __calynda_rt_atomic_exchange(atom, 200);
+    ASSERT_EQ_WORD(100, old_val, "atomic exchange returns the old value");
+
+    loaded = __calynda_rt_atomic_load(atom);
+    ASSERT_EQ_WORD(200, loaded, "atomic exchange installs the new value");
 }
