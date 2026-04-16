@@ -16,6 +16,7 @@ typedef struct {
 #define mc_target(ctx)       ((ctx)->program->target_desc)
 #define mc_target_kind(ctx)  ((ctx)->program->target_desc->kind)
 #define mc_is_aarch64(ctx)   ((ctx)->program->target_desc->kind == TARGET_KIND_AARCH64_AAPCS_ELF)
+#define mc_is_riscv64(ctx)   ((ctx)->program->target_desc->kind == TARGET_KIND_RISCV64_LP64D_ELF)
 
 bool mc_reserve_items(void **items, size_t *capacity,
                       size_t needed, size_t item_size);
@@ -35,6 +36,14 @@ bool mc_append_line(MachineBuildContext *context,
 const char *mc_unit_kind_name(LirUnitKind kind);
 bool mc_checked_type_is_unsigned(CheckedType type);
 bool mc_unit_uses_register(const CodegenUnit *unit, CodegenRegister reg);
+bool mc_emit_compare_3op(MachineBuildContext *context,
+                         MachineBlock *block,
+                         const char *work_reg,
+                         const char *left,
+                         const char *right,
+                         AstBinaryOperator op,
+                         bool is_unsigned,
+                         bool is_riscv64);
 size_t mc_compute_helper_slot_count(const LirUnit *lir_unit,
                                     const CodegenUnit *codegen_unit);
 size_t mc_compute_outgoing_stack_slot_count(const LirUnit *lir_unit,
@@ -58,6 +67,11 @@ bool mc_format_outgoing_arg_stack_operand(size_t argument_index, char **text);
 bool mc_format_member_symbol_operand(const char *member, char **text);
 bool mc_format_code_label_operand(const char *unit_name, char **text);
 bool mc_format_template_text_operand(const char *text, char **formatted);
+CalyndaRtTypeTag mc_checked_type_to_runtime_tag(CheckedType type);
+bool mc_format_hetero_array_type_descriptor_operand(const LirInstruction *instruction,
+                                                    char **text);
+bool mc_format_union_type_descriptor_operand(const LirInstruction *instruction,
+                                             char **text);
 bool mc_emit_move_to_destination(MachineBuildContext *context,
                                  MachineBlock *block,
                                  const char *destination,

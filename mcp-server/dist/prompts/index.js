@@ -37,13 +37,17 @@ exports.PROMPTS = [
 ];
 const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Compiled functional systems programming language with ~200 C source files
-- Two backends: native x86_64 SysV ELF and portable-v1 bytecode (no interpreter)
+- Two backends: native x86_64 SysV ELF / AArch64 AAPCS64 ELF / RISC-V 64 LP64D ELF and portable-v1 bytecode (no interpreter)
 - All functions are lambdas: (type param) -> expr or (type param) -> { ... }
 - Entry point: start(string[] args) -> { ... }; returns int32 (exit code)
-- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<T>, void
+- Bare-metal entry point: boot() -> expr; bypasses runtime, emits _start (cannot coexist with start)
+- Inline assembly: int32 name = asm(int32 a) -> { ... }; passed through to assembler unchanged
+- Stable unsafe manual memory: manual { ... }; / manual checked { ... }; with malloc/calloc/realloc/free, cleanup(value, fn), stackalloc(size), deref/store/offset/addr, and ptr<T>
+- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<?>, ptr<T>, layout types, void
 - Java-style aliases: byte, sbyte, short, int, long, ulong, uint, float, double
-- Tagged unions with reified generics: union Option<T> { Some(T), None };
-- Heterogeneous arrays: arr<?> mixed = [1, "hello", true];
+- Tagged unions with reified generics: union Option<T> { Some(T), None }; union values expose read-only .tag and .payload
+- Heterogeneous arrays: arr<?> mixed = [1, "hello", true]; indexed reads produce external values and indexed writes remain rejected
+- Layout declarations exist for ptr<T> use; layout fields are limited to scalar primitive types in 0.4.0
 - Template literals with \${} interpolation (backtick strings)
 - No built-in if/else or loops — use ternary for conditionals, library functions for iteration
 - throw keyword for errors, exit; is sugar for return; in void lambdas
@@ -52,7 +56,8 @@ const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Import styles: plain, alias ("as"), wildcard (".*"), selective (".{a, b}")
 - Closures capture outer locals/parameters; ++ and -- prefix/postfix operators
 - Discard expression: _ = expr; to explicitly ignore values
-- Varargs: Type... name in parameter lists`;
+- Varargs: Type... name in parameter lists
+- CAR archives bundle .cal files: calynda pack src/ -o archive.car, then calynda build/run project.car`;
 function getPromptMessages(name, args) {
     switch (name) {
         case 'write-calynda-function':
@@ -63,7 +68,7 @@ function getPromptMessages(name, args) {
         case 'debug-calynda-code':
             return [{
                     role: 'user',
-                    content: `Debug this Calynda code${args['problem'] ? ` (Problem: ${args['problem']})` : ''}:\n\n\`\`\`cal\n${args['code']}\n\`\`\`\n\n${CALYNDA_LANGUAGE_FACTS}\n\nCheck for:\n- Syntax errors (missing semicolons, incorrect -> arrow syntax)\n- Type mismatches and invalid casts\n- Missing or incorrect start(string[] args) -> { ... }; entry point (must be exactly one)\n- Undefined variables or out-of-scope references\n- Incorrect lambda parameter types\n- Template literal interpolation issues (zero-arg callables are auto-called)\n- Incorrect use of throw, exit, return (exit only in void lambdas)\n- internal visibility violations (nested-lambda-only access)\n- Assignment to non-l-values (imports, packages, final bindings, temporaries)`,
+                    content: `Debug this Calynda code${args['problem'] ? ` (Problem: ${args['problem']})` : ''}:\n\n\`\`\`cal\n${args['code']}\n\`\`\`\n\n${CALYNDA_LANGUAGE_FACTS}\n\nCheck for:\n- Syntax errors (missing semicolons, incorrect -> arrow syntax)\n- Type mismatches and invalid casts\n- Missing or incorrect start(string[] args) -> { ... }; entry point (must be exactly one)\n- boot() and start() cannot coexist in the same compilation unit\n- Undefined variables or out-of-scope references\n- Incorrect lambda parameter types\n- Template literal interpolation issues (zero-arg callables are auto-called)\n- Incorrect use of throw, exit, return (exit only in void lambdas)\n- internal visibility violations (nested-lambda-only access)\n- Assignment to non-l-values (imports, packages, final bindings, temporaries)\n- manual { } blocks: malloc/calloc/realloc/free/cleanup/stackalloc and pointer ops only valid inside manual scope`,
                 }];
         case 'convert-to-calynda':
             return [{

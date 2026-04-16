@@ -140,13 +140,21 @@ typedef enum {
     HIR_MEMORY_MALLOC = 0,
     HIR_MEMORY_CALLOC,
     HIR_MEMORY_REALLOC,
-    HIR_MEMORY_FREE
+    HIR_MEMORY_FREE,
+    HIR_MEMORY_DEREF,
+    HIR_MEMORY_ADDR,
+    HIR_MEMORY_OFFSET,
+    HIR_MEMORY_STORE,
+    HIR_MEMORY_CLEANUP,
+    HIR_MEMORY_STACKALLOC
 } HirMemoryOpKind;
 
 typedef struct {
     HirMemoryOpKind  kind;
     HirExpression  **arguments;
     size_t           argument_count;
+    size_t           element_size; /* sizeof(T) for ptr<T>; 0 = word-size (untyped) */
+    bool             is_checked_ptr; /* true when first arg is ptr<T, checked> */
 } HirMemoryOpExpression;
 
 typedef enum {

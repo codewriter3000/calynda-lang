@@ -4,6 +4,11 @@ import { ParserState, ParseError, ASSIGNMENT_OPS } from './parser';
 import { parseParameterList, parseTernaryExpression, parseUnary } from './parser-statements';
 import { parseBlock } from './parser-blocks';
 
+const CALLEE_KEYWORDS = new Set([
+  'malloc', 'calloc', 'realloc', 'free', 'deref', 'store',
+  'offset', 'addr', 'cleanup', 'stackalloc',
+]);
+
 export function parseLambdaBody(state: ParserState): AST.Block | AST.Expression {
   if (state.check('lbrace')) return parseBlock(state);
   return parseExpression(state);
@@ -157,7 +162,8 @@ function parsePrimary(state: ParserState): AST.Expression {
     state.eat('rparen');
     return { kind: 'CastExpression', targetType: typeName, value, start: startPos, end: state.position() };
   }
-  if (tok.type === 'identifier') {
+  if (tok.type === 'identifier' ||
+      (tok.type === 'keyword' && CALLEE_KEYWORDS.has(tok.value))) {
     state.advance();
     return { kind: 'Identifier', name: tok.value, start: startPos, end: state.position() };
   }

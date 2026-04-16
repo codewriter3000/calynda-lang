@@ -175,8 +175,8 @@ bool hir_dump_statement(FILE *out, const HirStatement *statement, int indent) {
         fprintf(out, "Manual span=");
         hir_dump_write_span(out, statement->source_span);
         fputc('\n', out);
-        if (statement->as.manual_body) {
-            return hir_dump_block(out, statement->as.manual_body, indent + 2);
+        if (statement->as.manual.body) {
+            return hir_dump_block(out, statement->as.manual.body, indent + 2);
         }
         return true;
     }

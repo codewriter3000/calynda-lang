@@ -74,6 +74,20 @@ bool mir_dump_instruction(FILE *out, const MirUnit *unit, const MirInstruction *
             return false;
         }
         break;
+    case MIR_INSTR_UNION_GET_TAG:
+        fprintf(out, "t%zu = union_get_tag ", instruction->as.union_get_tag.dest_temp);
+        if (!mir_dump_value(out, unit, instruction->as.union_get_tag.target)) {
+            return false;
+        }
+        break;
+    case MIR_INSTR_UNION_GET_PAYLOAD:
+        fprintf(out,
+                "t%zu = union_get_payload ",
+                instruction->as.union_get_payload.dest_temp);
+        if (!mir_dump_value(out, unit, instruction->as.union_get_payload.target)) {
+            return false;
+        }
+        break;
     case MIR_INSTR_INDEX_LOAD:
         fprintf(out, "t%zu = index ", instruction->as.index_load.dest_temp);
         if (!mir_dump_value(out, unit, instruction->as.index_load.target) ||
@@ -151,9 +165,27 @@ bool mir_dump_instruction(FILE *out, const MirUnit *unit, const MirInstruction *
             return false;
         }
         break;
+    case MIR_INSTR_UNION_NEW:
+        fprintf(out, "t%zu = union_new ", instruction->as.union_new.dest_temp);
+        if (!mir_dump_type_descriptor(out, &instruction->as.union_new.type_desc) ||
+            fprintf(out, " variant %zu", instruction->as.union_new.variant_index) < 0) {
+            return false;
+        }
+        if (instruction->as.union_new.has_payload) {
+            fputs(" payload ", out);
+            if (!mir_dump_value(out, unit, instruction->as.union_new.payload)) {
+                return false;
+            }
+        }
+        break;
     case MIR_INSTR_HETERO_ARRAY_NEW:
-        fprintf(out, "t%zu = hetero_array_new [",
+        fprintf(out, "t%zu = hetero_array_new ",
                 instruction->as.hetero_array_new.dest_temp);
+        if (!mir_dump_type_descriptor(out,
+                                      &instruction->as.hetero_array_new.type_desc) ||
+            fputs(" [", out) == EOF) {
+            return false;
+        }
         for (size_t elem_index = 0;
              elem_index < instruction->as.hetero_array_new.element_count;
              elem_index++) {
@@ -166,19 +198,6 @@ bool mir_dump_instruction(FILE *out, const MirUnit *unit, const MirInstruction *
             }
         }
         fputc(']', out);
-        break;
-    case MIR_INSTR_UNION_NEW:
-        fprintf(out, "t%zu = union_new %s variant %zu",
-                instruction->as.union_new.dest_temp,
-                instruction->as.union_new.union_name ?
-                    instruction->as.union_new.union_name : "?",
-                instruction->as.union_new.variant_index);
-        if (instruction->as.union_new.has_payload) {
-            fputs(" payload ", out);
-            if (!mir_dump_value(out, unit, instruction->as.union_new.payload)) {
-                return false;
-            }
-        }
         break;
     }
 

@@ -1,7 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EXAMPLES = void 0;
-exports.EXAMPLES = [
+const examples_v3_1 = require("./examples-v3");
+const BASE_EXAMPLES = [
     {
         name: 'hello-world',
         description: 'Hello world program using template literals',
@@ -192,4 +193,5 @@ start(string[] args) -> {
 };`,
     },
 ];
+exports.EXAMPLES = [...BASE_EXAMPLES, ...examples_v3_1.EXAMPLES_V3];
 //# sourceMappingURL=examples.js.map

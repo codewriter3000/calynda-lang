@@ -208,6 +208,12 @@ bool ast_dump_expression_node(AstDumpBuilder *builder,
         case AST_MEMORY_CALLOC:  op_name = "calloc";  break;
         case AST_MEMORY_REALLOC: op_name = "realloc"; break;
         case AST_MEMORY_FREE:    op_name = "free";    break;
+        case AST_MEMORY_DEREF:   op_name = "deref";   break;
+        case AST_MEMORY_ADDR:    op_name = "addr";    break;
+        case AST_MEMORY_OFFSET:  op_name = "offset";  break;
+        case AST_MEMORY_STORE:   op_name = "store";   break;
+        case AST_MEMORY_CLEANUP: op_name = "cleanup"; break;
+        case AST_MEMORY_STACKALLOC: op_name = "stackalloc"; break;
         default:                 op_name = "unknown"; break;
         }
 

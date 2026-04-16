@@ -60,9 +60,9 @@ void test_mir_dump_lowers_union_new_instructions(void) {
         "    Locals:\n"
         "    Blocks:\n"
         "      Block bb0:\n"
-        "        t0 = union_new Option variant 0 payload int32(42)\n"
+        "        t0 = union_new typedesc(Option|1|g0:int32|Some:int32|None:void) variant 0 payload int32(42)\n"
         "        store global(x) <- temp(0)\n"
-        "        t1 = union_new Option variant 1\n"
+        "        t1 = union_new typedesc(Option|1|g0:raw_word|Some:raw_word|None:void) variant 1\n"
         "        store global(y) <- temp(1)\n"
         "        return\n"
         "  Unit name=start kind=start return=int32 params=1 locals=1 blocks=1\n"
@@ -91,7 +91,7 @@ void test_mir_dump_lowers_union_new_instructions(void) {
                  "type check union MIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for union MIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for union new instructions");
 
     dump = mir_dump_program_to_string(&mir_program);

@@ -1,8 +1,8 @@
 {
   "name": "calynda-syntax",
   "displayName": "Calynda Syntax",
-  "description": "Syntax highlighting and basic language configuration for Calynda files.",
-  "version": "0.1.0",
+  "description": "Syntax highlighting and basic language configuration for the Calynda 0.4 surface.",
+  "version": "0.4.0",
   "publisher": "local",
   "license": "MIT",
   "engines": {
@@ -15,7 +15,11 @@
     "calynda",
     "syntax",
     "highlighting",
-    "language"
+    "language",
+    "union",
+    "manual-memory",
+    "heterogeneous-arrays",
+    "layout"
   ],
   "contributes": {
     "languages": [

@@ -2,10 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ALL_RESERVED = exports.PRIMITIVE_TYPES = exports.KEYWORDS = void 0;
 exports.KEYWORDS = [
-    'package', 'import', 'public', 'private', 'final', 'var', 'start',
+    'package', 'import', 'public', 'private', 'final', 'var', 'start', 'boot',
     'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-    'export', 'as', 'internal', 'static', 'union', 'manual', 'arr',
-    'malloc', 'calloc', 'realloc', 'free',
+    'export', 'as', 'internal', 'static', 'union', 'manual', 'arr', 'ptr', 'layout',
+    'checked', 'asm', 'malloc', 'calloc', 'realloc', 'free', 'deref', 'store',
+    'offset', 'addr', 'cleanup', 'stackalloc',
 ];
 exports.PRIMITIVE_TYPES = [
     'int8', 'int16', 'int32', 'int64',

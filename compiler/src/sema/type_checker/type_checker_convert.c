@@ -53,6 +53,7 @@ CheckedType tc_checked_type_from_resolved_type(ResolvedType type) {
 
 CheckedType tc_checked_type_from_ast_type(TypeChecker *checker, const AstType *type) {
     const ResolvedType *resolved_type;
+    CheckedType result;
 
     if (!checker || !type) {
         return tc_checked_type_invalid();
@@ -64,7 +65,21 @@ CheckedType tc_checked_type_from_ast_type(TypeChecker *checker, const AstType *t
         return tc_checked_type_invalid();
     }
 
-    return tc_checked_type_from_resolved_type(*resolved_type);
+    result = tc_checked_type_from_resolved_type(*resolved_type);
+
+    /* Detect ptr<T, checked> — the "checked" second arg is a bounds-check qualifier. */
+    if (type->kind == AST_TYPE_PTR &&
+        type->generic_args.count == 2 &&
+        type->generic_args.items[1].kind == AST_GENERIC_ARG_TYPE &&
+        type->generic_args.items[1].type != NULL &&
+        type->generic_args.items[1].type->kind == AST_TYPE_NAMED &&
+        type->generic_args.items[1].type->name != NULL &&
+        strcmp(type->generic_args.items[1].type->name, "checked") == 0) {
+        result.is_bounds_checked = true;
+        result.generic_arg_count = 1; /* treat "checked" as a qualifier, not a type arg */
+    }
+
+    return result;
 }
 
 CheckedType tc_checked_type_from_cast_target(TypeChecker *checker,
@@ -133,6 +148,21 @@ bool tc_checked_type_assignable(CheckedType target, CheckedType source) {
             return true;
         }
         if (tc_checked_type_is_hetero_array(source)) {
+            return true;
+        }
+    }
+
+    /* ptr<T> is a typed int64 alias — int64 is assignable to ptr<T> and back */
+    {
+        bool src_ptr = source.kind == CHECKED_TYPE_NAMED && source.name != NULL &&
+                       strcmp(source.name, "ptr") == 0;
+        bool tgt_ptr = target.kind == CHECKED_TYPE_NAMED && target.name != NULL &&
+                       strcmp(target.name, "ptr") == 0;
+        bool src_i64 = source.kind == CHECKED_TYPE_VALUE && source.array_depth == 0 &&
+                       tc_checked_type_is_integral(source);
+        bool tgt_i64 = target.kind == CHECKED_TYPE_VALUE && target.array_depth == 0 &&
+                       tc_checked_type_is_integral(target);
+        if ((src_ptr && tgt_i64) || (tgt_ptr && src_i64) || (src_ptr && tgt_ptr)) {
             return true;
         }
     }

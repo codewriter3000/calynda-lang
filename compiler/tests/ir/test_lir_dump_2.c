@@ -112,7 +112,7 @@ void test_lir_dump_lowers_minimal_callable_slice(void) {
                  "type check LIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for LIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for LIR program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for minimal callable slice");
@@ -166,7 +166,7 @@ void test_lir_dump_covers_globals_branches_closures_and_runtime_like_ops(void) {
                  "type check broad LIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for broad LIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for broad LIR program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for broad MIR surface");

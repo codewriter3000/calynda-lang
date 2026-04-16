@@ -1,5 +1,71 @@
 #include "mir_internal.h"
 
+const HirUnionDecl *mr_find_hir_union_decl(const MirBuildContext *build,
+                                           const char *union_name) {
+    size_t d;
+
+    if (!build || !build->hir_program || !union_name) {
+        return NULL;
+    }
+    for (d = 0; d < build->hir_program->top_level_count; d++) {
+        const HirTopLevelDecl *decl = build->hir_program->top_level_decls[d];
+
+        if (decl->kind == HIR_TOP_LEVEL_UNION && decl->as.union_decl.name &&
+            strcmp(decl->as.union_decl.name, union_name) == 0) {
+            return &decl->as.union_decl;
+        }
+    }
+    return NULL;
+}
+
+CalyndaRtTypeTag mr_checked_type_to_runtime_tag(CheckedType type) {
+    if (type.kind == CHECKED_TYPE_VALUE) {
+        if (type.array_depth > 0) {
+            return CALYNDA_RT_TYPE_ARRAY;
+        }
+        switch (type.primitive) {
+        case AST_PRIMITIVE_BOOL:   return CALYNDA_RT_TYPE_BOOL;
+        case AST_PRIMITIVE_STRING: return CALYNDA_RT_TYPE_STRING;
+        case AST_PRIMITIVE_INT64:
+        case AST_PRIMITIVE_UINT64: return CALYNDA_RT_TYPE_INT64;
+        default:                   return CALYNDA_RT_TYPE_INT32;
+        }
+    }
+    if (type.kind == CHECKED_TYPE_NAMED) {
+        return type.name && strcmp(type.name, "arr") == 0
+            ? CALYNDA_RT_TYPE_HETERO_ARRAY : CALYNDA_RT_TYPE_UNION;
+    }
+    if (type.kind == CHECKED_TYPE_EXTERNAL) {
+        return CALYNDA_RT_TYPE_EXTERNAL;
+    }
+    return CALYNDA_RT_TYPE_RAW_WORD;
+}
+
+bool mr_find_hir_union_variant(const MirBuildContext *build,
+                               const char *union_name,
+                               const char *variant_name,
+                               size_t *out_variant_index,
+                               size_t *out_variant_count) {
+    const HirUnionDecl *decl = mr_find_hir_union_decl(build, union_name);
+    size_t v;
+
+    if (!decl) {
+        return false;
+    }
+    if (out_variant_count) {
+        *out_variant_count = decl->variant_count;
+    }
+    for (v = 0; v < decl->variant_count; v++) {
+        if (decl->variants[v].name && strcmp(decl->variants[v].name, variant_name) == 0) {
+            if (out_variant_index) {
+                *out_variant_index = v;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 bool mr_reserve_items(void **items, size_t *capacity,
                       size_t needed, size_t item_size) {
     void *resized;

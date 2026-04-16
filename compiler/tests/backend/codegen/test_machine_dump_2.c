@@ -83,7 +83,7 @@ void test_runtime_abi_dump_defines_helper_surface(void) {
         "  helper __calynda_rt_union_new return=rax args=[rdi=type_descriptor, rsi=variant_tag, rdx=payload_value]\n"
         "  helper __calynda_rt_union_get_tag return=rax args=[rdi=target_value]\n"
         "  helper __calynda_rt_union_get_payload return=rax args=[rdi=target_value]\n"
-        "  helper __calynda_rt_hetero_array_new return=rax args=[rdi=element_count, rsi=element_pack, rdx=element_tag_pack] pack=value-word\n"
+        "  helper __calynda_rt_hetero_array_new return=rax args=[rdi=type_descriptor, rsi=element_count, rdx=element_pack] pack=value-word\n"
         "  helper __calynda_rt_hetero_array_get_tag return=rax args=[rdi=target_value, rsi=index_value]\n";
     char *dump;
 
@@ -118,7 +118,7 @@ void test_machine_dump_emits_minimal_direct_instruction_stream(void) {
         "  helper __calynda_rt_union_new return=rax args=[rdi=type_descriptor, rsi=variant_tag, rdx=payload_value]\n"
         "  helper __calynda_rt_union_get_tag return=rax args=[rdi=target_value]\n"
         "  helper __calynda_rt_union_get_payload return=rax args=[rdi=target_value]\n"
-        "  helper __calynda_rt_hetero_array_new return=rax args=[rdi=element_count, rsi=element_pack, rdx=element_tag_pack] pack=value-word\n"
+        "  helper __calynda_rt_hetero_array_new return=rax args=[rdi=type_descriptor, rsi=element_count, rdx=element_pack] pack=value-word\n"
         "  helper __calynda_rt_hetero_array_get_tag return=rax args=[rdi=target_value, rsi=index_value]\n"
         "  Unit name=add kind=binding return=int32 frame_slots=2 spills=0 helper_slots=0 outgoing_stack=0 blocks=1\n"
         "    Blocks:\n"

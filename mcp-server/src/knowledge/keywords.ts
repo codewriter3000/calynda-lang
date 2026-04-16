@@ -1,8 +1,9 @@
 export const KEYWORDS = [
   'package', 'import', 'public', 'private', 'final', 'var', 'start', 'boot',
   'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-  'export', 'as', 'internal', 'static', 'union', 'manual', 'arr', 'asm',
-  'malloc', 'calloc', 'realloc', 'free',
+  'export', 'as', 'internal', 'static', 'union', 'manual', 'arr', 'ptr', 'layout',
+  'checked', 'asm', 'malloc', 'calloc', 'realloc', 'free', 'deref', 'store',
+  'offset', 'addr', 'cleanup', 'stackalloc',
 ] as const;
 
 export const PRIMITIVE_TYPES = [

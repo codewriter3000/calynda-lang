@@ -4,6 +4,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void lr_free_type_descriptor(CalyndaRtTypeDescriptor *type_desc) {
+    size_t i;
+
+    if (!type_desc) {
+        return;
+    }
+    if (type_desc->variant_names) {
+        for (i = 0; i < type_desc->variant_count; i++) {
+            free((char *)type_desc->variant_names[i]);
+        }
+    }
+    free((char *)type_desc->name);
+    free((void *)type_desc->generic_param_tags);
+    free((void *)type_desc->variant_names);
+    free((void *)type_desc->variant_payload_tags);
+}
+
 bool lr_reserve_items(void **items, size_t *capacity,
                       size_t needed, size_t item_size) {
     void *resized;
@@ -96,6 +113,12 @@ void lr_instruction_free(LirInstruction *instruction) {
         lr_operand_free(&instruction->as.member.target);
         free(instruction->as.member.member);
         break;
+    case LIR_INSTR_UNION_GET_TAG:
+        lr_operand_free(&instruction->as.union_get_tag.target);
+        break;
+    case LIR_INSTR_UNION_GET_PAYLOAD:
+        lr_operand_free(&instruction->as.union_get_payload.target);
+        break;
     case LIR_INSTR_INDEX_LOAD:
         lr_operand_free(&instruction->as.index_load.target);
         lr_operand_free(&instruction->as.index_load.index);
@@ -129,18 +152,18 @@ void lr_instruction_free(LirInstruction *instruction) {
         free(instruction->as.store_member.member);
         lr_operand_free(&instruction->as.store_member.value);
         break;
+    case LIR_INSTR_UNION_NEW:
+        lr_free_type_descriptor(&instruction->as.union_new.type_desc);
+        if (instruction->as.union_new.has_payload) {
+            lr_operand_free(&instruction->as.union_new.payload);
+        }
+        break;
     case LIR_INSTR_HETERO_ARRAY_NEW:
         for (i = 0; i < instruction->as.hetero_array_new.element_count; i++) {
             lr_operand_free(&instruction->as.hetero_array_new.elements[i]);
         }
         free(instruction->as.hetero_array_new.elements);
-        free(instruction->as.hetero_array_new.element_types);
-        break;
-    case LIR_INSTR_UNION_NEW:
-        free(instruction->as.union_new.union_name);
-        if (instruction->as.union_new.has_payload) {
-            lr_operand_free(&instruction->as.union_new.payload);
-        }
+        lr_free_type_descriptor(&instruction->as.hetero_array_new.type_desc);
         break;
     }
 

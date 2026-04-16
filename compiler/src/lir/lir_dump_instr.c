@@ -3,31 +3,25 @@
 bool lir_dump_instruction(FILE *out, const LirUnit *unit, const LirInstruction *instruction) {
     switch (instruction->kind) {
     case LIR_INSTR_INCOMING_ARG:
-        fprintf(out,
-                "incoming arg%zu -> slot(%zu:%s)",
-                instruction->as.incoming_arg.argument_index,
-                instruction->as.incoming_arg.slot_index,
-                unit->slots[instruction->as.incoming_arg.slot_index].name);
+        fprintf(out, "incoming arg%zu -> slot(%zu:%s)",
+            instruction->as.incoming_arg.argument_index,
+            instruction->as.incoming_arg.slot_index,
+            unit->slots[instruction->as.incoming_arg.slot_index].name);
         break;
     case LIR_INSTR_INCOMING_CAPTURE:
-        fprintf(out,
-                "incoming capture%zu -> slot(%zu:%s)",
-                instruction->as.incoming_capture.capture_index,
-                instruction->as.incoming_capture.slot_index,
-                unit->slots[instruction->as.incoming_capture.slot_index].name);
+        fprintf(out, "incoming capture%zu -> slot(%zu:%s)",
+            instruction->as.incoming_capture.capture_index,
+            instruction->as.incoming_capture.slot_index,
+            unit->slots[instruction->as.incoming_capture.slot_index].name);
         break;
     case LIR_INSTR_OUTGOING_ARG:
-        fprintf(out,
-                "out arg%zu <- ",
-                instruction->as.outgoing_arg.argument_index);
+        fprintf(out, "out arg%zu <- ", instruction->as.outgoing_arg.argument_index);
         if (!lir_dump_operand(out, unit, instruction->as.outgoing_arg.value)) {
             return false;
         }
         break;
     case LIR_INSTR_BINARY:
-        fprintf(out,
-                "v%zu = binary %s ",
-                instruction->as.binary.dest_vreg,
+        fprintf(out, "v%zu = binary %s ", instruction->as.binary.dest_vreg,
                 lir_dump_binary_operator_name_text(instruction->as.binary.operator));
         if (!lir_dump_operand(out, unit, instruction->as.binary.left) ||
             fputs(" ", out) == EOF ||
@@ -36,19 +30,15 @@ bool lir_dump_instruction(FILE *out, const LirUnit *unit, const LirInstruction *
         }
         break;
     case LIR_INSTR_UNARY:
-        fprintf(out,
-                "v%zu = unary %s ",
-                instruction->as.unary.dest_vreg,
-                lir_dump_unary_operator_name_text(instruction->as.unary.operator));
+        fprintf(out, "v%zu = unary %s ", instruction->as.unary.dest_vreg,
+            lir_dump_unary_operator_name_text(instruction->as.unary.operator));
         if (!lir_dump_operand(out, unit, instruction->as.unary.operand)) {
             return false;
         }
         break;
     case LIR_INSTR_CLOSURE:
-        fprintf(out,
-                "v%zu = closure unit=%s(",
-                instruction->as.closure.dest_vreg,
-                instruction->as.closure.unit_name);
+        fprintf(out, "v%zu = closure unit=%s(", instruction->as.closure.dest_vreg,
+            instruction->as.closure.unit_name);
         for (size_t capture_index = 0;
              capture_index < instruction->as.closure.capture_count;
              capture_index++) {
@@ -87,6 +77,20 @@ bool lir_dump_instruction(FILE *out, const LirUnit *unit, const LirInstruction *
         fprintf(out, "v%zu = member ", instruction->as.member.dest_vreg);
         if (!lir_dump_operand(out, unit, instruction->as.member.target) ||
             fprintf(out, ".%s", instruction->as.member.member) < 0) {
+            return false;
+        }
+        break;
+    case LIR_INSTR_UNION_GET_TAG:
+        fprintf(out, "v%zu = union_get_tag ", instruction->as.union_get_tag.dest_vreg);
+        if (!lir_dump_operand(out, unit, instruction->as.union_get_tag.target)) {
+            return false;
+        }
+        break;
+    case LIR_INSTR_UNION_GET_PAYLOAD:
+        fprintf(out,
+                "v%zu = union_get_payload ",
+                instruction->as.union_get_payload.dest_vreg);
+        if (!lir_dump_operand(out, unit, instruction->as.union_get_payload.target)) {
             return false;
         }
         break;
@@ -170,9 +174,25 @@ bool lir_dump_instruction(FILE *out, const LirUnit *unit, const LirInstruction *
             return false;
         }
         break;
+    case LIR_INSTR_UNION_NEW:
+        fprintf(out, "v%zu = union_new ", instruction->as.union_new.dest_vreg);
+        if (!lir_dump_type_descriptor(out, &instruction->as.union_new.type_desc) ||
+            fprintf(out, " variant %zu", instruction->as.union_new.variant_index) < 0) {
+            return false;
+        }
+        if (instruction->as.union_new.has_payload) {
+            fputs(" payload ", out);
+            if (!lir_dump_operand(out, unit, instruction->as.union_new.payload)) {
+                return false;
+            }
+        }
+        break;
     case LIR_INSTR_HETERO_ARRAY_NEW:
-        fprintf(out, "v%zu = hetero_array_new [",
-                instruction->as.hetero_array_new.dest_vreg);
+        fprintf(out, "v%zu = hetero_array_new ", instruction->as.hetero_array_new.dest_vreg);
+        if (!lir_dump_type_descriptor(out, &instruction->as.hetero_array_new.type_desc) ||
+            fputs(" [", out) == EOF) {
+            return false;
+        }
         for (size_t ei = 0; ei < instruction->as.hetero_array_new.element_count; ei++) {
             if (ei > 0 && fputs(", ", out) == EOF) {
                 return false;
@@ -182,19 +202,6 @@ bool lir_dump_instruction(FILE *out, const LirUnit *unit, const LirInstruction *
             }
         }
         fputc(']', out);
-        break;
-    case LIR_INSTR_UNION_NEW:
-        fprintf(out, "v%zu = union_new %s variant %zu",
-                instruction->as.union_new.dest_vreg,
-                instruction->as.union_new.union_name ?
-                    instruction->as.union_new.union_name : "?",
-                instruction->as.union_new.variant_index);
-        if (instruction->as.union_new.has_payload) {
-            fputs(" payload ", out);
-            if (!lir_dump_operand(out, unit, instruction->as.union_new.payload)) {
-                return false;
-            }
-        }
         break;
     }
 

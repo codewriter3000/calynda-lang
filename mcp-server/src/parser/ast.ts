@@ -1,6 +1,6 @@
 export type NodeKind = 
   | 'Program' | 'PackageDecl' | 'ImportDecl'
-  | 'StartDecl' | 'BindingDecl' | 'UnionDecl' | 'AsmDecl' | 'BootDecl'
+  | 'StartDecl' | 'BindingDecl' | 'UnionDecl' | 'LayoutDecl' | 'AsmDecl' | 'BootDecl'
   | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'ManualStatement'
   | 'LambdaExpression' | 'AssignmentExpression' | 'TernaryExpression'
   | 'BinaryExpression' | 'UnaryExpression' | 'PostfixExpression'
@@ -39,7 +39,7 @@ export interface ImportDecl extends ASTNode {
   name: string;
 }
 
-export type TopLevelDecl = StartDecl | BindingDecl | UnionDecl | AsmDecl | BootDecl;
+export type TopLevelDecl = StartDecl | BindingDecl | UnionDecl | LayoutDecl | AsmDecl | BootDecl;
 
 export interface UnionVariant {
   name: string;
@@ -53,6 +53,7 @@ export interface UnionDecl extends ASTNode {
   genericParams: string[];
   variants: UnionVariant[];
 }
+export interface LayoutDecl extends ASTNode { kind: 'LayoutDecl'; name: string; fields: Array<{ typeAnnotation: TypeNode; name: string }>; }
 
 export interface AsmDecl extends ASTNode { kind: 'AsmDecl'; modifiers: string[]; typeAnnotation: TypeNode; name: string; params: Parameter[]; body: string; }
 export interface BootDecl extends ASTNode { kind: 'BootDecl'; body: Block | Expression; }

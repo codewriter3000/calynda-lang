@@ -88,6 +88,10 @@ AstTopLevelDecl *parse_top_level_decl(Parser *parser) {
         return parse_asm_decl(parser);
     }
 
+    if (parser_check(parser, TOK_LAYOUT)) {
+        return parse_layout_decl(parser);
+    }
+
     /* Peek past any modifier tokens to decide binding vs union. */
     if (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
         parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_EXPORT) ||

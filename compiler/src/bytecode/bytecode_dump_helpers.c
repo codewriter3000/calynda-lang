@@ -86,6 +86,10 @@ bool bytecode_dump_constant_ref(FILE *out, const BytecodeProgram *program,
     case BYTECODE_CONSTANT_TEXT:
         return bytecode_dump_write_quoted_text(out,
                 program->constants[constant_index].as.text);
+    case BYTECODE_CONSTANT_TYPE_DESCRIPTOR:
+        return fprintf(out,
+                       "type_desc(%s)",
+                       program->constants[constant_index].as.type_descriptor.name) >= 0;
     }
 
     return false;

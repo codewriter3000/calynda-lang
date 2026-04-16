@@ -62,14 +62,17 @@ bool ast_dump_statement(AstDumpBuilder *builder, const AstStatement *statement,
                ast_dump_expression_label(builder, indent + 1, "Expression",
                                      statement->as.expression);
 
-    case AST_STMT_MANUAL:
+    case AST_STMT_MANUAL: {
+        const char *label = statement->as.manual.is_checked
+                            ? "ManualStmt checked" : "ManualStmt";
         if (!(ast_dump_builder_start_line(builder, indent) &&
-              ast_dump_builder_append(builder, "ManualStmt") &&
+              ast_dump_builder_append(builder, label) &&
               ast_dump_builder_finish_line(builder))) {
             return false;
         }
         return ast_dump_block_label(builder, indent + 1, "Body",
                                     statement->as.manual.body);
+    }
     }
 
     return false;

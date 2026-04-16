@@ -5,6 +5,7 @@
 /* Forward declarations for per-target descriptor accessors */
 const TargetDescriptor *target_get_x86_64_descriptor(void);
 const TargetDescriptor *target_get_aarch64_descriptor(void);
+const TargetDescriptor *target_get_riscv64_descriptor(void);
 
 const TargetDescriptor *target_get_descriptor(TargetKind kind) {
     switch (kind) {
@@ -12,6 +13,8 @@ const TargetDescriptor *target_get_descriptor(TargetKind kind) {
         return target_get_x86_64_descriptor();
     case TARGET_KIND_AARCH64_AAPCS_ELF:
         return target_get_aarch64_descriptor();
+    case TARGET_KIND_RISCV64_LP64D_ELF:
+        return target_get_riscv64_descriptor();
     }
     return target_get_x86_64_descriptor();
 }
@@ -44,6 +47,13 @@ TargetKind target_kind_from_name(const char *name, bool *found) {
         strcmp(name, "aarch64_aapcs_elf") == 0) {
         *found = true;
         return TARGET_KIND_AARCH64_AAPCS_ELF;
+    }
+
+    if (strcmp(name, "riscv64") == 0 ||
+        strcmp(name, "rv64") == 0 ||
+        strcmp(name, "riscv64_lp64d_elf") == 0) {
+        *found = true;
+        return TARGET_KIND_RISCV64_LP64D_ELF;
     }
 
     *found = false;

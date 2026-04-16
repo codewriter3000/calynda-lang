@@ -13,6 +13,8 @@ bool mir_dump_write_checked_type(FILE *out, CheckedType type);
 const char *mir_dump_binary_operator_name_text(AstBinaryOperator op);
 const char *mir_dump_unary_operator_name_text(AstUnaryOperator op);
 const char *mir_dump_local_kind_name(MirLocalKind kind);
+const char *mir_dump_type_tag_name(CalyndaRtTypeTag tag);
+bool mir_dump_type_descriptor(FILE *out, const CalyndaRtTypeDescriptor *type_desc);
 bool mir_dump_template_part(FILE *out, const MirUnit *unit, const MirTemplatePart *part);
 bool mir_dump_value(FILE *out, const MirUnit *unit, MirValue value);
 

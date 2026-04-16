@@ -103,6 +103,28 @@ bool ast_dump_top_level_decl(AstDumpBuilder *builder, const AstTopLevelDecl *dec
         }
         return true;
     }
+
+    case AST_TOP_LEVEL_LAYOUT: {
+        size_t fi;
+        if (!ast_dump_builder_start_line(builder, indent) ||
+            !ast_dump_builder_append(builder, "LayoutDecl name=") ||
+            !ast_dump_builder_append(builder,
+                            decl->as.layout_decl.name ? decl->as.layout_decl.name : "<null>") ||
+            !ast_dump_builder_finish_line(builder)) {
+            return false;
+        }
+        for (fi = 0; fi < decl->as.layout_decl.field_count; fi++) {
+            if (!ast_dump_builder_start_line(builder, indent + 1) ||
+                !ast_dump_builder_append(builder, "Field name=") ||
+                !ast_dump_builder_append(builder,
+                    decl->as.layout_decl.fields[fi].name ?
+                    decl->as.layout_decl.fields[fi].name : "<null>") ||
+                !ast_dump_builder_finish_line(builder)) {
+                return false;
+            }
+        }
+        return true;
+    }
     }
 
     return false;

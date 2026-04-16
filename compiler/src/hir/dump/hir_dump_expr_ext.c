@@ -102,6 +102,12 @@ bool hir_dump_expression_ext(FILE *out, const HirExpression *expression, int ind
             case HIR_MEMORY_CALLOC:  op_name = "calloc";  break;
             case HIR_MEMORY_REALLOC: op_name = "realloc"; break;
             case HIR_MEMORY_FREE:    op_name = "free";    break;
+            case HIR_MEMORY_DEREF:   op_name = "deref";   break;
+            case HIR_MEMORY_ADDR:    op_name = "addr";    break;
+            case HIR_MEMORY_OFFSET:  op_name = "offset";  break;
+            case HIR_MEMORY_STORE:   op_name = "store";   break;
+            case HIR_MEMORY_CLEANUP: op_name = "cleanup"; break;
+            case HIR_MEMORY_STACKALLOC: op_name = "stackalloc"; break;
             default:                 op_name = "unknown"; break;
             }
             fprintf(out, "MemoryOp op=%s type=", op_name);

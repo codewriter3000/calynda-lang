@@ -18,6 +18,10 @@ bool st_analyze_top_level_decl(SymbolTable *table,
     case AST_TOP_LEVEL_ASM:
         /* Asm declarations have opaque bodies — nothing to analyze. */
         return true;
+
+    case AST_TOP_LEVEL_LAYOUT:
+        /* Layout declarations have no expressions to walk. */
+        return true;
     }
 
     return false;

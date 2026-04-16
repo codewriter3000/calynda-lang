@@ -15,7 +15,8 @@ typedef enum {
     SYMBOL_KIND_LOCAL,
     SYMBOL_KIND_UNION,
     SYMBOL_KIND_TYPE_PARAMETER,
-    SYMBOL_KIND_VARIANT
+    SYMBOL_KIND_VARIANT,
+    SYMBOL_KIND_LAYOUT
 } SymbolKind;
 
 typedef enum {

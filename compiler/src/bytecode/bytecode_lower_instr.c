@@ -105,6 +105,20 @@ bool bc_lower_instruction(BytecodeBuildContext *context,
                                        instruction->as.member.target,
                                        &lowered->as.member.target);
 
+    case MIR_INSTR_UNION_GET_TAG:
+        lowered->kind = BYTECODE_INSTR_UNION_GET_TAG;
+        lowered->as.union_get_tag.dest_temp = instruction->as.union_get_tag.dest_temp;
+        return bc_value_from_mir_value(context,
+                                       instruction->as.union_get_tag.target,
+                                       &lowered->as.union_get_tag.target);
+
+    case MIR_INSTR_UNION_GET_PAYLOAD:
+        lowered->kind = BYTECODE_INSTR_UNION_GET_PAYLOAD;
+        lowered->as.union_get_payload.dest_temp = instruction->as.union_get_payload.dest_temp;
+        return bc_value_from_mir_value(context,
+                                       instruction->as.union_get_payload.target,
+                                       &lowered->as.union_get_payload.target);
+
     case MIR_INSTR_INDEX_LOAD:
         lowered->as.index_load.dest_temp = instruction->as.index_load.dest_temp;
         return bc_value_from_mir_value(context,
@@ -191,55 +205,10 @@ bool bc_lower_instruction(BytecodeBuildContext *context,
                                        &lowered->as.store_member.value);
 
     case MIR_INSTR_HETERO_ARRAY_NEW:
-        lowered->kind = BYTECODE_INSTR_HETERO_ARRAY_NEW;
-        lowered->as.hetero_array_new.dest_temp = instruction->as.hetero_array_new.dest_temp;
-        lowered->as.hetero_array_new.element_count = instruction->as.hetero_array_new.element_count;
-        if (lowered->as.hetero_array_new.element_count > 0) {
-            lowered->as.hetero_array_new.elements = calloc(
-                lowered->as.hetero_array_new.element_count,
-                sizeof(*lowered->as.hetero_array_new.elements));
-            lowered->as.hetero_array_new.element_tags = calloc(
-                lowered->as.hetero_array_new.element_count,
-                sizeof(*lowered->as.hetero_array_new.element_tags));
-            if (!lowered->as.hetero_array_new.elements ||
-                !lowered->as.hetero_array_new.element_tags) {
-                return false;
-            }
-        }
-        for (i = 0; i < lowered->as.hetero_array_new.element_count; i++) {
-            if (!bc_value_from_mir_value(context,
-                                         instruction->as.hetero_array_new.elements[i],
-                                         &lowered->as.hetero_array_new.elements[i])) {
-                return false;
-            }
-            lowered->as.hetero_array_new.element_tags[i] =
-                bc_checked_type_to_runtime_tag(instruction->as.hetero_array_new.element_types[i]);
-        }
-        return true;
+        return bc_lower_hetero_array_instruction(context, instruction, lowered);
 
     case MIR_INSTR_UNION_NEW:
-        lowered->kind = BYTECODE_INSTR_UNION_NEW;
-        lowered->as.union_new.dest_temp = instruction->as.union_new.dest_temp;
-        lowered->as.union_new.type_desc_index = 0; /* TODO: register type descriptors */
-        lowered->as.union_new.variant_tag = (uint32_t)instruction->as.union_new.variant_index;
-        if (instruction->as.union_new.has_payload) {
-            if (!bc_value_from_mir_value(context,
-                                         instruction->as.union_new.payload,
-                                         &lowered->as.union_new.payload)) {
-                return false;
-            }
-        } else {
-            size_t zero_index = bc_intern_literal_constant(context,
-                                                           AST_LITERAL_INTEGER,
-                                                           "0",
-                                                           false);
-            if (zero_index == (size_t)-1) {
-                return false;
-            }
-            lowered->as.union_new.payload.kind = BYTECODE_VALUE_CONSTANT;
-            lowered->as.union_new.payload.as.constant_index = zero_index;
-        }
-        return true;
+        return bc_lower_union_new_instruction(context, instruction, lowered);
     }
 
     return false;

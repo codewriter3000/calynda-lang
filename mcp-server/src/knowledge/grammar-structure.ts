@@ -1,9 +1,7 @@
 export const GRAMMAR_STRUCTURE = `
 (* ===================================================================== *)
-(* Calynda V2 — EBNF Grammar Specification                               *)
-(* Cloned from compiler/calynda.ebnf on 2026-04-15                       *)
-(*                                                                        *)
-(* This file is the canonical V3 grammar.                                *)
+(* Calynda — EBNF Grammar Snapshot                                        *)
+(* Cloned from compiler/calynda.ebnf on 2026-04-16                        *)
 (* ===================================================================== *)
 
 
@@ -47,6 +45,7 @@ TopLevelDecl
     | AsmDecl
     | BindingDecl
     | UnionDecl
+    | LayoutDecl
     ;
 
 (* Entry point — implicitly returns int32 (exit code).              *)
@@ -115,6 +114,17 @@ UnionVariant
     = Identifier [ "(" Type ")" ]
     ;
 
+(* Memory layout declaration — defines a named struct-like type for *)
+(* use with ptr<T>, offset, deref, and store operations.            *)
+(* Field types must be primitive in 0.4.0.                          *)
+LayoutDecl
+    = "layout" Identifier "{" { LayoutField } "}" ";"
+    ;
+
+LayoutField
+    = Type Identifier ";"
+    ;
+
 
 (* ================================================================ *)
 (* 3. TYPES                                                         *)
@@ -123,11 +133,14 @@ UnionVariant
 (* Note: GenericArgs are syntactically optional on any type, but    *)
 (* semantic analysis rejects meaningless combinations such as       *)
 (* int32<T>. In practice, generics apply to user-defined types      *)
-(* (resolved via Identifier) and the built-in arr<T> form.          *)
+(* (resolved via Identifier) plus the built-in arr<?> and ptr<T>    *)
+(* forms.                                                           *)
 Type
     = PrimitiveType [ GenericArgs ] { ArrayDimension }
     | Identifier [ GenericArgs ] { ArrayDimension }            (* named / user-defined type *)
     | "arr" GenericArgs                                        (* heterogeneous array *)
+    | "ptr" GenericArgs                                        (* typed pointer — manual only *)
+    | "ptr" "<" Type "," "checked" ">"                    (* bounds-checked typed pointer *)
     | "void"
     ;
 
@@ -204,18 +217,22 @@ ExpressionStatement
     = Expression ";"
     ;
 
-(* Manual memory boundary (experimental) — opens an unsafe scope   *)
-(* for direct memory management. malloc, calloc, realloc, and free  *)
-(* are available as built-in expressions inside the block.          *)
-(* All arguments must be integral types. malloc/calloc/realloc      *)
-(* return a raw int64 address with no type safety.                  *)
+(* Manual memory boundary — opens a stable unsafe scope for direct  *)
+(* for direct memory management. malloc, calloc, realloc, free,    *)
+(* stackalloc, cleanup, deref, store, offset, and addr are built-in *)
+(* expressions inside the block. cleanup(value, fn) defers fn(value) *)
+(* until the enclosing manual scope exits. Optional checked uses    *)
+(* bounds-checked runtime helpers. Variables may use ptr<T> types   *)
+(* for typed pointer semantics with automatic element sizing.       *)
 (* Example:                                                         *)
 (*   manual {                                                       *)
-(*       var addr = malloc(1024);                                   *)
-(*       free(addr);                                                *)
+(*       ptr<int32> p = malloc(40);                                 *)
+(*       store(p, 7);                                               *)
+(*       int32 v = deref(p);                                        *)
+(*       free(p);                                                   *)
 (*   };                                                             *)
 ManualStatement
-    = "manual" "{" { Statement } "}" ";"
+    = "manual" [ "checked" ] "{" { Statement } "}" ";"
     ;
 
 `;

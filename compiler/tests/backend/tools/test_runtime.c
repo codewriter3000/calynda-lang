@@ -7,11 +7,9 @@
 #include <string.h>
 #include <unistd.h>
 
-static int tests_run = 0;
-static int tests_passed = 0;
-static int tests_failed = 0;
-static size_t startup_argument_count = 0;
-static const char *startup_first_argument = NULL;
+int tests_run = 0, tests_passed = 0, tests_failed = 0;
+static size_t startup_argument_count = 0; static CalyndaRtWord startup_arguments_handle = 0;
+static char startup_first_argument_buffer[64] = {0}; static const char *startup_first_argument = NULL;
 
 #define ASSERT_TRUE(condition, msg) do {                                    \
     tests_run++;                                                            \
@@ -23,7 +21,6 @@ static const char *startup_first_argument = NULL;
                 __FILE__, __LINE__, (msg));                                 \
     }                                                                       \
 } while (0)
-
 #define REQUIRE_TRUE(condition, msg) do {                                   \
     tests_run++;                                                            \
     if (condition) {                                                        \
@@ -35,19 +32,18 @@ static const char *startup_first_argument = NULL;
         return;                                                             \
     }                                                                       \
 } while (0)
-
 #define ASSERT_EQ_STR(expected, actual, msg) do {                           \
+    const char *actual_text = (actual);                                     \
     tests_run++;                                                            \
-    if ((actual) != NULL && strcmp((expected), (actual)) == 0) {            \
+    if (actual_text != NULL && strcmp((expected), actual_text) == 0) {      \
         tests_passed++;                                                     \
     } else {                                                                \
         tests_failed++;                                                     \
         fprintf(stderr, "  FAIL [%s:%d] %s: expected \"%s\", got \"%s\"\n", \
                 __FILE__, __LINE__, (msg), (expected),                      \
-                (actual) ? (actual) : "(null)");                           \
+                actual_text ? actual_text : "(null)");                     \
     }                                                                       \
 } while (0)
-
 #define ASSERT_EQ_WORD(expected, actual, msg) do {                          \
     tests_run++;                                                            \
     if ((expected) == (actual)) {                                           \
@@ -59,7 +55,6 @@ static const char *startup_first_argument = NULL;
                 (long long)(expected), (long long)(actual));                \
     }                                                                       \
 } while (0)
-
 #define RUN_TEST(fn) do {                                                   \
     printf("  %s ...\n", #fn);                                            \
     fn();                                                                   \
@@ -75,12 +70,27 @@ static CalyndaRtWord sum_with_capture(const CalyndaRtWord *captures,
 }
 
 static CalyndaRtWord capture_start_arguments(CalyndaRtWord arguments) {
+    const char *first_argument = NULL;
+    startup_arguments_handle = arguments;
     startup_argument_count = calynda_rt_array_length(arguments);
-    startup_first_argument = startup_argument_count > 0
+    startup_first_argument = NULL;
+    startup_first_argument_buffer[0] = '\0';
+    first_argument = startup_argument_count > 0
         ? calynda_rt_string_bytes(__calynda_rt_index_load(arguments, 0))
         : NULL;
+    if (first_argument) {
+        snprintf(startup_first_argument_buffer,
+                 sizeof(startup_first_argument_buffer),
+                 "%s",
+                 first_argument);
+        startup_first_argument = startup_first_argument_buffer;
+    }
     return 23;
 }
+
+void test_runtime_start_process_cleans_hetero_arrays_and_nested_objects(void);
+void test_runtime_checked_stackalloc_uses_tracked_scratch_storage(void);
+void test_runtime_checked_registry_grows_past_legacy_pointer_limit(void);
 
 static void test_runtime_layout_dump_defines_object_model(void) {
     static const char expected[] =
@@ -94,8 +104,8 @@ static void test_runtime_layout_dump_defines_object_model(void) {
         "  TemplatePart size=16 payload=[tag:uint64, payload:uint64]\n"
         "  TemplateTags text=0 value=1\n"
         "  Union size=32 payload=[type_desc:TypeDescriptor*, tag:uint32, payload:uint64]\n"
-        "  HeteroArray size=32 payload=[count:size_t, elements:uint64*, element_tags:uint32*]\n"
-        "  TypeDescriptor fields=[name:char*, generic_param_count:size_t, variant_count:size_t, variant_names:char**, variant_payload_tags:uint32*]\n"
+        "  HeteroArray size=32 payload=[type_desc:TypeDescriptor*, count:size_t, elements:uint64*]\n"
+        "  TypeDescriptor fields=[name:char*, generic_param_count:size_t, generic_param_tags:uint32*, variant_count:size_t, variant_names:char**, variant_payload_tags:uint32*]\n"
         "  Builtins package=stdlib member=print\n";
     char *dump = calynda_rt_dump_layout_to_string();
 
@@ -103,7 +113,6 @@ static void test_runtime_layout_dump_defines_object_model(void) {
     ASSERT_EQ_STR(expected, dump, "runtime layout dump string");
     free(dump);
 }
-
 static void test_runtime_array_index_and_store_helpers(void) {
     CalyndaRtWord elements[3] = { 1, 2, 3 };
     CalyndaRtWord array = __calynda_rt_array_literal(3, elements);
@@ -115,7 +124,33 @@ static void test_runtime_array_index_and_store_helpers(void) {
     __calynda_rt_store_index(array, 1, 42);
     ASSERT_EQ_WORD(42, __calynda_rt_index_load(array, 1), "index store writes the updated element");
 }
+static void test_runtime_hetero_arrays_reuse_type_descriptors(void) {
+    CalyndaRtWord elements[3] = { 7, 1, calynda_rt_make_string_copy("two") };
+    CalyndaRtTypeTag generic_tags[1] = { CALYNDA_RT_TYPE_RAW_WORD };
+    CalyndaRtTypeTag tags[3] = {
+        CALYNDA_RT_TYPE_INT64,
+        CALYNDA_RT_TYPE_BOOL,
+        CALYNDA_RT_TYPE_STRING
+    };
+    CalyndaRtTypeDescriptor type_desc = { "arr", 1, generic_tags, 3, NULL, tags };
+    CalyndaRtWord array = __calynda_rt_hetero_array_new(&type_desc, 3, elements);
+    const CalyndaRtHeteroArray *array_object =
+        (const CalyndaRtHeteroArray *)(const void *)calynda_rt_as_object(array);
+    char buffer[64];
 
+    REQUIRE_TRUE(array_object != NULL, "hetero array helper produces an object handle");
+    ASSERT_TRUE(array_object->type_desc != NULL, "hetero array stores shared descriptor metadata");
+    ASSERT_EQ_STR("arr", array_object->type_desc->name, "hetero array descriptor keeps the arr name");
+    ASSERT_EQ_WORD(3,
+                   (CalyndaRtWord)array_object->type_desc->variant_count,
+                   "hetero array descriptor preserves element count");
+    ASSERT_EQ_WORD(CALYNDA_RT_TYPE_STRING,
+                   (CalyndaRtWord)__calynda_rt_hetero_array_get_tag(array, 2),
+                   "hetero array tag lookup reads shared descriptor tags");
+    REQUIRE_TRUE(calynda_rt_format_word(array, buffer, sizeof(buffer)),
+                 "format hetero array through runtime formatter");
+    ASSERT_EQ_STR("[7, true, two]", buffer, "hetero array formatting uses descriptor tags");
+}
 static void test_runtime_closure_new_and_call_callable(void) {
     CalyndaRtWord captures[1] = { 5 };
     CalyndaRtWord arguments[2] = { 7, 9 };
@@ -126,7 +161,6 @@ static void test_runtime_closure_new_and_call_callable(void) {
                    __calynda_rt_call_callable(closure, 2, arguments),
                    "call callable invokes the stored closure entry with captures and arguments");
 }
-
 static void test_runtime_template_build_and_string_cast(void) {
     CalyndaRtTemplatePart parts[2];
     CalyndaRtWord built;
@@ -149,7 +183,6 @@ static void test_runtime_template_build_and_string_cast(void) {
                   calynda_rt_string_bytes(cast_string),
                   "cast-to-string stringifies the source word");
 }
-
 static void test_runtime_member_load_returns_callable_builtin(void) {
     CalyndaRtWord callable = __calynda_rt_member_load((CalyndaRtWord)(uintptr_t)&__calynda_pkg_stdlib,
                                                       "print");
@@ -176,10 +209,7 @@ static void test_runtime_member_load_returns_callable_builtin(void) {
     close(saved_stdout);
     rewind(capture);
     REQUIRE_TRUE(fgets(buffer, sizeof(buffer), capture) != NULL, "read captured builtin print output");
-    {
-        const char *captured = buffer;
-        ASSERT_EQ_STR("hello\n", captured, "builtin print writes the formatted value to stdout");
-    }
+    ASSERT_EQ_STR("hello\n", buffer, "builtin print writes the formatted value to stdout");
     fclose(capture);
 }
 
@@ -198,6 +228,8 @@ static void test_runtime_start_process_boxes_cli_arguments(void) {
     ASSERT_EQ_STR("hello",
                   startup_first_argument,
                   "start process preserves the first user argument as a runtime string");
+    ASSERT_TRUE(!calynda_rt_is_object(startup_arguments_handle),
+                "start process releases boxed cli arguments before returning");
 }
 
 int main(void) {
@@ -205,9 +237,13 @@ int main(void) {
 
     RUN_TEST(test_runtime_layout_dump_defines_object_model);
     RUN_TEST(test_runtime_array_index_and_store_helpers);
+    RUN_TEST(test_runtime_hetero_arrays_reuse_type_descriptors);
     RUN_TEST(test_runtime_closure_new_and_call_callable);
     RUN_TEST(test_runtime_template_build_and_string_cast);
     RUN_TEST(test_runtime_member_load_returns_callable_builtin);
+    RUN_TEST(test_runtime_start_process_cleans_hetero_arrays_and_nested_objects);
+    RUN_TEST(test_runtime_checked_stackalloc_uses_tracked_scratch_storage);
+    RUN_TEST(test_runtime_checked_registry_grows_past_legacy_pointer_limit);
     RUN_TEST(test_runtime_start_process_boxes_cli_arguments);
 
     printf("\n========================================\n");

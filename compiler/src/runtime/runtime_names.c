@@ -66,8 +66,8 @@ bool calynda_rt_dump_layout(FILE *out) {
             "  TemplatePart size=%zu payload=[tag:uint64, payload:uint64]\n"
             "  TemplateTags text=%d value=%d\n"
             "  Union size=%zu payload=[type_desc:TypeDescriptor*, tag:uint32, payload:uint64]\n"
-            "  HeteroArray size=%zu payload=[count:size_t, elements:uint64*, element_tags:uint32*]\n"
-            "  TypeDescriptor fields=[name:char*, generic_param_count:size_t, variant_count:size_t, variant_names:char**, variant_payload_tags:uint32*]\n"
+            "  HeteroArray size=%zu payload=[type_desc:TypeDescriptor*, count:size_t, elements:uint64*]\n"
+            "  TypeDescriptor fields=[name:char*, generic_param_count:size_t, generic_param_tags:uint32*, variant_count:size_t, variant_names:char**, variant_payload_tags:uint32*]\n"
             "  Builtins package=stdlib member=print\n",
             sizeof(CalyndaRtWord),
             CALYNDA_RT_OBJECT_MAGIC,

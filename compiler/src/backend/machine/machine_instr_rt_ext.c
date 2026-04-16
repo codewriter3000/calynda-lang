@@ -146,34 +146,35 @@ bool mc_emit_instruction_runtime_ext(MachineBuildContext *context,
         free(value);
         return ok;
     }
-    case CODEGEN_RUNTIME_UNION_NEW: {
+    case CODEGEN_RUNTIME_UNION_GET_TAG:
+    case CODEGEN_RUNTIME_UNION_GET_PAYLOAD: {
         const RuntimeAbiHelperSignature *signature =
             runtime_abi_get_helper_signature(context->program->target,
                                              selected->selection.as.runtime_helper);
+        char *target = NULL;
         bool ok;
 
-        ok = mc_append_line(context, block, "mov %s, null", arg0);
-        ok = ok && mc_append_line(context, block, "mov %s, %zu", arg1,
-                                  instruction->as.union_new.variant_index);
-        if (instruction->as.union_new.has_payload) {
-            char *payload_str = NULL;
-            ok = ok && mc_format_operand(td, lir_unit, codegen_unit,
-                                         instruction->as.union_new.payload, &payload_str);
-            ok = ok && mc_append_line(context, block, "mov %s, %s", arg2, payload_str);
-            free(payload_str);
-        } else {
-            ok = ok && mc_append_line(context, block, "mov %s, null", arg2);
+        if (!mc_format_operand(td,
+                               lir_unit,
+                               codegen_unit,
+                               selected->selection.as.runtime_helper == CODEGEN_RUNTIME_UNION_GET_TAG
+                                   ? instruction->as.union_get_tag.target
+                                   : instruction->as.union_get_payload.target,
+                               &target)) {
+            return false;
         }
-        ok = ok && mc_emit_runtime_helper_call(context, codegen_unit, signature, block, false) &&
+        ok = mc_append_line(context, block, "mov %s, %s", arg0, target) &&
+             mc_emit_runtime_helper_call(context, codegen_unit, signature, block, false) &&
              mc_emit_store_vreg(context,
                                 codegen_unit,
-                                instruction->as.union_new.dest_vreg,
+                                selected->selection.as.runtime_helper == CODEGEN_RUNTIME_UNION_GET_TAG
+                                    ? instruction->as.union_get_tag.dest_vreg
+                                    : instruction->as.union_get_payload.dest_vreg,
                                 block,
                                 ret);
+        free(target);
         return ok;
     }
-    case CODEGEN_RUNTIME_UNION_GET_TAG:
-    case CODEGEN_RUNTIME_UNION_GET_PAYLOAD:
     case CODEGEN_RUNTIME_HETERO_ARRAY_GET_TAG:
         mc_set_error(context,
                      (AstSourceSpan){0},
@@ -186,6 +187,7 @@ bool mc_emit_instruction_runtime_ext(MachineBuildContext *context,
                                              selected->selection.as.runtime_helper);
         size_t count = instruction->as.hetero_array_new.element_count;
         size_t i;
+        char *type_desc = NULL;
         bool ok = true;
 
         for (i = 0; i < count; i++) {
@@ -200,23 +202,13 @@ bool mc_emit_instruction_runtime_ext(MachineBuildContext *context,
             free(value);
             if (!ok) return false;
         }
-        for (i = 0; i < count; i++) {
-            char *slot = NULL;
-            char tag[64];
-
-            ok = mc_format_helper_slot_operand(count + i, &slot) &&
-                 runtime_abi_format_type_tag(instruction->as.hetero_array_new.element_types[i],
-                                             tag, sizeof(tag)) &&
-                 mc_emit_move_to_destination(context, block, slot, tag);
-            free(slot);
-            if (!ok) return false;
+           if (!mc_format_hetero_array_type_descriptor_operand(instruction, &type_desc)) {
+              return false;
         }
-        ok = mc_append_line(context, block, "mov %s, %zu", arg0, count) &&
+           ok = mc_append_line(context, block, "mov %s, %s", arg0, type_desc) &&
+               mc_append_line(context, block, "mov %s, %zu", arg1, count) &&
              (count > 0
-                  ? mc_append_line(context, block, "lea %s, helper(0)", arg1)
-                  : mc_append_line(context, block, "mov %s, null", arg1)) &&
-             (count > 0
-                  ? mc_append_line(context, block, "lea %s, helper(%zu)", arg2, count)
+                   ? mc_append_line(context, block, "lea %s, helper(0)", arg2)
                   : mc_append_line(context, block, "mov %s, null", arg2)) &&
              mc_emit_runtime_helper_call(context, codegen_unit, signature, block, false) &&
              mc_emit_store_vreg(context,
@@ -224,6 +216,7 @@ bool mc_emit_instruction_runtime_ext(MachineBuildContext *context,
                                 instruction->as.hetero_array_new.dest_vreg,
                                 block,
                                 ret);
+           free(type_desc);
         return ok;
     }
     case CODEGEN_RUNTIME_THROW:

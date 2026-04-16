@@ -140,8 +140,8 @@ void test_hir_dump_lowers_manual_block_with_memory_ops(void) {
     static const char source[] =
         "start(string[] args) -> {\n"
         "    manual {\n"
-        "        int64 ptr = malloc(64);\n"
-        "        free(ptr);\n"
+        "        int64 mem = malloc(64);\n"
+        "        free(mem);\n"
         "    };\n"
         "    return 0;\n"
         "};\n";

@@ -98,7 +98,7 @@ void test_type_checker_rejects_duplicate_boot_entry_points(void) {
 
 void test_type_checker_allows_exit_in_void_lambda_block(void) {
     const char *source =
-        "void cleanup = () -> { exit; };\n"
+        "void disposer = () -> { exit; };\n"
         "start(string[] args) -> 0;\n";
     Parser parser;
     AstProgram program;

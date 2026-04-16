@@ -133,7 +133,7 @@ static int emit_program_file(const char *path) {
         goto cleanup;
     }
     if (!hir_build_program(&hir_program, &program, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program) ||
+        !mir_build_program(&mir_program, &hir_program, false) ||
         !bytecode_build_program(&bytecode_program, &mir_program)) {
         const BytecodeBuildError *bytecode_error = bytecode_get_error(&bytecode_program);
 

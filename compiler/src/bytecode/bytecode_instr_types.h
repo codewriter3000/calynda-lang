@@ -36,7 +36,8 @@ typedef struct {
 typedef enum {
     BYTECODE_CONSTANT_LITERAL = 0,
     BYTECODE_CONSTANT_SYMBOL,
-    BYTECODE_CONSTANT_TEXT
+    BYTECODE_CONSTANT_TEXT,
+    BYTECODE_CONSTANT_TYPE_DESCRIPTOR
 } BytecodeConstantKind;
 
 typedef struct {
@@ -48,6 +49,14 @@ typedef struct {
             bool           bool_value;
         } literal;
         char *text;
+        struct {
+            char            *name;
+            size_t           generic_param_count;
+            CalyndaRtTypeTag *generic_param_tags;
+            size_t           variant_count;
+            char           **variant_names;
+            CalyndaRtTypeTag *variant_payload_tags;
+        } type_descriptor;
     } as;
 } BytecodeConstant;
 
@@ -190,9 +199,9 @@ struct BytecodeInstruction {
         } union_get_payload;
         struct {
             size_t             dest_temp;
+            size_t             type_desc_index;
             BytecodeValue     *elements;
             size_t             element_count;
-            CalyndaRtTypeTag  *element_tags;
         } hetero_array_new;
         struct {
             size_t        dest_temp;

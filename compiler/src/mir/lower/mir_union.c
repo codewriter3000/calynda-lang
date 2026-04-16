@@ -6,30 +6,17 @@ bool mr_is_union_variant_call(const HirExpression *expression,
     const HirExpression *callee;
     const HirExpression *target;
 
-    if (!expression || expression->kind != HIR_EXPR_CALL) {
+    callee = expression ? expression->as.call.callee : NULL;
+    target = callee ? callee->as.member.target : NULL;
+    if (!expression || expression->kind != HIR_EXPR_CALL ||
+        !callee || callee->kind != HIR_EXPR_MEMBER ||
+        !target || target->kind != HIR_EXPR_SYMBOL ||
+        target->as.symbol.kind != SYMBOL_KIND_UNION) {
         return false;
     }
 
-    callee = expression->as.call.callee;
-    if (!callee || callee->kind != HIR_EXPR_MEMBER) {
-        return false;
-    }
-
-    target = callee->as.member.target;
-    if (!target || target->kind != HIR_EXPR_SYMBOL) {
-        return false;
-    }
-
-    if (target->as.symbol.kind != SYMBOL_KIND_UNION) {
-        return false;
-    }
-
-    if (out_union_name) {
-        *out_union_name = target->as.symbol.name;
-    }
-    if (out_variant_name) {
-        *out_variant_name = callee->as.member.member;
-    }
+    if (out_union_name) *out_union_name = target->as.symbol.name;
+    if (out_variant_name) *out_variant_name = callee->as.member.member;
     return true;
 }
 
@@ -38,59 +25,81 @@ bool mr_is_union_variant_member(const HirExpression *expression,
                                 const char **out_variant_name) {
     const HirExpression *target;
 
-    if (!expression || expression->kind != HIR_EXPR_MEMBER) {
+    target = expression ? expression->as.member.target : NULL;
+    if (!expression || expression->kind != HIR_EXPR_MEMBER ||
+        !target || target->kind != HIR_EXPR_SYMBOL ||
+        target->as.symbol.kind != SYMBOL_KIND_UNION) {
         return false;
     }
 
-    target = expression->as.member.target;
-    if (!target || target->kind != HIR_EXPR_SYMBOL) {
-        return false;
-    }
-
-    if (target->as.symbol.kind != SYMBOL_KIND_UNION) {
-        return false;
-    }
-
-    if (out_union_name) {
-        *out_union_name = target->as.symbol.name;
-    }
-    if (out_variant_name) {
-        *out_variant_name = expression->as.member.member;
-    }
+    if (out_union_name) *out_union_name = target->as.symbol.name;
+    if (out_variant_name) *out_variant_name = expression->as.member.member;
     return true;
 }
 
-bool mr_find_hir_union_variant(const MirBuildContext *build,
-                               const char *union_name,
-                               const char *variant_name,
-                               size_t *out_variant_index,
-                               size_t *out_variant_count) {
-    size_t d, v;
-    const HirProgram *hir = build->hir_program;
-
-    for (d = 0; d < hir->top_level_count; d++) {
-        const HirTopLevelDecl *decl = hir->top_level_decls[d];
-        if (decl->kind != HIR_TOP_LEVEL_UNION) {
-            continue;
-        }
-        if (!decl->as.union_decl.name || strcmp(decl->as.union_decl.name, union_name) != 0) {
-            continue;
-        }
-        if (out_variant_count) {
-            *out_variant_count = decl->as.union_decl.variant_count;
-        }
-        for (v = 0; v < decl->as.union_decl.variant_count; v++) {
-            if (decl->as.union_decl.variants[v].name &&
-                strcmp(decl->as.union_decl.variants[v].name, variant_name) == 0) {
-                if (out_variant_index) {
-                    *out_variant_index = v;
-                }
-                return true;
-            }
-        }
+bool mr_init_union_new_instruction(MirBuildContext *build,
+                                   MirInstruction *instruction,
+                                   const char *union_name,
+                                   AstSourceSpan source_span) {
+    const HirUnionDecl *decl = mr_find_hir_union_decl(build, union_name);
+    CalyndaRtTypeTag *generic_param_tags = NULL;
+    char **variant_names = NULL;
+    CalyndaRtTypeTag *variant_payload_tags = NULL;
+    size_t v;
+    if (!instruction || !decl) {
+        mr_set_error(build, source_span, NULL,
+                     "Internal error: union '%s' not found in HIR.",
+                     union_name ? union_name : "?");
         return false;
     }
-    return false;
+    instruction->kind = MIR_INSTR_UNION_NEW;
+    instruction->as.union_new.type_desc.name = ast_copy_text(union_name);
+    instruction->as.union_new.type_desc.generic_param_count = decl->generic_param_count;
+    instruction->as.union_new.type_desc.variant_count = decl->variant_count;
+    if (!instruction->as.union_new.type_desc.name) {
+        mr_set_error(build, source_span, NULL,
+                     "Out of memory while lowering MIR union metadata.");
+        return false;
+    }
+    if (decl->generic_param_count > 0) {
+        generic_param_tags = calloc(decl->generic_param_count, sizeof(*generic_param_tags));
+        instruction->as.union_new.type_desc.generic_param_tags = generic_param_tags;
+        if (!generic_param_tags) {
+            mr_set_error(build, source_span, NULL,
+                         "Out of memory while lowering MIR union metadata.");
+            return false;
+        }
+        for (v = 0; v < decl->generic_param_count; v++) {
+            generic_param_tags[v] = CALYNDA_RT_TYPE_RAW_WORD;
+        }
+    }
+    if (decl->variant_count == 0) {
+        return true;
+    }
+    variant_names = calloc(decl->variant_count, sizeof(*variant_names));
+    variant_payload_tags = calloc(decl->variant_count, sizeof(*variant_payload_tags));
+    instruction->as.union_new.type_desc.variant_names =
+        (const char *const *)variant_names;
+    instruction->as.union_new.type_desc.variant_payload_tags = variant_payload_tags;
+    if (!variant_names || !variant_payload_tags) {
+        mr_set_error(build, source_span, NULL,
+                     "Out of memory while lowering MIR union descriptor.");
+        return false;
+    }
+    for (v = 0; v < decl->variant_count; v++) {
+        variant_names[v] =
+            ast_copy_text(decl->variants[v].name ? decl->variants[v].name : "");
+        if (!variant_names[v]) {
+            mr_set_error(build, source_span, NULL,
+                         "Out of memory while lowering MIR union variant names.");
+            return false;
+        }
+        variant_payload_tags[v] = decl->variants[v].has_payload
+            ? mr_checked_type_to_runtime_tag(decl->variants[v].payload_type)
+            : CALYNDA_RT_TYPE_VOID;
+    }
+
+    return true;
 }
 
 bool mr_lower_array_literal(MirUnitBuildContext *context,
@@ -107,17 +116,38 @@ bool mr_lower_array_literal(MirUnitBuildContext *context,
     if (is_hetero) {
         instruction.kind = MIR_INSTR_HETERO_ARRAY_NEW;
         instruction.as.hetero_array_new.dest_temp = context->unit->next_temp_index++;
+        instruction.as.hetero_array_new.type_desc.name = ast_copy_text("arr");
+        instruction.as.hetero_array_new.type_desc.generic_param_count = 1;
+        instruction.as.hetero_array_new.type_desc.variant_count =
+            expression->as.array_literal.element_count;
+        if (!instruction.as.hetero_array_new.type_desc.name) {
+            mr_set_error(context->build,
+                         expression->source_span,
+                         NULL,
+                         "Out of memory while lowering MIR hetero array.");
+            return false;
+        }
+        instruction.as.hetero_array_new.type_desc.generic_param_tags = calloc(
+            1,
+            sizeof(*instruction.as.hetero_array_new.type_desc.generic_param_tags));
+        if (!instruction.as.hetero_array_new.type_desc.generic_param_tags) {
+            mr_instruction_free(&instruction);
+            mr_set_error(context->build, expression->source_span, NULL,
+                         "Out of memory while lowering MIR hetero array.");
+            return false;
+        }
+        ((CalyndaRtTypeTag *)instruction.as.hetero_array_new.type_desc.generic_param_tags)[0] =
+            CALYNDA_RT_TYPE_RAW_WORD;
         if (expression->as.array_literal.element_count > 0) {
             instruction.as.hetero_array_new.elements = calloc(
                 expression->as.array_literal.element_count,
                 sizeof(*instruction.as.hetero_array_new.elements));
-            instruction.as.hetero_array_new.element_types = calloc(
+            instruction.as.hetero_array_new.type_desc.variant_payload_tags = calloc(
                 expression->as.array_literal.element_count,
-                sizeof(*instruction.as.hetero_array_new.element_types));
+                sizeof(*instruction.as.hetero_array_new.type_desc.variant_payload_tags));
             if (!instruction.as.hetero_array_new.elements ||
-                !instruction.as.hetero_array_new.element_types) {
-                free(instruction.as.hetero_array_new.elements);
-                free(instruction.as.hetero_array_new.element_types);
+                !instruction.as.hetero_array_new.type_desc.variant_payload_tags) {
+                mr_instruction_free(&instruction);
                 mr_set_error(context->build,
                               expression->source_span,
                               NULL,
@@ -133,8 +163,8 @@ bool mr_lower_array_literal(MirUnitBuildContext *context,
                 mr_instruction_free(&instruction);
                 return false;
             }
-            instruction.as.hetero_array_new.element_types[i] =
-                expression->as.array_literal.elements[i]->type;
+            ((CalyndaRtTypeTag *)instruction.as.hetero_array_new.type_desc.variant_payload_tags)[i] =
+                mr_checked_type_to_runtime_tag(expression->as.array_literal.elements[i]->type);
         }
     } else {
         instruction.kind = MIR_INSTR_ARRAY_LITERAL;

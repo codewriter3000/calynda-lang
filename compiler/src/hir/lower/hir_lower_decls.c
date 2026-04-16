@@ -79,9 +79,21 @@ bool hr_lower_top_level_decls(HirBuildContext *context) {
                     hir_decl->as.union_decl.variants[v].has_payload =
                         udecl->variants[v].payload_type != NULL;
                     if (udecl->variants[v].payload_type) {
-                        const TypeCheckInfo *tc_info = type_checker_get_symbol_info(context->checker, symbol);
+                        const ResolvedType *resolved = type_resolver_get_type(
+                            &context->checker->resolver,
+                            udecl->variants[v].payload_type);
+
+                        if (!resolved) {
+                            free(hir_decl->as.union_decl.variants);
+                            free(hir_decl->as.union_decl.generic_params);
+                            free(hir_decl->as.union_decl.name);
+                            free(hir_decl);
+                            hr_set_error(context, udecl->name_span, NULL,
+                                         "Internal error: missing resolved union variant payload type.");
+                            return false;
+                        }
                         hir_decl->as.union_decl.variants[v].payload_type =
-                            tc_info ? tc_info->type : (CheckedType){0};
+                            hr_checked_type_from_resolved_type(*resolved);
                     } else {
                         memset(&hir_decl->as.union_decl.variants[v].payload_type, 0,
                                sizeof(CheckedType));
@@ -102,6 +114,11 @@ bool hr_lower_top_level_decls(HirBuildContext *context) {
                              "Out of memory while adding union to HIR program.");
                 return false;
             }
+            continue;
+        }
+
+        /* Layout declarations are type metadata only — skip during HIR lowering. */
+        if (ast_decl->kind == AST_TOP_LEVEL_LAYOUT) {
             continue;
         }
 

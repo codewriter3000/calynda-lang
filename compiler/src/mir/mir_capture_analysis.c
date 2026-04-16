@@ -68,9 +68,9 @@ bool collect_statement_captures(MirBuildContext *context,
     case HIR_STMT_EXIT:
         return true;
     case HIR_STMT_MANUAL:
-        if (statement->as.manual_body) {
+        if (statement->as.manual.body) {
             return collect_block_captures(context,
-                                          statement->as.manual_body,
+                                          statement->as.manual.body,
                                           bound,
                                           captures);
         }

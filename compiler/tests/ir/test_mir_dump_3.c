@@ -112,7 +112,7 @@ void test_mir_dump_lowers_short_circuit_logical_operators(void) {
                  "type check logical MIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for logical MIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for short-circuit logical operators");
 
     dump = mir_dump_program_to_string(&mir_program);
@@ -177,7 +177,7 @@ void test_mir_dump_lowers_arrays_assignments_members_and_templates(void) {
                  "type check rich MIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for rich MIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for arrays assignments members and templates");
 
     dump = mir_dump_program_to_string(&mir_program);

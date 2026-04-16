@@ -3,6 +3,61 @@
 #include <stdlib.h>
 #include <string.h>
 
+static bool mr_specialize_union_generic_param(MirBuildContext *build,
+                                              const char *union_name,
+                                              size_t variant_index,
+                                              CheckedType payload_type,
+                                              CalyndaRtTypeDescriptor *type_desc,
+                                              AstSourceSpan source_span) {
+    size_t d;
+
+    if (!build || !build->hir_program || !type_desc || !type_desc->generic_param_tags) {
+        return true;
+    }
+    for (d = 0; d < build->hir_program->top_level_count; d++) {
+        const HirTopLevelDecl *decl = build->hir_program->top_level_decls[d];
+        const CheckedType *variant_type;
+        size_t g;
+
+        if (decl->kind != HIR_TOP_LEVEL_UNION || !decl->as.union_decl.name ||
+            strcmp(decl->as.union_decl.name, union_name) != 0) {
+            continue;
+        }
+        if (variant_index >= decl->as.union_decl.variant_count) {
+            break;
+        }
+        variant_type = &decl->as.union_decl.variants[variant_index].payload_type;
+        if ((variant_type->kind != CHECKED_TYPE_TYPE_PARAM &&
+             variant_type->kind != CHECKED_TYPE_NAMED) ||
+            !variant_type->name) {
+            if (type_desc->generic_param_count == 1) {
+                ((CalyndaRtTypeTag *)type_desc->generic_param_tags)[0] =
+                    mr_checked_type_to_runtime_tag(payload_type);
+            }
+            return true;
+        }
+        for (g = 0; g < decl->as.union_decl.generic_param_count; g++) {
+            if (decl->as.union_decl.generic_params[g] &&
+                strcmp(decl->as.union_decl.generic_params[g], variant_type->name) == 0) {
+                ((CalyndaRtTypeTag *)type_desc->generic_param_tags)[g] =
+                    mr_checked_type_to_runtime_tag(payload_type);
+                return true;
+            }
+        }
+        if (type_desc->generic_param_count == 1) {
+            ((CalyndaRtTypeTag *)type_desc->generic_param_tags)[0] =
+                mr_checked_type_to_runtime_tag(payload_type);
+            return true;
+        }
+        break;
+    }
+
+    mr_set_error(build, source_span, NULL,
+                 "Internal error: union generic payload metadata '%s' could not be specialized.",
+                 union_name ? union_name : "?");
+    return false;
+}
+
 bool mr_lower_call_expression(MirUnitBuildContext *context,
                               const HirExpression *expression,
                               MirValue *value) {
@@ -29,18 +84,15 @@ bool mr_lower_call_expression(MirUnitBuildContext *context,
             }
 
             memset(&instruction, 0, sizeof(instruction));
-            instruction.kind = MIR_INSTR_UNION_NEW;
             instruction.as.union_new.dest_temp = context->unit->next_temp_index++;
-            instruction.as.union_new.union_name = ast_copy_text(call_union_name);
             instruction.as.union_new.variant_index = call_variant_index;
-            instruction.as.union_new.variant_count = call_variant_count;
             instruction.as.union_new.has_payload = (expression->as.call.argument_count > 0);
 
-            if (!instruction.as.union_new.union_name) {
-                mr_set_error(context->build,
-                              expression->source_span,
-                              NULL,
-                              "Out of memory while lowering MIR union variant call.");
+            if (!mr_init_union_new_instruction(context->build,
+                                               &instruction,
+                                               call_union_name,
+                                               expression->source_span)) {
+                mr_instruction_free(&instruction);
                 return false;
             }
 
@@ -50,6 +102,23 @@ bool mr_lower_call_expression(MirUnitBuildContext *context,
                                       &instruction.as.union_new.payload)) {
                     mr_instruction_free(&instruction);
                     return false;
+                }
+                if (instruction.as.union_new.variant_index <
+                        instruction.as.union_new.type_desc.variant_count &&
+                    instruction.as.union_new.type_desc.variant_payload_tags) {
+                    ((CalyndaRtTypeTag *)instruction.as.union_new.type_desc.variant_payload_tags)
+                        [instruction.as.union_new.variant_index] =
+                            mr_checked_type_to_runtime_tag(
+                                instruction.as.union_new.payload.type);
+                    if (!mr_specialize_union_generic_param(context->build,
+                                                           call_union_name,
+                                                           instruction.as.union_new.variant_index,
+                                                           instruction.as.union_new.payload.type,
+                                                           &instruction.as.union_new.type_desc,
+                                                           expression->source_span)) {
+                        mr_instruction_free(&instruction);
+                        return false;
+                    }
                 }
             } else {
                 memset(&instruction.as.union_new.payload, 0, sizeof(MirValue));
@@ -118,80 +187,6 @@ bool mr_lower_call_expression(MirUnitBuildContext *context,
                       "Out of memory while lowering MIR calls.");
         return false;
     }
-    if (instruction.as.call.has_result) {
-        value->kind = MIR_VALUE_TEMP;
-        value->type = expression->type;
-        value->as.temp_index = instruction.as.call.dest_temp;
-    } else {
-        value->kind = MIR_VALUE_INVALID;
-        value->type = expression->type;
-    }
-    return true;
-}
-
-bool mr_lower_memory_op_expression(MirUnitBuildContext *context,
-                                   const HirExpression *expression,
-                                   MirValue *value) {
-    const char *func_name;
-    MirInstruction instruction;
-    size_t mem_i;
-
-    switch (expression->as.memory_op.kind) {
-    case HIR_MEMORY_MALLOC:  func_name = "malloc";  break;
-    case HIR_MEMORY_CALLOC:  func_name = "calloc";  break;
-    case HIR_MEMORY_REALLOC: func_name = "realloc"; break;
-    case HIR_MEMORY_FREE:    func_name = "free";    break;
-    default:                 func_name = "malloc";  break;
-    }
-
-    memset(&instruction, 0, sizeof(instruction));
-    instruction.kind = MIR_INSTR_CALL;
-
-    if (!mr_value_from_global(context->build, func_name,
-                               expression->type, &instruction.as.call.callee)) {
-        return false;
-    }
-
-    instruction.as.call.has_result =
-        (expression->as.memory_op.kind != HIR_MEMORY_FREE);
-    if (instruction.as.call.has_result) {
-        instruction.as.call.dest_temp = context->unit->next_temp_index++;
-    }
-
-    instruction.as.call.argument_count = expression->as.memory_op.argument_count;
-    if (instruction.as.call.argument_count > 0) {
-        instruction.as.call.arguments =
-            calloc(instruction.as.call.argument_count,
-                   sizeof(*instruction.as.call.arguments));
-        if (!instruction.as.call.arguments) {
-            mr_instruction_free(&instruction);
-            mr_set_error(context->build, expression->source_span, NULL,
-                          "Out of memory while lowering MIR memory operation.");
-            return false;
-        }
-        for (mem_i = 0; mem_i < expression->as.memory_op.argument_count; mem_i++) {
-            if (!mr_lower_expression(context,
-                                      expression->as.memory_op.arguments[mem_i],
-                                      &instruction.as.call.arguments[mem_i])) {
-                mr_instruction_free(&instruction);
-                return false;
-            }
-        }
-    }
-
-    if (!mr_current_block(context)) {
-        mr_instruction_free(&instruction);
-        mr_set_error(context->build, expression->source_span, NULL,
-                      "Internal error: missing current MIR block for memory operation.");
-        return false;
-    }
-    if (!mr_append_instruction(mr_current_block(context), instruction)) {
-        mr_instruction_free(&instruction);
-        mr_set_error(context->build, expression->source_span, NULL,
-                      "Out of memory while lowering MIR memory operation.");
-        return false;
-    }
-
     if (instruction.as.call.has_result) {
         value->kind = MIR_VALUE_TEMP;
         value->type = expression->type;

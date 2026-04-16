@@ -120,7 +120,8 @@ bool mc_emit_terminator(MachineBuildContext *context,
     const CodegenSelectedTerminator *selected;
     const TargetDescriptor *td = mc_target(context);
     bool is_arm64 = mc_is_aarch64(context);
-    const char *jmp_mnemonic = is_arm64 ? "b" : "jmp";
+    bool is_riscv64 = mc_is_riscv64(context);
+    const char *jmp_mnemonic = is_arm64 ? "b" : is_riscv64 ? "j" : "jmp";
     const char *jne_mnemonic = is_arm64 ? "b.ne" : "jne";
 
     if (!lir_block || !machine_unit || !block) {
@@ -168,17 +169,21 @@ bool mc_emit_terminator(MachineBuildContext *context,
                                    &condition)) {
                 return false;
             }
-            ok = mc_append_line(context, block, "cmp %s, bool(false)", condition) &&
-                 mc_append_line(context,
-                                block,
-                                "%s %s",
-                                jne_mnemonic,
-                                codegen_unit->blocks[terminator->as.branch_term.true_block].label) &&
-                 mc_append_line(context,
-                                block,
-                                "%s %s",
-                                jmp_mnemonic,
-                                codegen_unit->blocks[terminator->as.branch_term.false_block].label);
+            if (is_riscv64) {
+                ok = mc_append_line(context, block, "bne %s, zero, %s",
+                                    condition,
+                                    codegen_unit->blocks[terminator->as.branch_term.true_block].label) &&
+                     mc_append_line(context, block, "j %s",
+                                    codegen_unit->blocks[terminator->as.branch_term.false_block].label);
+            } else {
+                ok = mc_append_line(context, block, "cmp %s, bool(false)", condition) &&
+                     mc_append_line(context, block, "%s %s",
+                                    jne_mnemonic,
+                                    codegen_unit->blocks[terminator->as.branch_term.true_block].label) &&
+                     mc_append_line(context, block, "%s %s",
+                                    jmp_mnemonic,
+                                    codegen_unit->blocks[terminator->as.branch_term.false_block].label);
+            }
             free(condition);
             return ok;
         }

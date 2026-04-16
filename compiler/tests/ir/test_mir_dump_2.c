@@ -93,7 +93,7 @@ void test_mir_dump_lowers_minimal_callable_slice(void) {
                  "type check MIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for MIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for minimal slice");
 
     dump = mir_dump_program_to_string(&mir_program);
@@ -158,7 +158,7 @@ void test_mir_dump_lowers_ternary_into_branching_blocks(void) {
                  "type check ternary MIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for ternary MIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for ternary branch shape");
 
     dump = mir_dump_program_to_string(&mir_program);

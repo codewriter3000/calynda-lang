@@ -60,10 +60,9 @@ bool rt_format_word_internal(CalyndaRtWord word, char *buffer, size_t buffer_siz
                         variant_name) >= 0;
     }
     case CALYNDA_RT_OBJECT_HETERO_ARRAY:
-        return snprintf(buffer,
-                        buffer_size,
-                        "<hetero-array:%zu>",
-                        ((const CalyndaRtHeteroArray *)(const void *)header)->count) >= 0;
+        return rt_format_hetero_array_text((const CalyndaRtHeteroArray *)(const void *)header,
+                                           buffer,
+                                           buffer_size);
     }
 
     return false;

@@ -104,6 +104,8 @@ AstTopLevelDecl *ast_top_level_decl_new(AstTopLevelDeclKind kind) {
     } else if (kind == AST_TOP_LEVEL_ASM) {
         ast_type_init_void(&decl->as.asm_decl.return_type);
         ast_parameter_list_init(&decl->as.asm_decl.parameters);
+    } else if (kind == AST_TOP_LEVEL_LAYOUT) {
+        memset(&decl->as.layout_decl, 0, sizeof(decl->as.layout_decl));
     }
 
     return decl;
@@ -133,6 +135,17 @@ void ast_top_level_decl_free(AstTopLevelDecl *decl) {
         free(decl->as.asm_decl.body);
         memset(&decl->as.asm_decl, 0, sizeof(decl->as.asm_decl));
         break;
+    case AST_TOP_LEVEL_LAYOUT: {
+        size_t fi;
+        for (fi = 0; fi < decl->as.layout_decl.field_count; fi++) {
+            ast_type_free(&decl->as.layout_decl.fields[fi].field_type);
+            free(decl->as.layout_decl.fields[fi].name);
+        }
+        free(decl->as.layout_decl.fields);
+        free(decl->as.layout_decl.name);
+        memset(&decl->as.layout_decl, 0, sizeof(decl->as.layout_decl));
+        break;
+    }
     }
 
     free(decl);

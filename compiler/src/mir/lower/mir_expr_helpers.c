@@ -4,11 +4,9 @@ bool mr_lower_template_part_value(MirUnitBuildContext *context,
                                   const HirExpression *expression,
                                   MirValue *value) {
     MirInstruction instruction;
-
     if (!context || !expression || !value) {
         return false;
     }
-
     if (!expression->is_callable || expression->callable_signature.parameter_count != 0) {
         return mr_lower_expression(context, expression, value);
     }
@@ -22,7 +20,6 @@ bool mr_lower_template_part_value(MirUnitBuildContext *context,
     if (instruction.as.call.has_result) {
         instruction.as.call.dest_temp = context->unit->next_temp_index++;
     }
-
     if (!mr_current_block(context)) {
         mr_instruction_free(&instruction);
         mr_set_error(context->build,
@@ -39,7 +36,6 @@ bool mr_lower_template_part_value(MirUnitBuildContext *context,
                       "Out of memory while lowering MIR template auto-calls.");
         return false;
     }
-
     if (instruction.as.call.has_result) {
         value->kind = MIR_VALUE_TEMP;
         value->type = expression->type;
@@ -56,7 +52,6 @@ bool mr_lower_template_expression(MirUnitBuildContext *context,
                                   MirValue *value) {
     MirInstruction instruction;
     size_t i;
-
     memset(&instruction, 0, sizeof(instruction));
     instruction.kind = MIR_INSTR_TEMPLATE;
     instruction.as.template_literal.dest_temp = context->unit->next_temp_index++;
@@ -95,7 +90,6 @@ bool mr_lower_template_expression(MirUnitBuildContext *context,
             return false;
         }
     }
-
     if (!mr_current_block(context) ||
         !mr_append_instruction(mr_current_block(context), instruction)) {
         mr_instruction_free(&instruction);
@@ -105,7 +99,6 @@ bool mr_lower_template_expression(MirUnitBuildContext *context,
                       "Out of memory while lowering MIR templates.");
         return false;
     }
-
     value->kind = MIR_VALUE_TEMP;
     value->type = expression->type;
     value->as.temp_index = instruction.as.template_literal.dest_temp;
@@ -118,13 +111,12 @@ bool mr_lower_member_expression(MirUnitBuildContext *context,
     MirInstruction instruction;
     const char *union_name = NULL;
     const char *variant_name = NULL;
-
+    const char *member = expression->as.member.member;
     /* Non-payload union variant: Option.None → union_new with no payload */
     if (!expression->is_callable &&
         mr_is_union_variant_member(expression, &union_name, &variant_name)) {
         size_t variant_index = 0;
         size_t variant_count = 0;
-
         if (!mr_find_hir_union_variant(context->build, union_name, variant_name,
                                     &variant_index, &variant_count)) {
             mr_set_error(context->build,
@@ -134,24 +126,17 @@ bool mr_lower_member_expression(MirUnitBuildContext *context,
                           union_name, variant_name);
             return false;
         }
-
         memset(&instruction, 0, sizeof(instruction));
-        instruction.kind = MIR_INSTR_UNION_NEW;
         instruction.as.union_new.dest_temp = context->unit->next_temp_index++;
-        instruction.as.union_new.union_name = ast_copy_text(union_name);
         instruction.as.union_new.variant_index = variant_index;
-        instruction.as.union_new.variant_count = variant_count;
         instruction.as.union_new.has_payload = false;
-        memset(&instruction.as.union_new.payload, 0, sizeof(MirValue));
-
-        if (!instruction.as.union_new.union_name) {
-            mr_set_error(context->build,
-                          expression->source_span,
-                          NULL,
-                          "Out of memory while lowering MIR union variant.");
+        if (!mr_init_union_new_instruction(context->build,
+                                           &instruction,
+                                           union_name,
+                                           expression->source_span)) {
+            mr_instruction_free(&instruction);
             return false;
         }
-
         if (!mr_current_block(context) ||
             !mr_append_instruction(mr_current_block(context), instruction)) {
             mr_instruction_free(&instruction);
@@ -161,10 +146,44 @@ bool mr_lower_member_expression(MirUnitBuildContext *context,
                           "Out of memory while lowering MIR union variant.");
             return false;
         }
-
         value->kind = MIR_VALUE_TEMP;
         value->type = expression->type;
         value->as.temp_index = instruction.as.union_new.dest_temp;
+        return true;
+    }
+
+    if ((strcmp(member, "tag") == 0 || strcmp(member, "payload") == 0) &&
+        expression->as.member.target->type.kind == CHECKED_TYPE_NAMED &&
+        expression->as.member.target->type.name &&
+        mr_find_hir_union_decl(context->build,
+                               expression->as.member.target->type.name)) {
+        MirValue *target_value;
+        size_t dest_temp;
+        memset(&instruction, 0, sizeof(instruction));
+        if (strcmp(member, "tag") == 0) {
+            instruction.kind = MIR_INSTR_UNION_GET_TAG;
+            target_value = &instruction.as.union_get_tag.target;
+            dest_temp = instruction.as.union_get_tag.dest_temp = context->unit->next_temp_index++;
+        } else {
+            instruction.kind = MIR_INSTR_UNION_GET_PAYLOAD;
+            target_value = &instruction.as.union_get_payload.target;
+            dest_temp = instruction.as.union_get_payload.dest_temp = context->unit->next_temp_index++;
+        }
+        if (!mr_lower_expression(context, expression->as.member.target, target_value)) {
+            return false;
+        }
+        if (!mr_current_block(context) ||
+            !mr_append_instruction(mr_current_block(context), instruction)) {
+            mr_instruction_free(&instruction);
+            mr_set_error(context->build,
+                         expression->source_span,
+                         NULL,
+                         "Out of memory while lowering MIR union access.");
+            return false;
+        }
+        value->kind = MIR_VALUE_TEMP;
+        value->type = expression->type;
+        value->as.temp_index = dest_temp;
         return true;
     }
 
@@ -192,7 +211,6 @@ bool mr_lower_member_expression(MirUnitBuildContext *context,
                       "Out of memory while lowering MIR member expressions.");
         return false;
     }
-
     value->kind = MIR_VALUE_TEMP;
     value->type = expression->type;
     value->as.temp_index = instruction.as.member.dest_temp;
@@ -203,7 +221,6 @@ bool mr_lower_index_expression(MirUnitBuildContext *context,
                                const HirExpression *expression,
                                MirValue *value) {
     MirInstruction instruction;
-
     memset(&instruction, 0, sizeof(instruction));
     instruction.kind = MIR_INSTR_INDEX_LOAD;
     instruction.as.index_load.dest_temp = context->unit->next_temp_index++;
@@ -221,7 +238,6 @@ bool mr_lower_index_expression(MirUnitBuildContext *context,
                       "Out of memory while lowering MIR index expressions.");
         return false;
     }
-
     value->kind = MIR_VALUE_TEMP;
     value->type = expression->type;
     value->as.temp_index = instruction.as.index_load.dest_temp;

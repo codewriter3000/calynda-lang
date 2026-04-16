@@ -51,6 +51,13 @@ CheckedType tc_checked_type_type_param(const char *name) {
     return type;
 }
 
+CheckedType tc_checked_type_function(size_t param_count) {
+    CheckedType type = tc_checked_type_invalid();
+    type.kind = CHECKED_TYPE_FUNCTION;
+    type.generic_arg_count = param_count;
+    return type;
+}
+
 bool tc_checked_type_is_hetero_array(CheckedType type) {
     return type.kind == CHECKED_TYPE_NAMED &&
            type.name != NULL &&
@@ -71,6 +78,10 @@ bool tc_checked_type_equals(CheckedType left, CheckedType right) {
         return strcmp(left.name, right.name) == 0 &&
                left.generic_arg_count == right.generic_arg_count &&
                left.array_depth == right.array_depth;
+    }
+
+    if (left.kind == CHECKED_TYPE_FUNCTION) {
+        return left.generic_arg_count == right.generic_arg_count;
     }
 
     return left.primitive == right.primitive &&

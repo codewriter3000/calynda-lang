@@ -141,11 +141,9 @@ MultiplicativeExpression
     ;
 
 (* --- Unary prefix ----------------------------------------------- *)
-(* Note: * (dereference) and & (address-of) are parsed everywhere  *)
-(* but semantic analysis restricts them to manual{} blocks.        *)
 
 UnaryExpression
-    = ( "!" | "~" | "-" | "+" | "*" | "&" ) UnaryExpression
+    = ( "!" | "~" | "-" | "+" ) UnaryExpression
     | "++" UnaryExpression                                     (* prefix increment *)
     | "--" UnaryExpression                                     (* prefix decrement *)
     | PostfixExpression

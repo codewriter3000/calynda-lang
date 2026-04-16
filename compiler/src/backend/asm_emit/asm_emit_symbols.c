@@ -141,6 +141,41 @@ AsmStringObjectLiteral *ae_ensure_string_literal(AsmEmitContext *context,
     return &context->string_literals[context->string_literal_count - 1];
 }
 
+bool ae_parse_variant_spec(char *spec, char **name_out, CalyndaRtTypeTag *tag_out) {
+    char *separator;
+
+    if (!spec || !name_out || !tag_out) {
+        return false;
+    }
+    separator = strrchr(spec, ':');
+    if (!separator) {
+        return false;
+    }
+    *separator++ = '\0';
+    *name_out = spec;
+    *tag_out = (CalyndaRtTypeTag)ae_runtime_type_tag_value(separator);
+    return true;
+}
+
+bool ae_emit_type_tag_array(FILE *out,
+                            const char *label,
+                            const CalyndaRtTypeTag *tags,
+                            size_t count) {
+    size_t i;
+
+    if (!out || !label || (count > 0 && !tags) ||
+        !ae_emit_line(out, "    .balign 8\n%s:\n    .long ", label)) {
+        return false;
+    }
+    for (i = 0; i < count; i++) {
+        if ((i > 0 && !ae_emit_line(out, ", ")) ||
+            !ae_emit_line(out, "%d", (int)tags[i])) {
+            return false;
+        }
+    }
+    return ae_emit_line(out, "\n");
+}
+
 char *ae_closure_wrapper_symbol_name(const char *unit_name) {
     char *sanitized;
     char *symbol;

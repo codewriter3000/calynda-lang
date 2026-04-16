@@ -92,6 +92,11 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
             tc_checked_type_named(symbol->name, symbol->generic_param_count, 0));
         break;
 
+    case SYMBOL_KIND_LAYOUT:
+        resolved_info = tc_type_check_info_make(
+            tc_checked_type_named(symbol->name, 0, 0));
+        break;
+
     case SYMBOL_KIND_TYPE_PARAMETER:
         resolved_info = tc_type_check_info_make(tc_checked_type_type_param(symbol->name));
         break;

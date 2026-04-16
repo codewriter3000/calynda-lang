@@ -167,9 +167,9 @@ const RuntimeAbiHelperSignature runtime_abi_helpers[] = {
         "__calynda_rt_hetero_array_new",
         RUNTIME_ABI_RETURN_VALUE,
         {
-            { RUNTIME_ABI_ARG_ELEMENT_COUNT, CODEGEN_REG_RDI },
-            { RUNTIME_ABI_ARG_ELEMENT_PACK, CODEGEN_REG_RSI },
-            { RUNTIME_ABI_ARG_ELEMENT_TAG_PACK, CODEGEN_REG_RDX }
+            { RUNTIME_ABI_ARG_TYPE_DESCRIPTOR, CODEGEN_REG_RDI },
+            { RUNTIME_ABI_ARG_ELEMENT_COUNT, CODEGEN_REG_RSI },
+            { RUNTIME_ABI_ARG_ELEMENT_PACK, CODEGEN_REG_RDX }
         },
         3,
         RUNTIME_ABI_PACK_VALUE_WORDS

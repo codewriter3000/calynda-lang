@@ -1,5 +1,62 @@
 #include "runtime_internal.h"
 
+static const CalyndaRtTypeDescriptor *rt_copy_hetero_array_descriptor(
+    const CalyndaRtTypeDescriptor *type_desc,
+    size_t element_count) {
+    CalyndaRtTypeDescriptor *copied_desc;
+    CalyndaRtTypeTag *stored_generic_tags = NULL;
+    CalyndaRtTypeTag *stored_tags = NULL;
+
+    if (!type_desc || type_desc->variant_count != element_count) {
+        return NULL;
+    }
+    copied_desc = calloc(1, sizeof(*copied_desc));
+    if (!copied_desc) {
+        return NULL;
+    }
+    *copied_desc = *type_desc;
+    if (type_desc->generic_param_count > 0) {
+        stored_generic_tags = calloc(type_desc->generic_param_count, sizeof(*stored_generic_tags));
+        if (!stored_generic_tags || !type_desc->generic_param_tags) {
+            free(stored_generic_tags);
+            free(copied_desc);
+            return NULL;
+        }
+        memcpy(stored_generic_tags,
+               type_desc->generic_param_tags,
+               type_desc->generic_param_count * sizeof(*stored_generic_tags));
+        copied_desc->generic_param_tags = stored_generic_tags;
+    }
+    if (element_count > 0) {
+        stored_tags = calloc(element_count, sizeof(*stored_tags));
+        if (!stored_tags) {
+            free(stored_generic_tags);
+            free(copied_desc);
+            return NULL;
+        }
+        if (!type_desc->variant_payload_tags) {
+            free(stored_generic_tags);
+            free(stored_tags);
+            free(copied_desc);
+            return NULL;
+        }
+        memcpy(stored_tags,
+               type_desc->variant_payload_tags,
+               element_count * sizeof(*stored_tags));
+        copied_desc->variant_payload_tags = stored_tags;
+    }
+    return copied_desc;
+}
+
+static void rt_free_hetero_array_descriptor(const CalyndaRtTypeDescriptor *type_desc) {
+    if (!type_desc) {
+        return;
+    }
+    free((CalyndaRtTypeTag *)type_desc->generic_param_tags);
+    free((CalyndaRtTypeTag *)type_desc->variant_payload_tags);
+    free((CalyndaRtTypeDescriptor *)type_desc);
+}
+
 CalyndaRtWord __calynda_rt_union_new(const CalyndaRtTypeDescriptor *type_desc,
                                      uint32_t variant_tag,
                                      CalyndaRtWord payload) {
@@ -57,9 +114,9 @@ bool __calynda_rt_union_check_tag(CalyndaRtWord value, uint32_t expected_tag) {
     return ((const CalyndaRtUnion *)(const void *)header)->tag == expected_tag;
 }
 
-CalyndaRtWord __calynda_rt_hetero_array_new(size_t element_count,
-                                            const CalyndaRtWord *elements,
-                                            const CalyndaRtTypeTag *element_tags) {
+CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_desc,
+                                            size_t element_count,
+                                            const CalyndaRtWord *elements) {
     CalyndaRtHeteroArray *array_object;
 
     array_object = calloc(1, sizeof(*array_object));
@@ -70,13 +127,18 @@ CalyndaRtWord __calynda_rt_hetero_array_new(size_t element_count,
 
     array_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     array_object->header.kind = CALYNDA_RT_OBJECT_HETERO_ARRAY;
+    array_object->type_desc = rt_copy_hetero_array_descriptor(type_desc, element_count);
+    if (!array_object->type_desc) {
+        free(array_object);
+        fprintf(stderr, "runtime: out of memory while creating hetero array metadata\n");
+        abort();
+    }
     array_object->count = element_count;
     if (element_count > 0) {
         array_object->elements = calloc(element_count, sizeof(*array_object->elements));
-        array_object->element_tags = calloc(element_count, sizeof(*array_object->element_tags));
-        if (!array_object->elements || !array_object->element_tags) {
+        if (!array_object->elements) {
             free(array_object->elements);
-            free(array_object->element_tags);
+            rt_free_hetero_array_descriptor(array_object->type_desc);
             free(array_object);
             fprintf(stderr, "runtime: out of memory while creating hetero array elements\n");
             abort();
@@ -84,13 +146,10 @@ CalyndaRtWord __calynda_rt_hetero_array_new(size_t element_count,
         if (elements) {
             memcpy(array_object->elements, elements, element_count * sizeof(*elements));
         }
-        if (element_tags) {
-            memcpy(array_object->element_tags, element_tags, element_count * sizeof(*element_tags));
-        }
     }
     if (!rt_register_object_pointer(array_object)) {
         free(array_object->elements);
-        free(array_object->element_tags);
+        rt_free_hetero_array_descriptor(array_object->type_desc);
         free(array_object);
         fprintf(stderr, "runtime: out of memory while registering hetero array\n");
         abort();
@@ -116,5 +175,11 @@ CalyndaRtTypeTag __calynda_rt_hetero_array_get_tag(CalyndaRtWord target, Calynda
         abort();
     }
 
-    return arr->element_tags[offset];
+    if (!arr->type_desc || !arr->type_desc->variant_payload_tags ||
+        offset >= arr->type_desc->variant_count) {
+        fprintf(stderr, "runtime: hetero-array metadata was missing for tag lookup\n");
+        abort();
+    }
+
+    return arr->type_desc->variant_payload_tags[offset];
 }

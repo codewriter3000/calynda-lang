@@ -16,7 +16,7 @@ const examples_2 = require("./resources/examples");
 const architecture_1 = require("./resources/architecture");
 const bytecode_1 = require("./resources/bytecode");
 const index_1 = require("./prompts/index");
-const server = new index_js_1.Server({ name: 'calynda-mcp-server', version: '0.2.0' }, { capabilities: { tools: {}, resources: {}, prompts: {} } });
+const server = new index_js_1.Server({ name: 'calynda-mcp-server', version: '0.4.0' }, { capabilities: { tools: {}, resources: {}, prompts: {} } });
 server.setRequestHandler(types_js_1.ListToolsRequestSchema, async () => ({
     tools: [
         {
@@ -157,7 +157,7 @@ server.setRequestHandler(types_js_1.CallToolRequestSchema, async (request) => {
 });
 server.setRequestHandler(types_js_1.ListResourcesRequestSchema, async () => ({
     resources: [
-        { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The full V2 EBNF grammar specification', mimeType: 'text/plain' },
+        { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The full V3 EBNF grammar specification', mimeType: 'text/plain' },
         { uri: 'calynda://types', name: 'Calynda Types', description: 'Documentation for all built-in types', mimeType: 'text/markdown' },
         { uri: 'calynda://keywords', name: 'Calynda Keywords', description: 'All keywords and reserved words', mimeType: 'text/markdown' },
         { uri: 'calynda://examples', name: 'Calynda Examples', description: 'Code examples for common patterns', mimeType: 'text/markdown' },

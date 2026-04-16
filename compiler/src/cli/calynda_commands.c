@@ -40,10 +40,11 @@ int calynda_build_program_file(const char *source_path, const char *output_path,
         strcpy(executable_dir, "build");
     }
     {
-        const char *runtime_name =
-            target->kind == TARGET_KIND_AARCH64_AAPCS_ELF
-                ? "calynda_runtime_aarch64.a"
-                : "calynda_runtime.a";
+        const char *runtime_name = "calynda_runtime.a";
+        if (target->kind == TARGET_KIND_AARCH64_AAPCS_ELF)
+            runtime_name = "calynda_runtime_aarch64.a";
+        else if (target->kind == TARGET_KIND_RISCV64_LP64D_ELF)
+            runtime_name = "calynda_runtime_riscv64.a";
         if (snprintf(runtime_object_path,
                      sizeof(runtime_object_path),
                      "%s/%s",
@@ -169,10 +170,11 @@ int calynda_build_car_file(const char *car_path, const char *output_path,
         strcpy(executable_dir, "build");
     }
     {
-        const char *runtime_name =
-            target->kind == TARGET_KIND_AARCH64_AAPCS_ELF
-                ? "calynda_runtime_aarch64.a"
-                : "calynda_runtime.a";
+        const char *runtime_name = "calynda_runtime.a";
+        if (target->kind == TARGET_KIND_AARCH64_AAPCS_ELF)
+            runtime_name = "calynda_runtime_aarch64.a";
+        else if (target->kind == TARGET_KIND_RISCV64_LP64D_ELF)
+            runtime_name = "calynda_runtime_riscv64.a";
         if (snprintf(runtime_object_path,
                      sizeof(runtime_object_path),
                      "%s/%s",

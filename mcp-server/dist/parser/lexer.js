@@ -1,29 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Lexer = exports.LexError = void 0;
-const KEYWORDS = new Set([
-    'package', 'import', 'public', 'private', 'final', 'var', 'start',
-    'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-    'export', 'as', 'internal', 'static', 'union', 'manual', 'arr',
-    'malloc', 'calloc', 'realloc', 'free',
-]);
-const PRIMITIVE_TYPES = new Set([
-    'int8', 'int16', 'int32', 'int64',
-    'uint8', 'uint16', 'uint32', 'uint64',
-    'float32', 'float64',
-    'bool', 'char', 'string',
-    'byte', 'sbyte', 'short', 'int', 'long', 'ulong', 'uint', 'float', 'double',
-]);
-class LexError extends Error {
-    line;
-    column;
-    constructor(message, line, column) {
-        super(message);
-        this.line = line;
-        this.column = column;
-    }
-}
-exports.LexError = LexError;
+const lexer_defs_1 = require("./lexer-defs");
+var lexer_defs_2 = require("./lexer-defs");
+Object.defineProperty(exports, "LexError", { enumerable: true, get: function () { return lexer_defs_2.LexError; } });
 class Lexer {
     source;
     pos = 0;
@@ -107,7 +87,7 @@ class Lexer {
         if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_') {
             return this.readIdentOrKeyword(startLine, startCol, startOffset);
         }
-        return this.readOperator(startLine, startCol, startOffset);
+        return (0, lexer_defs_1.readOperatorToken)(this, startLine, startCol, startOffset);
     }
     readIdentOrKeyword(line, col, offset) {
         let value = '';
@@ -125,9 +105,9 @@ class Lexer {
             return this.makeToken('bool', value, line, col, offset);
         if (value === 'null')
             return this.makeToken('null', value, line, col, offset);
-        if (KEYWORDS.has(value))
+        if (lexer_defs_1.KEYWORDS.has(value))
             return this.makeToken('keyword', value, line, col, offset);
-        if (PRIMITIVE_TYPES.has(value))
+        if (lexer_defs_1.PRIMITIVE_TYPES.has(value))
             return this.makeToken('type', value, line, col, offset);
         return this.makeToken('identifier', value, line, col, offset);
     }
@@ -240,150 +220,6 @@ class Lexer {
             value += this.advance();
         }
         return this.makeToken('template_literal', value, line, col, offset);
-    }
-    readOperator(line, col, offset) {
-        const ch = this.advance();
-        const next = this.peek();
-        switch (ch) {
-            case '-':
-                if (next === '>') {
-                    this.advance();
-                    return this.makeToken('arrow', '->', line, col, offset);
-                }
-                if (next === '-') {
-                    this.advance();
-                    return this.makeToken('minusminus', '--', line, col, offset);
-                }
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('minuseq', '-=', line, col, offset);
-                }
-                return this.makeToken('minus', '-', line, col, offset);
-            case '+':
-                if (next === '+') {
-                    this.advance();
-                    return this.makeToken('plusplus', '++', line, col, offset);
-                }
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('pluseq', '+=', line, col, offset);
-                }
-                return this.makeToken('plus', '+', line, col, offset);
-            case '*':
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('stareq', '*=', line, col, offset);
-                }
-                return this.makeToken('star', '*', line, col, offset);
-            case '/':
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('slasheq', '/=', line, col, offset);
-                }
-                return this.makeToken('slash', '/', line, col, offset);
-            case '%':
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('percenteq', '%=', line, col, offset);
-                }
-                return this.makeToken('percent', '%', line, col, offset);
-            case '&':
-                if (next === '&') {
-                    this.advance();
-                    return this.makeToken('ampamp', '&&', line, col, offset);
-                }
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('ampeq', '&=', line, col, offset);
-                }
-                return this.makeToken('amp', '&', line, col, offset);
-            case '|':
-                if (next === '|') {
-                    this.advance();
-                    return this.makeToken('pipepipe', '||', line, col, offset);
-                }
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('pipeeq', '|=', line, col, offset);
-                }
-                return this.makeToken('pipe', '|', line, col, offset);
-            case '^':
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('careteq', '^=', line, col, offset);
-                }
-                return this.makeToken('caret', '^', line, col, offset);
-            case '~':
-                if (next === '&') {
-                    this.advance();
-                    return this.makeToken('tildeamp', '~&', line, col, offset);
-                }
-                if (next === '^') {
-                    this.advance();
-                    return this.makeToken('tildecaret', '~^', line, col, offset);
-                }
-                return this.makeToken('tilde', '~', line, col, offset);
-            case '!':
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('bangeq', '!=', line, col, offset);
-                }
-                return this.makeToken('bang', '!', line, col, offset);
-            case '<':
-                if (next === '<') {
-                    this.advance();
-                    if (this.peek() === '=') {
-                        this.advance();
-                        return this.makeToken('ltlteq', '<<=', line, col, offset);
-                    }
-                    return this.makeToken('ltlt', '<<', line, col, offset);
-                }
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('lteq', '<=', line, col, offset);
-                }
-                return this.makeToken('lt', '<', line, col, offset);
-            case '>':
-                if (next === '>') {
-                    this.advance();
-                    if (this.peek() === '=') {
-                        this.advance();
-                        return this.makeToken('gtgteq', '>>=', line, col, offset);
-                    }
-                    return this.makeToken('gtgt', '>>', line, col, offset);
-                }
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('gteq', '>=', line, col, offset);
-                }
-                return this.makeToken('gt', '>', line, col, offset);
-            case '=':
-                if (next === '=') {
-                    this.advance();
-                    return this.makeToken('eqeq', '==', line, col, offset);
-                }
-                return this.makeToken('eq', '=', line, col, offset);
-            case '?': return this.makeToken('question', '?', line, col, offset);
-            case ':': return this.makeToken('colon', ':', line, col, offset);
-            case '(': return this.makeToken('lparen', '(', line, col, offset);
-            case ')': return this.makeToken('rparen', ')', line, col, offset);
-            case '{': return this.makeToken('lbrace', '{', line, col, offset);
-            case '}': return this.makeToken('rbrace', '}', line, col, offset);
-            case '[': return this.makeToken('lbracket', '[', line, col, offset);
-            case ']': return this.makeToken('rbracket', ']', line, col, offset);
-            case ';': return this.makeToken('semicolon', ';', line, col, offset);
-            case ',': return this.makeToken('comma', ',', line, col, offset);
-            case '.':
-                if (this.peek() === '.' && this.peek(1) === '.') {
-                    this.advance();
-                    this.advance();
-                    return this.makeToken('ellipsis', '...', line, col, offset);
-                }
-                return this.makeToken('dot', '.', line, col, offset);
-            default:
-                this.errors.push(new LexError(`Unexpected character: ${ch}`, line, col));
-                return null;
-        }
     }
 }
 exports.Lexer = Lexer;

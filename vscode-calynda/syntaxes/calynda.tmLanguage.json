@@ -217,7 +217,7 @@
       "patterns": [
         {
           "name": "keyword.control.calynda",
-          "match": "\\b(?:package|import|start|return|exit|throw|union|manual|malloc|calloc|realloc|free)\\b"
+          "match": "\\b(?:package|import|start|boot|return|exit|throw|union|manual|checked|layout|asm|malloc|calloc|realloc|free|deref|store|offset|addr|cleanup|stackalloc)\\b"
         },
         {
           "name": "storage.modifier.calynda",
@@ -225,7 +225,7 @@
         },
         {
           "name": "keyword.other.calynda",
-          "match": "\\b(?:as|arr)\\b"
+          "match": "\\b(?:as|arr|ptr)\\b"
         },
         {
           "name": "variable.language.discard.calynda",

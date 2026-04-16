@@ -1,6 +1,6 @@
 # Calynda Syntax
 
-Minimal VS Code extension for Calynda syntax highlighting.
+Minimal VS Code extension for the frozen Calynda 0.4 syntax surface.
 
 ## What it provides
 
@@ -10,6 +10,7 @@ Minimal VS Code extension for Calynda syntax highlighting.
 - Syntax highlighting for:
   - keywords and modifiers
   - primitive types
+  - tagged unions, `arr<?>`, `ptr<T>`, `layout`, and manual-memory keywords
   - booleans and `null`
   - numeric literals
   - strings, chars, and template literals
@@ -31,4 +32,4 @@ If you want a `.vsix` package:
 
 ## Notes
 
-The grammar is based on the canonical language definition in `../calynda.ebnf` plus the tokenizer behavior in `../src/tokenizer.c` and `../src/tokenizer.h`.
+The grammar is based on the canonical language definition in `../compiler/calynda.ebnf` plus the tokenizer behavior in `../compiler/src/tokenizer/tokenizer.h`.

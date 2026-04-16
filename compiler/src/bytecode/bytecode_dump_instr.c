@@ -204,8 +204,9 @@ bool bytecode_dump_instruction(FILE *out,
         }
         break;
     case BYTECODE_INSTR_HETERO_ARRAY_NEW:
-        fprintf(out, "BC_HETERO_ARRAY_NEW t%zu <- [",
-                instruction->as.hetero_array_new.dest_temp);
+        fprintf(out, "BC_HETERO_ARRAY_NEW t%zu <- type_desc(%zu) [",
+            instruction->as.hetero_array_new.dest_temp,
+            instruction->as.hetero_array_new.type_desc_index);
         for (item_index = 0;
              item_index < instruction->as.hetero_array_new.element_count;
              item_index++) {

@@ -67,12 +67,17 @@ function parseTopLevelDecl(state: ParserState): AST.TopLevelDecl | null {
     return parseBootDecl(state);
   }
 
+  if (state.check('keyword', 'layout')) {
+    return parseLayoutDecl(state);
+  }
+
   const modifiers: string[] = [];
   while (state.check('keyword') && MODIFIERS.has(state.peek().value)) {
     modifiers.push(state.advance().value);
   }
 
-  if (state.check('keyword', 'var') || state.check('type') || state.check('keyword', 'void')) {
+  if (state.check('keyword', 'var') || state.check('type') || state.check('keyword', 'void') ||
+      state.check('keyword', 'arr') || state.check('keyword', 'ptr')) {
     return parseBindingDecl(state, modifiers);
   }
 
@@ -141,6 +146,24 @@ function parseUnionVariant(state: ParserState): AST.UnionVariant {
     state.eat('rparen');
   }
   return { name, payloadType };
+}
+
+function parseLayoutDecl(state: ParserState): AST.LayoutDecl {
+  const startTok = state.eat('keyword', 'layout');
+  const name = state.eat('identifier').value;
+  const fields: Array<{ typeAnnotation: AST.TypeNode; name: string }> = [];
+
+  state.eat('lbrace');
+  while (!state.check('rbrace') && !state.check('eof')) {
+    const typeAnnotation = parseType(state);
+    const fieldName = state.eat('identifier').value;
+
+    state.eat('semicolon');
+    fields.push({ typeAnnotation, name: fieldName });
+  }
+  state.eat('rbrace');
+  state.eat('semicolon');
+  return { kind: 'LayoutDecl', name, fields, start: state.tokenToPosition(startTok), end: state.position() };
 }
 
 function parseBootDecl(state: ParserState): AST.BootDecl {

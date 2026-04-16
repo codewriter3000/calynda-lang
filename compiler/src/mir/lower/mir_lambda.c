@@ -10,6 +10,7 @@ bool mr_build_lambda_unit(MirBuildContext *context,
     MirUnit unit;
     MirUnitBuildContext unit_context;
     size_t i;
+    bool ok = false;
 
     memset(&unit, 0, sizeof(unit));
     memset(&unit_context, 0, sizeof(unit_context));
@@ -53,23 +54,30 @@ bool mr_build_lambda_unit(MirBuildContext *context,
 
     unit_context.build = context;
     unit_context.unit = &unit;
+    unit_context.in_checked_manual = context->global_bounds_check;
     if (!mr_create_block(&unit_context, &unit_context.current_block_index) ||
         !mr_lower_parameters(&unit_context, &lambda->parameters) ||
         !mr_lower_block(&unit_context, lambda->body)) {
-        mr_unit_free(&unit);
-        return false;
+        goto cleanup;
     }
 
     if (!mr_append_unit(context->program, unit)) {
-        mr_unit_free(&unit);
         mr_set_error(context,
                       (AstSourceSpan){0},
                       NULL,
                       "Out of memory while assembling MIR units.");
-        return false;
+        goto cleanup;
     }
 
-    return true;
+    ok = true;
+
+cleanup:
+    mr_free_manual_cleanup_state(&unit_context);
+    if (!ok) {
+        mr_unit_free(&unit);
+    }
+
+    return ok;
 }
 
 bool mr_lower_lambda_unit(MirBuildContext *context,

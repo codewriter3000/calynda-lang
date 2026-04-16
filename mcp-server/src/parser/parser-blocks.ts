@@ -3,6 +3,47 @@ import * as AST from './ast';
 import { parseType } from './parser-statements';
 import { parseExpression } from './parser-expressions';
 
+function startsTypeAnnotation(state: ParserState): boolean {
+  const tok = state.peek();
+
+  return tok.type === 'type' || tok.type === 'identifier' ||
+    (tok.type === 'keyword' &&
+     (tok.value === 'void' || tok.value === 'arr' || tok.value === 'ptr'));
+}
+
+function parseMaybeLocalBinding(state: ParserState, startPos: AST.Position): AST.LocalBindingStatement | null {
+  const originalPos = state.pos;
+  const originalErrorCount = state.errors.length;
+  let isFinal = false;
+  let typeAnnotation: AST.TypeNode | 'var';
+
+  if (state.check('keyword', 'final')) {
+    isFinal = true;
+    state.advance();
+  }
+
+  if (state.check('keyword', 'var')) {
+    state.advance();
+    typeAnnotation = 'var';
+  } else if (startsTypeAnnotation(state)) {
+    typeAnnotation = parseType(state);
+  } else {
+    return null;
+  }
+
+  if (!state.check('identifier') || state.peek(1).type !== 'eq') {
+    state.pos = originalPos;
+    state.errors.length = originalErrorCount;
+    return null;
+  }
+
+  const name = state.advance().value;
+  state.eat('eq');
+  const value = parseExpression(state);
+  state.eat('semicolon');
+  return { kind: 'LocalBindingStatement', final: isFinal, typeAnnotation, name, value, start: startPos, end: state.position() };
+}
+
 export function parseBlock(state: ParserState): AST.Block {
   const startPos = state.position();
   state.eat('lbrace');
@@ -66,6 +107,9 @@ function parseStatement(state: ParserState): AST.Statement {
       }
       case 'manual': {
         state.advance();
+        if (state.check('keyword', 'checked')) {
+          state.advance();
+        }
         const body = parseBlock(state);
         state.eat('semicolon');
         return { kind: 'ManualStatement', body, start: startPos, end: state.position() };
@@ -73,19 +117,12 @@ function parseStatement(state: ParserState): AST.Statement {
     }
   }
 
-  // Check for local binding: type identifier = expr;
-  if ((tok.type === 'type' || (tok.type === 'keyword' && tok.value === 'void'))
-    && state.peek(1).type === 'identifier'
-    && state.peek(2).type !== 'lparen') {
-    const typeAnnotation = parseType(state);
-    if (state.check('identifier') && (state.peek(1).type === 'eq' || state.peek(1).type === 'semicolon')) {
-      const name = state.advance().value;
-      state.eat('eq');
-      const value = parseExpression(state);
-      state.eat('semicolon');
-      return { kind: 'LocalBindingStatement', final: false, typeAnnotation, name, value, start: startPos, end: state.position() };
+  {
+    const binding = parseMaybeLocalBinding(state, startPos);
+
+    if (binding) {
+      return binding;
     }
-    throw new ParseError(`Unexpected type annotation in statement position`, tok.line, tok.column);
   }
 
   // Expression statement

@@ -80,8 +80,10 @@ typedef enum {
     LIR_INSTR_STORE_GLOBAL,
     LIR_INSTR_STORE_INDEX,
     LIR_INSTR_STORE_MEMBER,
-    LIR_INSTR_HETERO_ARRAY_NEW,
-    LIR_INSTR_UNION_NEW
+    LIR_INSTR_UNION_NEW,
+    LIR_INSTR_UNION_GET_TAG,
+    LIR_INSTR_UNION_GET_PAYLOAD,
+    LIR_INSTR_HETERO_ARRAY_NEW
 } LirInstructionKind;
 
 struct LirInstruction {
@@ -166,19 +168,26 @@ struct LirInstruction {
             LirOperand value;
         } store_member;
         struct {
-            size_t      dest_vreg;
-            LirOperand *elements;
-            CheckedType *element_types;
-            size_t      element_count;
+            size_t                 dest_vreg;
+            CalyndaRtTypeDescriptor type_desc;
+            LirOperand            *elements;
+            size_t                 element_count;
         } hetero_array_new;
         struct {
-            size_t     dest_vreg;
-            char      *union_name;
-            size_t     variant_index;
-            size_t     variant_count;
-            bool       has_payload;
-            LirOperand payload;
+            size_t                 dest_vreg;
+            CalyndaRtTypeDescriptor type_desc;
+            size_t                 variant_index;
+            bool                   has_payload;
+            LirOperand             payload;
         } union_new;
+        struct {
+            size_t     dest_vreg;
+            LirOperand target;
+        } union_get_tag;
+        struct {
+            size_t     dest_vreg;
+            LirOperand target;
+        } union_get_payload;
     } as;
 };
 

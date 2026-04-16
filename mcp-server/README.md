@@ -2,6 +2,8 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that enables AI assistants to deeply understand and work with the [Calynda](../README.md) programming language.
 
+This server tracks the frozen 0.4.0 language surface, including `arr<?>`, read-only union `.tag` / `.payload`, `layout` declarations, stable unsafe manual memory with `manual checked`, typed pointers `ptr<T>`, and the native plus bytecode backend split.
+
 ## Overview
 
 This MCP server provides AI assistants with comprehensive knowledge of Calynda, including:

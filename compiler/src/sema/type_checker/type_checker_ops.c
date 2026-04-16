@@ -35,11 +35,19 @@ bool tc_check_binary_operator(TypeChecker *checker,
 
     case AST_BINARY_OP_EQUAL:
     case AST_BINARY_OP_NOT_EQUAL:
+        if (left_type.kind == CHECKED_TYPE_EXTERNAL ||
+            right_type.kind == CHECKED_TYPE_EXTERNAL) {
+            tc_set_error_at(checker,
+                            expression->source_span,
+                            NULL,
+                            "Operator '%s' requires explicit casts before comparing external values.",
+                            tc_binary_operator_name(operator));
+            return false;
+        }
         if (tc_checked_type_equals(left_type, right_type) ||
             (tc_checked_type_is_numeric(left_type) && tc_checked_type_is_numeric(right_type)) ||
             ((left_type.kind == CHECKED_TYPE_NULL && tc_checked_type_is_reference_like(right_type)) ||
-             (right_type.kind == CHECKED_TYPE_NULL && tc_checked_type_is_reference_like(left_type))) ||
-            (left_type.kind == CHECKED_TYPE_EXTERNAL || right_type.kind == CHECKED_TYPE_EXTERNAL)) {
+             (right_type.kind == CHECKED_TYPE_NULL && tc_checked_type_is_reference_like(left_type)))) {
             *result_type = tc_checked_type_value(AST_PRIMITIVE_BOOL, 0);
             return true;
         }
@@ -177,12 +185,18 @@ bool tc_expression_is_assignment_target(TypeChecker *checker,
         {
             const TypeCheckInfo *target_info = type_checker_get_expression_info(checker,
                                                                                 expression->as.index.target);
+            CheckedType target_type;
 
             if (!target_info) {
                 return false;
             }
 
-            if (tc_type_check_source_type(target_info).kind == CHECKED_TYPE_EXTERNAL) {
+            target_type = tc_type_check_source_type(target_info);
+            if (tc_checked_type_is_hetero_array(target_type)) {
+                return false;
+            }
+
+            if (target_type.kind == CHECKED_TYPE_EXTERNAL) {
                 return true;
             }
 
@@ -193,19 +207,31 @@ bool tc_expression_is_assignment_target(TypeChecker *checker,
 
     case AST_EXPR_MEMBER:
         {
-            const TypeCheckInfo *target_info = type_checker_get_expression_info(checker,
-                                                                                expression->as.member.target);
+            const TypeCheckInfo *target_info = type_checker_get_expression_info(
+                checker, expression->as.member.target);
+            CheckedType target_type;
+            const Scope *root_scope = symbol_table_root_scope(checker->symbols);
+            const Symbol *symbol = NULL;
 
             if (!target_info) {
                 return false;
             }
-
-            if (tc_type_check_source_type(target_info).kind == CHECKED_TYPE_EXTERNAL) {
+            target_type = tc_type_check_source_type(target_info);
+            symbol = root_scope && target_type.name
+                ? scope_lookup_local(root_scope, target_type.name)
+                : NULL;
+            if (!symbol && target_type.name) {
+                symbol = symbol_table_find_import(checker->symbols, target_type.name);
+            }
+            if ((strcmp(expression->as.member.member, "tag") == 0 ||
+                 strcmp(expression->as.member.member, "payload") == 0) &&
+                symbol && symbol->kind == SYMBOL_KIND_UNION) {
+                return false;
+            }
+            if (target_type.kind == CHECKED_TYPE_EXTERNAL) {
                 return true;
             }
-
-            return tc_expression_is_assignment_target(checker,
-                                                      expression->as.member.target,
+            return tc_expression_is_assignment_target(checker, expression->as.member.target,
                                                       root_symbol);
         }
 

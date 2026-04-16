@@ -1,3 +1,23 @@
+# Calynda 0.4.0
+
+April 16, 2026
+
+## Highlights
+
+- Shared runtime descriptor metadata is now frozen across heterogeneous arrays, tagged unions, bytecode constants, and native lowering.
+- `arr<?>` now has explicit 0.4.0 semantics: shape-locked literal construction, indexed reads as `<external>`, indexed writes rejected, and identity-based array equality.
+- Tagged unions now expose read-only `.tag` and `.payload` access as first-class language operations with dedicated MIR, LIR, bytecode, and native helper lowering.
+- `manual { ... };`, `manual checked { ... };`, and `ptr<T>` are now the stable unsafe manual-memory surface for 0.4.0.
+- `stackalloc(size)` is defined as manual-scope scratch storage reclaimed at scope exit, and `manual checked` now uses a growable bounds registry instead of the old provisional fixed-cap table.
+- Layout declarations remain intentionally limited to scalar primitive fields in 0.4.0.
+
+## Tooling And Docs
+
+- The README, MCP server metadata, and VS Code syntax extension are synced to the 0.4.0 language surface.
+- The CLI help and installation docs now describe the shipped runtime archive and the `pack` workflow for CAR archives.
+
+---
+
 # Calynda 0.3.0
 
 April 15, 2026
@@ -47,10 +67,16 @@ portable archive. Two new CLI subcommands are available:
 - `calynda car create archive.car src/` — creates an archive from a directory.
 - `calynda car extract archive.car` — extracts files from an archive.
 
-### Manual memory boundary (`manual { ... };`) *(experimental)*
+### RISC-V 64 support
 
-`manual { ... };` opens an unsafe scope for direct memory management. The following
-built-in expressions are available inside a manual block:
+Linux RISC-V 64 (RV64GC) is now a supported compilation target. Pass
+`--target riscv64-linux` to `calynda build` to produce RISC-V assembly.
+
+### Manual memory boundary (`manual { ... };`) *(experimental in 0.3.x; stable in 0.4.0)*
+
+`manual { ... };` opens an unsafe scope for direct memory management.
+`manual checked { ... };` routes those operations through bounds-checked runtime
+helpers. The following built-in expressions are available inside a manual block:
 
 | Expression | Returns | Description |
 |---|---|---|
@@ -58,13 +84,45 @@ built-in expressions are available inside a manual block:
 | `calloc(count, size)` | `int64` | Allocates zeroed memory. |
 | `realloc(addr, size)` | `int64` | Resizes an allocation. |
 | `free(addr)` | `void` | Releases an allocation. |
+| `stackalloc(size)` | `int64` | Allocates manual scratch space and auto-registers a deferred free. |
+| `deref(addr)` | element type | Reads the value at `addr`. |
+| `store(addr, value)` | `void` | Writes `value` to `addr`. |
+| `offset(addr, count)` | `int64` | Advances `addr` by `count` elements. |
+| `addr(expr)` | `int64` | Takes the address of a value. |
+| `cleanup(value, fn)` | same as `value` | Registers `fn(value)` for manual-scope exit. |
+
+`cleanup()` callbacks also run before a `return` or `throw` leaves an enclosing
+manual block.
+
+This surface shipped experimentally in 0.3.x. For 0.4.0, the contract is now
+frozen: `manual { ... };`, `manual checked { ... };`, and `ptr<T>` are stable
+unsafe features, `stackalloc(size)` provides scope-local scratch storage
+reclaimed on manual-scope exit rather than guaranteed machine-stack residency,
+and `manual checked` uses growable runtime bounds tracking instead of a fixed
+live-pointer ceiling.
+
+### Typed pointers (`ptr<T>`) *(experimental in 0.3.x; stable in 0.4.0)*
+
+Variables inside a `manual` block can be declared with `ptr<T>` to get typed
+pointer semantics. When a `ptr<T>` variable is used with `deref`, `store`, or
+`offset`, the compiler automatically sizes memory operations to `sizeof(T)`.
+
+```cal
+manual {
+    ptr<int32> p = malloc(40);
+    store(p, 7);
+    int32 v = deref(p);
+    ptr<int32> q = offset(p, 2);
+    free(p);
+};
+```
 
 All arguments must be integral types. The return value of `malloc`, `calloc`, and
 `realloc` is a raw `int64` address with no type safety — use with care.
 
-This feature is experimental. The memory model, pointer representation, and
-interaction with the runtime heap are not yet finalized and may change in a future
-release.
+For 0.4.0, this pointer surface is considered stable, but it remains explicitly
+unsafe: the raw address representation is unchanged, and the compiler only adds
+typed sizing for `deref`, `store`, and `offset`.
 
 ## Small Changes
 

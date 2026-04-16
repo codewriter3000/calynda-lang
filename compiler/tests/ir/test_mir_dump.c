@@ -55,6 +55,13 @@ void test_mir_dump_lowers_callable_local_bindings_and_nested_closures(void);
 void test_mir_dump_lowers_top_level_value_bindings_into_module_init(void);
 void test_mir_dump_lowers_throw_as_terminator(void);
 void test_mir_dump_lowers_union_new_instructions(void);
+void test_mir_dump_lowers_hetero_array_literal(void);
+void test_mir_dump_checked_manual_block_uses_bc_functions(void);
+void test_mir_dump_ptr_checked_type_uses_bc_deref(void);
+void test_mir_dump_plain_manual_block_uses_plain_functions(void);
+void test_mir_dump_cleanup_runs_before_manual_return(void);
+void test_mir_dump_stackalloc_auto_registers_free(void);
+void test_mir_dump_lowers_union_tag_and_payload_access(void);
 
 
 int main(void) {
@@ -68,6 +75,13 @@ int main(void) {
     RUN_TEST(test_mir_dump_lowers_top_level_value_bindings_into_module_init);
     RUN_TEST(test_mir_dump_lowers_throw_as_terminator);
     RUN_TEST(test_mir_dump_lowers_union_new_instructions);
+    RUN_TEST(test_mir_dump_lowers_hetero_array_literal);
+    RUN_TEST(test_mir_dump_checked_manual_block_uses_bc_functions);
+    RUN_TEST(test_mir_dump_ptr_checked_type_uses_bc_deref);
+    RUN_TEST(test_mir_dump_plain_manual_block_uses_plain_functions);
+    RUN_TEST(test_mir_dump_cleanup_runs_before_manual_return);
+    RUN_TEST(test_mir_dump_stackalloc_auto_registers_free);
+    RUN_TEST(test_mir_dump_lowers_union_tag_and_payload_access);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

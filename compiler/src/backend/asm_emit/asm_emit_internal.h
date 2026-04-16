@@ -3,6 +3,7 @@
 
 #include "asm_emit.h"
 #include "machine.h"
+#include "runtime.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -47,6 +48,20 @@ typedef struct {
 } AsmStringObjectLiteral;
 
 typedef struct {
+    char             *encoded;
+    size_t            generic_param_count;
+    CalyndaRtTypeTag *generic_param_tags;
+    size_t            variant_count;
+    char             *name_label;
+    char            **variant_name_labels;
+    CalyndaRtTypeTag *variant_payload_tags;
+    char             *generic_tags_label;
+    char             *variant_names_label;
+    char             *variant_tags_label;
+    char             *descriptor_label;
+} AsmTypeDescriptorLiteral;
+
+typedef struct {
     bool   saves_r12;
     bool   saves_r13;
     bool   preserves_r10;
@@ -76,6 +91,9 @@ typedef struct {
     AsmStringObjectLiteral *string_literals;
     size_t                 string_literal_count;
     size_t                 string_literal_capacity;
+    AsmTypeDescriptorLiteral *type_descriptors;
+    size_t                   type_descriptor_count;
+    size_t                   type_descriptor_capacity;
     size_t                next_label_id;
 } AsmEmitContext;
 
@@ -99,6 +117,8 @@ AsmGlobalSymbol *ae_ensure_global_symbol(AsmEmitContext *context, const char *na
 const MachineUnit *ae_find_program_unit(const AsmEmitContext *context, const char *name);
 AsmByteLiteral *ae_ensure_byte_literal(AsmEmitContext *context, const char *text, size_t length, const char *prefix);
 AsmStringObjectLiteral *ae_ensure_string_literal(AsmEmitContext *context, const char *text, size_t length);
+bool ae_parse_variant_spec(char *spec, char **name_out, CalyndaRtTypeTag *tag_out);
+bool ae_emit_type_tag_array(FILE *out, const char *label, const CalyndaRtTypeTag *tags, size_t count);
 char *ae_closure_wrapper_symbol_name(const char *unit_name);
 const MachineFrameSlot *ae_find_frame_slot(const MachineUnit *unit, const char *name);
 size_t ae_frame_slot_offset(const AsmUnitLayout *layout, size_t slot_index);
@@ -115,6 +135,11 @@ bool ae_translate_operand_ext(AsmEmitContext *context, const MachineUnit *unit, 
 void ae_free_operand(AsmOperand *operand);
 bool ae_write_operand(FILE *out, const AsmOperand *operand);
 long long ae_runtime_type_tag_value(const char *type_name);
+
+/* asm_emit_type_desc.c */
+AsmTypeDescriptorLiteral *ae_ensure_type_descriptor_literal(AsmEmitContext *context, const char *encoded);
+bool ae_translate_type_descriptor_operand(AsmEmitContext *context, const char *operand_text, AsmOperand *operand);
+bool ae_emit_type_descriptors(FILE *out, const AsmEmitContext *context);
 
 /* asm_emit.c (emit utilities in main file) */
 bool ae_emit_line(FILE *out, const char *format, ...);
@@ -133,6 +158,17 @@ bool ae_translate_operand_aarch64(AsmEmitContext *context, const MachineUnit *un
 
 /* asm_emit_entry_aarch64.c */
 bool ae_emit_program_entry_glue_aarch64(AsmEmitContext *context, FILE *out);
+
+/* asm_emit_instr_riscv64.c */
+bool ae_emit_machine_instruction_riscv64(AsmEmitContext *context, FILE *out, const MachineUnit *unit, const AsmUnitLayout *layout, size_t unit_index, size_t block_index, size_t instruction_index, const char *instruction_text);
+
+/* asm_emit_operand_riscv64.c */
+AsmUnitLayout ae_compute_unit_layout_riscv64(const MachineUnit *unit);
+bool ae_translate_operand_riscv64(AsmEmitContext *context, const MachineUnit *unit, const AsmUnitLayout *layout, const char *operand_text, bool destination, AsmOperand *operand);
+
+/* asm_emit_entry_riscv64.c */
+bool ae_emit_program_entry_glue_riscv64(AsmEmitContext *context, FILE *out);
+bool ae_emit_closure_wrapper_riscv64(AsmEmitContext *context, FILE *out, const MachineUnit *unit);
 
 /* asm_emit_sections.c */
 bool ae_emit_unit_text(AsmEmitContext *context, FILE *out, size_t unit_index, const MachineUnit *unit);

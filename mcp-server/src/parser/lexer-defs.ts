@@ -35,8 +35,9 @@ export class LexError extends Error {
 export const KEYWORDS = new Set([
   'package', 'import', 'public', 'private', 'final', 'var', 'start', 'boot',
   'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-  'export', 'as', 'internal', 'static', 'union', 'manual', 'arr', 'asm',
-  'malloc', 'calloc', 'realloc', 'free',
+  'export', 'as', 'internal', 'static', 'union', 'manual', 'arr', 'ptr', 'layout',
+  'checked', 'asm', 'malloc', 'calloc', 'realloc', 'free', 'deref', 'store',
+  'offset', 'addr', 'cleanup', 'stackalloc',
 ]);
 
 export const PRIMITIVE_TYPES = new Set([

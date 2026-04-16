@@ -1,6 +1,5 @@
 #include "lir.h"
 #include "lir_internal.h"
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -109,16 +108,42 @@ bool lr_lower_mir_instr_stores(LirBuildContext *context,
         memset(&lowered, 0, sizeof(lowered));
         lowered.kind = LIR_INSTR_HETERO_ARRAY_NEW;
         lowered.as.hetero_array_new.dest_vreg = instruction->as.hetero_array_new.dest_temp;
+        lowered.as.hetero_array_new.type_desc.name = ast_copy_text(
+            instruction->as.hetero_array_new.type_desc.name);
+        lowered.as.hetero_array_new.type_desc.generic_param_count =
+            instruction->as.hetero_array_new.type_desc.generic_param_count;
+        lowered.as.hetero_array_new.type_desc.variant_count =
+            instruction->as.hetero_array_new.type_desc.variant_count;
         lowered.as.hetero_array_new.element_count = instruction->as.hetero_array_new.element_count;
+        if (!lowered.as.hetero_array_new.type_desc.name) {
+            lr_set_error(context, (AstSourceSpan){0}, NULL,
+                         "Out of memory while lowering LIR hetero array.");
+            return false;
+        }
+        if (instruction->as.hetero_array_new.type_desc.generic_param_count > 0) {
+            lowered.as.hetero_array_new.type_desc.generic_param_tags = calloc(
+                instruction->as.hetero_array_new.type_desc.generic_param_count,
+                sizeof(*lowered.as.hetero_array_new.type_desc.generic_param_tags));
+            if (!lowered.as.hetero_array_new.type_desc.generic_param_tags) {
+                lr_instruction_free(&lowered);
+                lr_set_error(context, (AstSourceSpan){0}, NULL,
+                             "Out of memory while lowering LIR hetero array.");
+                return false;
+            }
+            for (i = 0; i < instruction->as.hetero_array_new.type_desc.generic_param_count; i++) {
+                ((CalyndaRtTypeTag *)lowered.as.hetero_array_new.type_desc.generic_param_tags)[i] =
+                    instruction->as.hetero_array_new.type_desc.generic_param_tags[i];
+            }
+        }
         if (instruction->as.hetero_array_new.element_count > 0) {
             lowered.as.hetero_array_new.elements = calloc(
                 instruction->as.hetero_array_new.element_count,
                 sizeof(*lowered.as.hetero_array_new.elements));
-            lowered.as.hetero_array_new.element_types = calloc(
+            lowered.as.hetero_array_new.type_desc.variant_payload_tags = calloc(
                 instruction->as.hetero_array_new.element_count,
-                sizeof(*lowered.as.hetero_array_new.element_types));
+                sizeof(*lowered.as.hetero_array_new.type_desc.variant_payload_tags));
             if (!lowered.as.hetero_array_new.elements ||
-                !lowered.as.hetero_array_new.element_types) {
+                !lowered.as.hetero_array_new.type_desc.variant_payload_tags) {
                 lr_instruction_free(&lowered);
                 lr_set_error(context, (AstSourceSpan){0}, NULL,
                              "Out of memory while lowering LIR hetero array.");
@@ -131,8 +156,8 @@ bool lr_lower_mir_instr_stores(LirBuildContext *context,
                     lr_instruction_free(&lowered);
                     return false;
                 }
-                lowered.as.hetero_array_new.element_types[i] =
-                    instruction->as.hetero_array_new.element_types[i];
+                ((CalyndaRtTypeTag *)lowered.as.hetero_array_new.type_desc.variant_payload_tags)[i] =
+                    instruction->as.hetero_array_new.type_desc.variant_payload_tags[i];
             }
         }
         if (!lr_append_instruction(block, lowered)) {
@@ -147,14 +172,57 @@ bool lr_lower_mir_instr_stores(LirBuildContext *context,
         memset(&lowered, 0, sizeof(lowered));
         lowered.kind = LIR_INSTR_UNION_NEW;
         lowered.as.union_new.dest_vreg = instruction->as.union_new.dest_temp;
-        lowered.as.union_new.union_name = ast_copy_text(instruction->as.union_new.union_name);
+        lowered.as.union_new.type_desc.name = ast_copy_text(
+            instruction->as.union_new.type_desc.name);
+        lowered.as.union_new.type_desc.generic_param_count = instruction->as.union_new.type_desc.generic_param_count;
+        lowered.as.union_new.type_desc.variant_count = instruction->as.union_new.type_desc.variant_count;
         lowered.as.union_new.variant_index = instruction->as.union_new.variant_index;
-        lowered.as.union_new.variant_count = instruction->as.union_new.variant_count;
         lowered.as.union_new.has_payload = instruction->as.union_new.has_payload;
-        if (!lowered.as.union_new.union_name) {
+        if (!lowered.as.union_new.type_desc.name) {
             lr_set_error(context, (AstSourceSpan){0}, NULL,
                          "Out of memory while lowering LIR union new.");
             return false;
+        }
+        if (instruction->as.union_new.type_desc.generic_param_count > 0) {
+            lowered.as.union_new.type_desc.generic_param_tags = calloc(
+                instruction->as.union_new.type_desc.generic_param_count,
+                sizeof(*lowered.as.union_new.type_desc.generic_param_tags));
+            if (!lowered.as.union_new.type_desc.generic_param_tags) {
+                lr_instruction_free(&lowered);
+                lr_set_error(context, (AstSourceSpan){0}, NULL,
+                             "Out of memory while lowering LIR union metadata.");
+                return false;
+            }
+            for (i = 0; i < instruction->as.union_new.type_desc.generic_param_count; i++) {
+                ((CalyndaRtTypeTag *)lowered.as.union_new.type_desc.generic_param_tags)[i] =
+                    instruction->as.union_new.type_desc.generic_param_tags[i];
+            }
+        }
+        if (instruction->as.union_new.type_desc.variant_count > 0) {
+            char **variant_names = calloc(instruction->as.union_new.type_desc.variant_count,
+                                          sizeof(*variant_names));
+            lowered.as.union_new.type_desc.variant_names = (const char *const *)variant_names;
+            lowered.as.union_new.type_desc.variant_payload_tags = calloc(
+                instruction->as.union_new.type_desc.variant_count,
+                sizeof(*lowered.as.union_new.type_desc.variant_payload_tags));
+            if (!variant_names || !lowered.as.union_new.type_desc.variant_payload_tags) {
+                lr_instruction_free(&lowered);
+                lr_set_error(context, (AstSourceSpan){0}, NULL,
+                             "Out of memory while lowering LIR union metadata.");
+                return false;
+            }
+            for (i = 0; i < instruction->as.union_new.type_desc.variant_count; i++) {
+                variant_names[i] =
+                    ast_copy_text(instruction->as.union_new.type_desc.variant_names[i]);
+                ((CalyndaRtTypeTag *)lowered.as.union_new.type_desc.variant_payload_tags)[i] =
+                    instruction->as.union_new.type_desc.variant_payload_tags[i];
+                if (!variant_names[i]) {
+                    lr_instruction_free(&lowered);
+                    lr_set_error(context, (AstSourceSpan){0}, NULL,
+                                 "Out of memory while lowering LIR union metadata.");
+                    return false;
+                }
+            }
         }
         if (instruction->as.union_new.has_payload) {
             if (!lr_operand_from_mir_value(context, unit,

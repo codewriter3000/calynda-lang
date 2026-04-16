@@ -78,7 +78,7 @@ static bool build_bytecode_from_source(const char *source, char **dump_out) {
         !symbol_table_build(&symbols, &ast_program) ||
         !type_checker_check_program(&checker, &ast_program, &symbols) ||
         !hir_build_program(&hir_program, &ast_program, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program) ||
+        !mir_build_program(&mir_program, &hir_program, false) ||
         !bytecode_build_program(&bytecode_program, &mir_program)) {
         goto cleanup;
     }
@@ -147,6 +147,9 @@ static void test_bytecode_dump_lowers_union_new_instructions(void) {
     char *dump;
 
     REQUIRE_TRUE(build_bytecode_from_source(source, &dump), "build union bytecode dump text");
+    ASSERT_CONTAINS("type_desc name=Option generic_params=[int32] variants=[Some:int32, None:void]",
+                    dump,
+                    "union descriptor constants capture variant names and payload tags");
     ASSERT_CONTAINS("BC_UNION_NEW t0 <- type_desc(0) tag=0 payload=", dump,
                     "payload variant lowers to BC_UNION_NEW with tag 0");
     ASSERT_CONTAINS("BC_UNION_NEW t1 <- type_desc(0) tag=1 payload=", dump,
@@ -156,12 +159,77 @@ static void test_bytecode_dump_lowers_union_new_instructions(void) {
     free(dump);
 }
 
+static void test_bytecode_dump_lowers_hetero_array_literals(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    arr<?> mixed = [1, true, \"hello\"];\n"
+        "    return 0;\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump), "build hetero array bytecode dump text");
+    ASSERT_CONTAINS("literal kind=bool value=true", dump,
+                    "hetero array bytecode interns bool constants");
+    ASSERT_CONTAINS("type_desc name=arr generic_params=[raw_word] variants=[int32, bool, string]", dump,
+                    "hetero arrays intern shared descriptor constants with element runtime tags");
+    ASSERT_CONTAINS("BC_HETERO_ARRAY_NEW t0 <- type_desc(3) [const(c0:integer(\"1\")), const(c1:bool(true)), const(c2:string(\"hello\"))]",
+                    dump,
+                    "arr<?> literals lower to BC_HETERO_ARRAY_NEW with descriptor and element constants");
+    ASSERT_CONTAINS("BC_STORE_LOCAL local(1:mixed) <- t0", dump,
+                    "hetero array temporaries store into the target local");
+    free(dump);
+}
+
+static void test_bytecode_dump_lowers_hetero_array_index_reads(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    arr<?> mixed = [1, true, \"hello\"];\n"
+        "    return int32(mixed[0]);\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump),
+                 "build hetero array indexing bytecode dump text");
+    ASSERT_CONTAINS("BC_HETERO_ARRAY_NEW", dump,
+                    "hetero array indexing still lowers through descriptor-backed construction");
+    ASSERT_CONTAINS("BC_INDEX_LOAD", dump,
+                    "hetero array reads reuse the existing bytecode index-load path");
+    ASSERT_CONTAINS("BC_CAST", dump,
+                    "hetero array reads can feed runtime casts from external values");
+    free(dump);
+}
+
+static void test_bytecode_dump_lowers_union_tag_and_payload_access(void) {
+    static const char source[] =
+        "union Option<T> { Some(T), None };\n"
+        "start(string[] args) -> {\n"
+        "    Option<int32> value = Option.Some(7);\n"
+        "    int32 tag = value.tag;\n"
+        "    int32 payload_value = int32(value.payload);\n"
+        "    return tag + payload_value;\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump),
+                 "build union access bytecode dump text");
+    ASSERT_CONTAINS("BC_UNION_GET_TAG", dump,
+                    "union .tag lowers to a dedicated bytecode opcode");
+    ASSERT_CONTAINS("BC_UNION_GET_PAYLOAD", dump,
+                    "union .payload lowers to a dedicated bytecode opcode");
+    ASSERT_TRUE(strstr(dump, "BC_MEMBER") == NULL,
+                "union metadata access no longer falls back to generic member bytecode");
+    free(dump);
+}
+
 int main(void) {
     printf("Running bytecode dump tests...\n\n");
 
     RUN_TEST(test_bytecode_dump_lowers_init_start_and_lambda_units);
     RUN_TEST(test_bytecode_dump_records_throw_literals);
     RUN_TEST(test_bytecode_dump_lowers_union_new_instructions);
+    RUN_TEST(test_bytecode_dump_lowers_hetero_array_literals);
+    RUN_TEST(test_bytecode_dump_lowers_hetero_array_index_reads);
+    RUN_TEST(test_bytecode_dump_lowers_union_tag_and_payload_access);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

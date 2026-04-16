@@ -120,3 +120,32 @@ const char *bytecode_dump_literal_kind_name(AstLiteralKind kind) {
 
     return "unknown";
 }
+
+const char *bytecode_dump_type_tag_name(CalyndaRtTypeTag tag) {
+    switch (tag) {
+    case CALYNDA_RT_TYPE_VOID:
+        return "void";
+    case CALYNDA_RT_TYPE_BOOL:
+        return "bool";
+    case CALYNDA_RT_TYPE_INT32:
+        return "int32";
+    case CALYNDA_RT_TYPE_INT64:
+        return "int64";
+    case CALYNDA_RT_TYPE_STRING:
+        return "string";
+    case CALYNDA_RT_TYPE_ARRAY:
+        return "array";
+    case CALYNDA_RT_TYPE_CLOSURE:
+        return "closure";
+    case CALYNDA_RT_TYPE_EXTERNAL:
+        return "external";
+    case CALYNDA_RT_TYPE_RAW_WORD:
+        return "raw_word";
+    case CALYNDA_RT_TYPE_UNION:
+        return "union";
+    case CALYNDA_RT_TYPE_HETERO_ARRAY:
+        return "hetero_array";
+    }
+
+    return "unknown";
+}

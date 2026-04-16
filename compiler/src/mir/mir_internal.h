@@ -10,13 +10,27 @@ typedef struct {
     MirProgram       *program;
     const HirProgram *hir_program;
     size_t            next_lambda_unit_index;
+    bool              global_bounds_check;
 } MirBuildContext;
+
+typedef struct {
+    MirValue      argument;
+    MirValue      callee;
+    AstSourceSpan source_span;
+} MirDeferredCleanup;
 
 typedef struct {
     MirBuildContext *build;
     MirUnit         *unit;
     size_t           current_block_index;
     size_t           next_synthetic_local_index;
+    bool             in_checked_manual;
+    MirDeferredCleanup *deferred_cleanups;
+    size_t              deferred_cleanup_count;
+    size_t              deferred_cleanup_capacity;
+    size_t             *manual_cleanup_markers;
+    size_t              manual_cleanup_depth;
+    size_t              manual_cleanup_capacity;
 } MirUnitBuildContext;
 
 typedef enum {
@@ -69,11 +83,18 @@ bool mr_is_union_variant_call(const HirExpression *expression,
 bool mr_is_union_variant_member(const HirExpression *expression,
                                 const char **out_union_name,
                                 const char **out_variant_name);
+const HirUnionDecl *mr_find_hir_union_decl(const MirBuildContext *build,
+                                           const char *union_name);
 bool mr_find_hir_union_variant(const MirBuildContext *build,
                                const char *union_name,
                                const char *variant_name,
                                size_t *out_variant_index,
                                size_t *out_variant_count);
+CalyndaRtTypeTag mr_checked_type_to_runtime_tag(CheckedType type);
+bool mr_init_union_new_instruction(MirBuildContext *build,
+                                   MirInstruction *instruction,
+                                   const char *union_name,
+                                   AstSourceSpan source_span);
 
 /* mir_capture.c */
 void mr_capture_list_free(MirCaptureList *captures);
@@ -189,6 +210,23 @@ bool mr_lower_ternary_expression(MirUnitBuildContext *context,
 bool mr_lower_short_circuit_binary(MirUnitBuildContext *context,
                                    const HirExpression *expression,
                                    MirValue *value);
+
+/* mir_expr_memory.c */
+bool mr_lower_memory_op_expression(MirUnitBuildContext *context,
+                                   const HirExpression *expression,
+                                   MirValue *value);
+bool mr_register_manual_cleanup(MirUnitBuildContext *context,
+                                const MirValue *argument,
+                                const MirValue *callee,
+                                AstSourceSpan source_span,
+                                MirValue *captured_argument);
+bool mr_enter_manual_scope(MirUnitBuildContext *context,
+                           AstSourceSpan source_span);
+bool mr_leave_manual_scope(MirUnitBuildContext *context,
+                           AstSourceSpan source_span);
+bool mr_emit_active_cleanups(MirUnitBuildContext *context,
+                             AstSourceSpan source_span);
+void mr_free_manual_cleanup_state(MirUnitBuildContext *context);
 
 /* mir_assign.c */
 bool mr_lower_assignment_expression(MirUnitBuildContext *context,

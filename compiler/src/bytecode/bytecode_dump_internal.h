@@ -13,6 +13,7 @@ const char *bytecode_dump_unit_kind_name(BytecodeUnitKind kind);
 const char *bytecode_dump_binary_operator_name_text(AstBinaryOperator operator);
 const char *bytecode_dump_unary_operator_name_text(AstUnaryOperator operator);
 const char *bytecode_dump_literal_kind_name(AstLiteralKind kind);
+const char *bytecode_dump_type_tag_name(CalyndaRtTypeTag tag);
 bool bytecode_dump_write_quoted_text(FILE *out, const char *text);
 bool bytecode_dump_constant_ref(FILE *out, const BytecodeProgram *program, size_t constant_index);
 bool bytecode_dump_value(FILE *out,

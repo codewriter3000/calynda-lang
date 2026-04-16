@@ -118,7 +118,8 @@ bool machine_build_program(MachineProgram *program,
         return false;
     }
     if (codegen_program->target != CODEGEN_TARGET_X86_64_SYSV_ELF &&
-        codegen_program->target != TARGET_KIND_AARCH64_AAPCS_ELF) {
+        codegen_program->target != TARGET_KIND_AARCH64_AAPCS_ELF &&
+        codegen_program->target != TARGET_KIND_RISCV64_LP64D_ELF) {
         mc_set_error(&context,
                      (AstSourceSpan){0},
                      NULL,

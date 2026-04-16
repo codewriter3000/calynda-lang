@@ -92,6 +92,10 @@ void test_parse_boot_decl(void);
 void test_parse_boot_decl_expression_body(void);
 void test_parse_manual_statement_with_memory_ops(void);
 void test_parse_calloc_memory_op(void);
+void test_parse_ptr_type_in_manual(void);
+void test_parse_deref_store_offset_addr_ops(void);
+void test_parse_stackalloc_op(void);
+void test_parse_layout_declaration(void);
 
 
 int main(void) {
@@ -124,6 +128,10 @@ int main(void) {
     RUN_TEST(test_parse_boot_decl_expression_body);
     RUN_TEST(test_parse_manual_statement_with_memory_ops);
     RUN_TEST(test_parse_calloc_memory_op);
+    RUN_TEST(test_parse_ptr_type_in_manual);
+    RUN_TEST(test_parse_deref_store_offset_addr_ops);
+    RUN_TEST(test_parse_stackalloc_op);
+    RUN_TEST(test_parse_layout_declaration);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

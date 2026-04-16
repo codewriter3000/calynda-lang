@@ -28,6 +28,19 @@ BytecodeLocalKind bc_local_kind_from_mir(MirLocalKind kind);
 BytecodeUnitKind bc_unit_kind_from_mir(MirUnitKind kind);
 size_t bc_find_unit_index(const MirProgram *program, const char *name);
 CalyndaRtTypeTag bc_checked_type_to_runtime_tag(CheckedType type);
+size_t bc_intern_union_type_descriptor(BytecodeBuildContext *context,
+                                       const char *name,
+                                       size_t generic_param_count,
+                                       const CalyndaRtTypeTag *generic_param_tags,
+                                       const char *const *variant_names,
+                                       const CalyndaRtTypeTag *variant_payload_tags,
+                                       size_t variant_count);
+bool bc_lower_hetero_array_instruction(BytecodeBuildContext *context,
+                                       const MirInstruction *instruction,
+                                       BytecodeInstruction *lowered);
+bool bc_lower_union_new_instruction(BytecodeBuildContext *context,
+                                    const MirInstruction *instruction,
+                                    BytecodeInstruction *lowered);
 
 /* bytecode_constants.c */
 size_t bc_intern_text_constant(BytecodeBuildContext *context,

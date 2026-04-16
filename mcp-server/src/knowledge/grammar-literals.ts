@@ -10,6 +10,7 @@ PrimaryExpression
     | "(" Expression ")"              (* parenthesized expression  *)
     | CastExpression                   (* type conversion           *)
     | ArrayLiteral                     (* array literal [1, 2, 3]   *)
+    | MemoryOpExpression               (* manual memory operations  *)
     ;
 
 (* The discard expression _ can be used as an assignment target     *)
@@ -29,6 +30,24 @@ CastExpression
 
 ArrayLiteral
     = "[" [ Expression { "," Expression } ] "]"
+    ;
+
+(* Memory allocation, cleanup, and pointer operation expressions.   *)
+(* Only valid inside a manual { ... } or manual checked { ... } block. *)
+(* malloc/calloc/realloc/addr/offset/stackalloc return int64.       *)
+(* deref depends on pointer typing, free/store return void, and     *)
+(* cleanup(value, fn) returns its first argument.                   *)
+MemoryOpExpression
+    = "malloc"  "(" Expression ")"
+    | "calloc"  "(" Expression "," Expression ")"
+    | "realloc" "(" Expression "," Expression ")"
+    | "free"    "(" Expression ")"
+    | "deref"   "(" Expression ")"
+    | "addr"    "(" Expression ")"
+    | "offset"  "(" Expression "," Expression ")"
+    | "store"   "(" Expression "," Expression ")"
+    | "cleanup" "(" Expression "," Expression ")"
+    | "stackalloc" "(" Expression ")"
     ;
 
 

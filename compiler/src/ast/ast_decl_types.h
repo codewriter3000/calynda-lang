@@ -43,7 +43,13 @@ typedef enum {
     AST_MEMORY_MALLOC = 0,
     AST_MEMORY_CALLOC,
     AST_MEMORY_REALLOC,
-    AST_MEMORY_FREE
+    AST_MEMORY_FREE,
+    AST_MEMORY_DEREF,
+    AST_MEMORY_ADDR,
+    AST_MEMORY_OFFSET,
+    AST_MEMORY_STORE,
+    AST_MEMORY_CLEANUP,
+    AST_MEMORY_STACKALLOC
 } AstMemoryOpKind;
 
 typedef struct {
@@ -107,6 +113,7 @@ typedef struct {
 typedef struct {
     AstParameterList parameters;
     AstBlock        *body;
+    bool             is_checked;
 } AstManualStatement;
 
 typedef enum {
@@ -185,11 +192,25 @@ typedef struct {
     size_t       body_length;
 } AstAsmDecl;
 
+typedef struct {
+    AstType   field_type;
+    char     *name;
+} AstLayoutField;
+
+typedef struct {
+    char           *name;
+    AstSourceSpan   name_span;
+    AstLayoutField *fields;
+    size_t          field_count;
+    size_t          field_capacity;
+} AstLayoutDecl;
+
 typedef enum {
     AST_TOP_LEVEL_START = 0,
     AST_TOP_LEVEL_BINDING,
     AST_TOP_LEVEL_UNION,
-    AST_TOP_LEVEL_ASM
+    AST_TOP_LEVEL_ASM,
+    AST_TOP_LEVEL_LAYOUT
 } AstTopLevelDeclKind;
 
 struct AstTopLevelDecl {
@@ -199,6 +220,7 @@ struct AstTopLevelDecl {
         AstBindingDecl binding_decl;
         AstUnionDecl   union_decl;
         AstAsmDecl     asm_decl;
+        AstLayoutDecl  layout_decl;
     } as;
 };
 

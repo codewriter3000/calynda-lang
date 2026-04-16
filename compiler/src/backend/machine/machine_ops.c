@@ -15,6 +15,7 @@ bool mc_emit_binary(MachineBuildContext *context,
     const char *work_reg;
     bool is_unsigned;
     bool is_arm64 = mc_is_aarch64(context);
+    bool is_riscv64 = mc_is_riscv64(context);
     bool ok = false;
 
     if (!mc_format_operand(td, lir_unit, codegen_unit, instruction->as.binary.left, &left) ||
@@ -36,8 +37,8 @@ bool mc_emit_binary(MachineBuildContext *context,
         : td->work_register.name;
     is_unsigned = mc_checked_type_is_unsigned(instruction->as.binary.left.type);
 
-    if (is_arm64) {
-        /* ARM64: 3-operand instructions */
+    if (is_arm64 || is_riscv64) {
+        /* ARM64 / RISC-V 64: 3-operand instructions */
         switch (instruction->as.binary.operator) {
         case AST_BINARY_OP_ADD:
             ok = mc_append_line(context, block, "add %s, %s, %s", work_reg, left, right);
@@ -49,16 +50,23 @@ bool mc_emit_binary(MachineBuildContext *context,
             ok = mc_append_line(context, block, "mul %s, %s, %s", work_reg, left, right);
             break;
         case AST_BINARY_OP_DIVIDE:
-            ok = mc_append_line(context, block, "%s %s, %s, %s",
-                                is_unsigned ? "udiv" : "sdiv", work_reg, left, right);
+            if (is_riscv64)
+                ok = mc_append_line(context, block, "%s %s, %s, %s",
+                                    is_unsigned ? "divu" : "div", work_reg, left, right);
+            else
+                ok = mc_append_line(context, block, "%s %s, %s, %s",
+                                    is_unsigned ? "udiv" : "sdiv", work_reg, left, right);
             break;
         case AST_BINARY_OP_MODULO:
-            /* ARM64: remainder = dividend - (dividend / divisor) * divisor
-             * Using msub: msub Rd, Rm, Rn, Ra => Rd = Ra - Rm * Rn */
-            ok = mc_append_line(context, block, "%s %s, %s, %s",
-                                is_unsigned ? "udiv" : "sdiv", td->work_register.name, left, right) &&
-                 mc_append_line(context, block, "msub %s, %s, %s, %s",
-                                work_reg, td->work_register.name, right, left);
+            if (is_riscv64) {
+                ok = mc_append_line(context, block, "%s %s, %s, %s",
+                                    is_unsigned ? "remu" : "rem", work_reg, left, right);
+            } else {
+                ok = mc_append_line(context, block, "%s %s, %s, %s",
+                                    is_unsigned ? "udiv" : "sdiv", td->work_register.name, left, right) &&
+                     mc_append_line(context, block, "msub %s, %s, %s, %s",
+                                    work_reg, td->work_register.name, right, left);
+            }
             break;
         case AST_BINARY_OP_BIT_AND:
             ok = mc_append_line(context, block, "and %s, %s, %s", work_reg, left, right);
@@ -85,28 +93,14 @@ bool mc_emit_binary(MachineBuildContext *context,
                                 is_unsigned ? "lsr" : "asr", work_reg, left, right);
             break;
         case AST_BINARY_OP_EQUAL:
-            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
-                 mc_append_line(context, block, "cset %s, eq", work_reg);
-            break;
         case AST_BINARY_OP_NOT_EQUAL:
-            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
-                 mc_append_line(context, block, "cset %s, ne", work_reg);
-            break;
         case AST_BINARY_OP_LESS:
-            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
-                 mc_append_line(context, block, "cset %s, %s", work_reg, is_unsigned ? "lo" : "lt");
-            break;
         case AST_BINARY_OP_GREATER:
-            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
-                 mc_append_line(context, block, "cset %s, %s", work_reg, is_unsigned ? "hi" : "gt");
-            break;
         case AST_BINARY_OP_LESS_EQUAL:
-            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
-                 mc_append_line(context, block, "cset %s, %s", work_reg, is_unsigned ? "ls" : "le");
-            break;
         case AST_BINARY_OP_GREATER_EQUAL:
-            ok = mc_append_line(context, block, "cmp %s, %s", left, right) &&
-                 mc_append_line(context, block, "cset %s, %s", work_reg, is_unsigned ? "hs" : "ge");
+            ok = mc_emit_compare_3op(context, block, work_reg, left, right,
+                                     instruction->as.binary.operator,
+                                     is_unsigned, is_riscv64);
             break;
         case AST_BINARY_OP_LOGICAL_AND:
         case AST_BINARY_OP_LOGICAL_OR:

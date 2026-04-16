@@ -20,6 +20,8 @@ void hr_free_array_literal_expression(HirArrayLiteralExpression *array_literal);
 
 /* hir_helpers.c */
 bool hr_source_span_is_valid(AstSourceSpan span);
+size_t hr_primitive_byte_size(AstPrimitiveType primitive);
+size_t hr_layout_byte_size(const SymbolTable *symbols, const char *name);
 void hr_set_error(HirBuildContext *context,
                   AstSourceSpan primary_span,
                   const AstSourceSpan *related_span,
@@ -64,6 +66,9 @@ HirStatement *hr_lower_statement(HirBuildContext *context,
 /* hir_lower_expr.c */
 HirExpression *hr_lower_expression(HirBuildContext *context,
                                    const AstExpression *expression);
+HirExpression *hr_lower_memory_expression(HirBuildContext *context,
+                                          const AstExpression *expression,
+                                          const TypeCheckInfo *info);
 
 /* hir_lower_expr_ext.c */
 HirExpression *hr_lower_expr_complex(HirBuildContext *context,

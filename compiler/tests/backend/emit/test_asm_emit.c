@@ -96,7 +96,7 @@ bool build_assembly_from_source_with_target(const char *source,
         !symbol_table_build(&symbols, &ast_program) ||
         !type_checker_check_program(&checker, &ast_program, &symbols) ||
         !hir_build_program(&hir_program, &ast_program, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program) ||
+        !mir_build_program(&mir_program, &hir_program, false) ||
         !lir_build_program(&lir_program, &mir_program) ||
         !codegen_build_program(&codegen_program, &lir_program, target) ||
         !machine_build_program(&machine_program, &lir_program, &codegen_program)) {
@@ -165,6 +165,13 @@ void test_asm_emit_asm_decl_emits_raw_body(void);
 void test_asm_emit_asm_decl_no_params(void);
 void test_asm_emit_boot_emits_start_label(void);
 void test_asm_emit_boot_aarch64_emits_start_label(void);
+void test_asm_emit_riscv64_minimal_program(void);
+void test_asm_emit_riscv64_runtime_backed_program(void);
+void test_asm_emit_boot_riscv64_emits_start_label(void);
+void test_cross_asm_riscv64_assembles(void);
+void test_cross_asm_aarch64_assembles(void);
+void test_cross_build_riscv64_boot_links(void);
+void test_cross_run_riscv64_boot_qemu(void);
 
 
 int main(void) {
@@ -186,6 +193,17 @@ int main(void) {
     printf("\n  Boot entry tests...\n");
     RUN_TEST(test_asm_emit_boot_emits_start_label);
     RUN_TEST(test_asm_emit_boot_aarch64_emits_start_label);
+    RUN_TEST(test_asm_emit_boot_riscv64_emits_start_label);
+
+    printf("\n  RV64 tests...\n");
+    RUN_TEST(test_asm_emit_riscv64_minimal_program);
+    RUN_TEST(test_asm_emit_riscv64_runtime_backed_program);
+
+    printf("\n  Cross-compilation tests (skipped if toolchain absent)...\n");
+    RUN_TEST(test_cross_asm_riscv64_assembles);
+    RUN_TEST(test_cross_asm_aarch64_assembles);
+    RUN_TEST(test_cross_build_riscv64_boot_links);
+    RUN_TEST(test_cross_run_riscv64_boot_qemu);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

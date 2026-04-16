@@ -50,6 +50,45 @@ bool bytecode_dump_program(FILE *out, const BytecodeProgram *program) {
                 return false;
             }
             break;
+        case BYTECODE_CONSTANT_TYPE_DESCRIPTOR:
+            fprintf(out,
+                    "type_desc name=%s generic_params=[",
+                    program->constants[i].as.type_descriptor.name);
+            for (j = 0; j < program->constants[i].as.type_descriptor.generic_param_count; j++) {
+                CalyndaRtTypeTag tag = program->constants[i].as.type_descriptor.generic_param_tags
+                    ? program->constants[i].as.type_descriptor.generic_param_tags[j]
+                    : CALYNDA_RT_TYPE_RAW_WORD;
+
+                if (j > 0) {
+                    fputs(", ", out);
+                }
+                fputs(bytecode_dump_type_tag_name(tag), out);
+            }
+            fputs("] variants=[", out);
+            for (j = 0; j < program->constants[i].as.type_descriptor.variant_count; j++) {
+                const char *variant_name =
+                    program->constants[i].as.type_descriptor.variant_names
+                        ? program->constants[i].as.type_descriptor.variant_names[j]
+                        : NULL;
+
+                if (j > 0) {
+                    fputs(", ", out);
+                }
+                if (variant_name) {
+                    fprintf(out,
+                            "%s:%s",
+                            variant_name,
+                            bytecode_dump_type_tag_name(
+                                program->constants[i].as.type_descriptor.variant_payload_tags[j]));
+                } else {
+                    fprintf(out,
+                            "%s",
+                            bytecode_dump_type_tag_name(
+                                program->constants[i].as.type_descriptor.variant_payload_tags[j]));
+                }
+            }
+            fputc(']', out);
+            break;
         }
         fputc('\n', out);
     }

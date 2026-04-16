@@ -2,6 +2,7 @@
 #define CALYNDA_MIR_INSTR_TYPES_H
 
 #include "hir.h"
+#include "runtime.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -77,8 +78,10 @@ typedef enum {
     MIR_INSTR_STORE_GLOBAL,
     MIR_INSTR_STORE_INDEX,
     MIR_INSTR_STORE_MEMBER,
-    MIR_INSTR_HETERO_ARRAY_NEW,
-    MIR_INSTR_UNION_NEW
+    MIR_INSTR_UNION_NEW,
+    MIR_INSTR_UNION_GET_TAG,
+    MIR_INSTR_UNION_GET_PAYLOAD,
+    MIR_INSTR_HETERO_ARRAY_NEW
 } MirInstructionKind;
 
 struct MirInstruction {
@@ -152,19 +155,26 @@ struct MirInstruction {
             MirValue value;
         } store_member;
         struct {
-            size_t       dest_temp;
-            MirValue    *elements;
-            CheckedType *element_types;
-            size_t       element_count;
+            size_t                 dest_temp;
+            CalyndaRtTypeDescriptor type_desc;
+            MirValue              *elements;
+            size_t                 element_count;
         } hetero_array_new;
         struct {
-            size_t   dest_temp;
-            char    *union_name;
-            size_t   variant_index;
-            size_t   variant_count;
-            bool     has_payload;
-            MirValue payload;
+            size_t                 dest_temp;
+            CalyndaRtTypeDescriptor type_desc;
+            size_t                 variant_index;
+            bool                   has_payload;
+            MirValue               payload;
         } union_new;
+        struct {
+            size_t   dest_temp;
+            MirValue target;
+        } union_get_tag;
+        struct {
+            size_t   dest_temp;
+            MirValue target;
+        } union_get_payload;
     } as;
 };
 

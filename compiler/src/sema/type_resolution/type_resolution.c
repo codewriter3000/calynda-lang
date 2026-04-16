@@ -1,5 +1,31 @@
 #include "type_resolution_internal.h"
 
+static bool tr_validate_layout_decl(TypeResolver *resolver,
+                                    const AstLayoutDecl *layout_decl) {
+    size_t field_index;
+
+    if (!resolver || !layout_decl) {
+        return false;
+    }
+
+    for (field_index = 0; field_index < layout_decl->field_count; field_index++) {
+        const AstLayoutField *field = &layout_decl->fields[field_index];
+
+        if (field->field_type.kind != AST_TYPE_PRIMITIVE ||
+            field->field_type.dimension_count != 0) {
+            tr_set_error_at(resolver,
+                            layout_decl->name_span,
+                            NULL,
+                            "Layout '%s' field '%s' must use a scalar primitive type in 0.4.0.",
+                            layout_decl->name ? layout_decl->name : "?",
+                            field->name ? field->name : "?");
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void type_resolver_init(TypeResolver *resolver) {
     if (!resolver) {
         return;
@@ -71,6 +97,10 @@ bool type_resolver_resolve_program(TypeResolver *resolver, const AstProgram *pro
                 if (!tr_resolve_parameter(resolver, &asm_decl->parameters.items[p])) {
                     return false;
                 }
+            }
+        } else if (decl->kind == AST_TOP_LEVEL_LAYOUT) {
+            if (!tr_validate_layout_decl(resolver, &decl->as.layout_decl)) {
+                return false;
             }
         } else if (!tr_resolve_start_decl(resolver, &decl->as.start_decl)) {
             return false;

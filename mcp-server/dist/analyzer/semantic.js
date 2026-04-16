@@ -78,6 +78,26 @@ class SemanticAnalyzer {
             this.defineSymbol(decl.name, unionType, decl);
             this.globalSymbols.set(decl.name, unionType);
         }
+        else if (decl.kind === 'LayoutDecl') {
+            const layoutType = { kind: 'named', name: decl.name, genericArgs: [] };
+            this.defineSymbol(decl.name, layoutType, decl);
+            this.globalSymbols.set(decl.name, layoutType);
+        }
+        else if (decl.kind === 'AsmDecl') {
+            const type = this.typeFromAnnotation(decl.typeAnnotation);
+            this.defineSymbol(decl.name, type, decl);
+            this.globalSymbols.set(decl.name, type);
+        }
+        else if (decl.kind === 'BootDecl') {
+            if (decl.body.kind === 'Block') {
+                this.pushScope();
+                this.analyzeBlock(decl.body);
+                this.popScope();
+            }
+            else {
+                this.analyzeExpression(decl.body);
+            }
+        }
     }
     analyzeBlock(block) {
         for (const stmt of block.statements) {
@@ -100,6 +120,11 @@ class SemanticAnalyzer {
                 break;
             case 'ThrowStatement':
                 this.analyzeExpression(stmt.value);
+                break;
+            case 'ManualStatement':
+                this.pushScope();
+                this.analyzeBlock(stmt.body);
+                this.popScope();
                 break;
             case 'ExpressionStatement':
                 this.analyzeExpression(stmt.expression);

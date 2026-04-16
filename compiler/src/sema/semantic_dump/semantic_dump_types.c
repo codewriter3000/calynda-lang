@@ -25,7 +25,8 @@ bool sd_append_ast_type(SemanticDumpBuilder *builder,
         }
         break;
     case AST_TYPE_ARR:
-        if (!sd_builder_append(builder, "arr")) {
+    case AST_TYPE_PTR:
+        if (!sd_builder_append(builder, type->kind == AST_TYPE_PTR ? "ptr" : "arr")) {
             return false;
         }
         if (type->generic_args.count > 0) {
@@ -116,6 +117,11 @@ bool sd_append_checked_type(SemanticDumpBuilder *builder, CheckedType type) {
         return true;
     case CHECKED_TYPE_TYPE_PARAM:
         return sd_builder_append(builder, type.name ? type.name : "?");
+    case CHECKED_TYPE_FUNCTION: {
+        char func_buf[32];
+        snprintf(func_buf, sizeof(func_buf), "<function(%zu)>", type.generic_arg_count);
+        return sd_builder_append(builder, func_buf);
+    }
     }
 
     return false;

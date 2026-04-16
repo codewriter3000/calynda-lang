@@ -185,6 +185,41 @@ bool mc_emit_instruction_runtime(MachineBuildContext *context,
                                 ret);
         return ok;
     }
+    case CODEGEN_RUNTIME_UNION_NEW: {
+        const RuntimeAbiHelperSignature *signature =
+            runtime_abi_get_helper_signature(context->program->target,
+                                             selected->selection.as.runtime_helper);
+        char *type_desc = NULL;
+        bool ok;
+
+        if (!mc_format_union_type_descriptor_operand(instruction, &type_desc)) {
+            return false;
+        }
+        ok = mc_append_line(context, block, "mov %s, %s", arg0, type_desc) &&
+             mc_append_line(context, block, "mov %s, %zu", arg1,
+                            instruction->as.union_new.variant_index);
+        free(type_desc);
+        if (!ok) {
+            return false;
+        }
+        if (instruction->as.union_new.has_payload) {
+            char *payload = NULL;
+
+            ok = mc_format_operand(td, lir_unit, codegen_unit,
+                                   instruction->as.union_new.payload, &payload) &&
+                 mc_append_line(context, block, "mov %s, %s", arg2, payload);
+            free(payload);
+        } else {
+            ok = mc_append_line(context, block, "mov %s, null", arg2);
+        }
+        return ok &&
+               mc_emit_runtime_helper_call(context, codegen_unit, signature, block, false) &&
+               mc_emit_store_vreg(context,
+                                  codegen_unit,
+                                  instruction->as.union_new.dest_vreg,
+                                  block,
+                                  ret);
+    }
     default:
         return mc_emit_instruction_runtime_ext(context, lir_unit, codegen_unit,
                                                instruction, selected, block);

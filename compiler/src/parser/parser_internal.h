@@ -79,6 +79,9 @@ AstBlock *parse_block(Parser *parser);
 /* parser_union.c */
 AstTopLevelDecl *parse_union_decl(Parser *parser);
 
+/* parser_layout.c */
+AstTopLevelDecl *parse_layout_decl(Parser *parser);
+
 /* parser_stmt.c */
 AstStatement *parse_statement(Parser *parser);
 

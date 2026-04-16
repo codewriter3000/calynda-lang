@@ -195,3 +195,52 @@ bool mc_checked_type_is_unsigned(CheckedType type) {
         return false;
     }
 }
+
+bool mc_emit_compare_3op(MachineBuildContext *context,
+                         MachineBlock *block,
+                         const char *work_reg,
+                         const char *left,
+                         const char *right,
+                         AstBinaryOperator op,
+                         bool is_unsigned,
+                         bool is_riscv64) {
+    if (is_riscv64) {
+        const char *slt_op = is_unsigned ? "sltu" : "slt";
+
+        switch (op) {
+        case AST_BINARY_OP_EQUAL:
+            return mc_append_line(context, block, "sub %s, %s, %s", work_reg, left, right) &&
+                   mc_append_line(context, block, "seqz %s, %s", work_reg, work_reg);
+        case AST_BINARY_OP_NOT_EQUAL:
+            return mc_append_line(context, block, "sub %s, %s, %s", work_reg, left, right) &&
+                   mc_append_line(context, block, "snez %s, %s", work_reg, work_reg);
+        case AST_BINARY_OP_LESS:
+            return mc_append_line(context, block, "%s %s, %s, %s", slt_op, work_reg, left, right);
+        case AST_BINARY_OP_GREATER:
+            return mc_append_line(context, block, "%s %s, %s, %s", slt_op, work_reg, right, left);
+        case AST_BINARY_OP_LESS_EQUAL:
+            return mc_append_line(context, block, "%s %s, %s, %s", slt_op, work_reg, right, left) &&
+                   mc_append_line(context, block, "xori %s, %s, 1", work_reg, work_reg);
+        case AST_BINARY_OP_GREATER_EQUAL:
+            return mc_append_line(context, block, "%s %s, %s, %s", slt_op, work_reg, left, right) &&
+                   mc_append_line(context, block, "xori %s, %s, 1", work_reg, work_reg);
+        default: return false;
+        }
+    }
+    /* ARM64: cmp + cset */
+    {
+        const char *cc;
+
+        switch (op) {
+        case AST_BINARY_OP_EQUAL:         cc = "eq"; break;
+        case AST_BINARY_OP_NOT_EQUAL:     cc = "ne"; break;
+        case AST_BINARY_OP_LESS:          cc = is_unsigned ? "lo" : "lt"; break;
+        case AST_BINARY_OP_GREATER:       cc = is_unsigned ? "hi" : "gt"; break;
+        case AST_BINARY_OP_LESS_EQUAL:    cc = is_unsigned ? "ls" : "le"; break;
+        case AST_BINARY_OP_GREATER_EQUAL: cc = is_unsigned ? "hs" : "ge"; break;
+        default: return false;
+        }
+        return mc_append_line(context, block, "cmp %s, %s", left, right) &&
+               mc_append_line(context, block, "cset %s, %s", work_reg, cc);
+    }
+}

@@ -26,7 +26,7 @@ import { getBytecodeResource } from './resources/bytecode';
 import { PROMPTS, getPromptMessages } from './prompts/index';
 
 const server = new Server(
-  { name: 'calynda-mcp-server', version: '0.3.0' },
+  { name: 'calynda-mcp-server', version: '0.4.0' },
   { capabilities: { tools: {}, resources: {}, prompts: {} } }
 );
 

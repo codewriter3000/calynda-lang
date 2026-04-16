@@ -94,7 +94,7 @@ bool build_machine_dump_from_source(const char *source, char **dump_out) {
         !symbol_table_build(&symbols, &ast_program) ||
         !type_checker_check_program(&checker, &ast_program, &symbols) ||
         !hir_build_program(&hir_program, &ast_program, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program) ||
+        !mir_build_program(&mir_program, &hir_program, false) ||
         !lir_build_program(&lir_program, &mir_program) ||
         !codegen_build_program(&codegen_program, &lir_program, target_get_default()) ||
         !machine_build_program(&machine_program, &lir_program, &codegen_program)) {
@@ -120,7 +120,43 @@ cleanup:
 void test_runtime_abi_dump_defines_helper_surface(void);
 void test_machine_dump_emits_minimal_direct_instruction_stream(void);
 void test_machine_dump_routes_runtime_backed_ops_through_helpers(void);
+void test_machine_dump_includes_static_hetero_array_type_descriptors(void);
+void test_machine_dump_includes_static_union_type_descriptors(void);
 void test_machine_dump_routes_throw_terminator_to_runtime_helper(void);
+void test_machine_dump_routes_union_tag_and_payload_helpers(void);
+
+void test_machine_dump_includes_static_hetero_array_type_descriptors(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    arr<?> mixed = [1, true, \"hello\"];\n"
+        "    return 0;\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_machine_dump_from_source(source, &dump), "emit hetero array machine program");
+    ASSERT_CONTAINS("mov rdi, typedesc(arr|1|g0:raw_word|0:int32|1:bool|2:string)", dump,
+                    "hetero array construction passes a static type descriptor operand");
+    ASSERT_CONTAINS("call __calynda_rt_hetero_array_new", dump,
+                    "hetero array construction still lowers through the runtime ABI");
+    free(dump);
+}
+
+void test_machine_dump_includes_static_union_type_descriptors(void) {
+    static const char source[] =
+        "union Option<T> { Some(T), None };\n"
+        "start(string[] args) -> {\n"
+        "    Option<int32> value = Option.Some(42);\n"
+        "    return 0;\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_machine_dump_from_source(source, &dump), "emit union machine program");
+    ASSERT_CONTAINS("mov rdi, typedesc(Option|1|g0:int32|Some:int32|None:void)", dump,
+                    "union construction passes a static type descriptor operand");
+    ASSERT_CONTAINS("call __calynda_rt_union_new", dump,
+                    "union construction still lowers through the runtime ABI");
+    free(dump);
+}
 
 
 int main(void) {
@@ -129,7 +165,10 @@ int main(void) {
     RUN_TEST(test_runtime_abi_dump_defines_helper_surface);
     RUN_TEST(test_machine_dump_emits_minimal_direct_instruction_stream);
     RUN_TEST(test_machine_dump_routes_runtime_backed_ops_through_helpers);
+    RUN_TEST(test_machine_dump_includes_static_hetero_array_type_descriptors);
+    RUN_TEST(test_machine_dump_includes_static_union_type_descriptors);
     RUN_TEST(test_machine_dump_routes_throw_terminator_to_runtime_helper);
+    RUN_TEST(test_machine_dump_routes_union_tag_and_payload_helpers);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

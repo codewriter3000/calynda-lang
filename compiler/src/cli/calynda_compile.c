@@ -5,6 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+static bool g_global_bounds_check = false;
+
+void calynda_set_global_bounds_check(bool enabled) {
+    g_global_bounds_check = enabled;
+}
+
 int calynda_compile_to_machine_program(const char *path,
                                        MachineProgram *machine_program,
                                        const TargetDescriptor *target) {
@@ -77,7 +83,7 @@ int calynda_compile_to_machine_program(const char *path,
         goto cleanup;
     }
     if (!hir_build_program(&hir_program, &program, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program) ||
+        !mir_build_program(&mir_program, &hir_program, g_global_bounds_check) ||
         !lir_build_program(&lir_program, &mir_program) ||
         !codegen_build_program(&codegen_program, &lir_program, target) ||
         !machine_build_program(machine_program, &lir_program, &codegen_program)) {
@@ -167,7 +173,7 @@ int calynda_compile_to_bytecode_program(const char *path,
         goto cleanup;
     }
     if (!hir_build_program(&hir_program, &program, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program) ||
+        !mir_build_program(&mir_program, &hir_program, g_global_bounds_check) ||
         !bytecode_build_program(bytecode_program, &mir_program)) {
         bytecode_error = bytecode_get_error(bytecode_program);
         if (bytecode_error && bytecode_format_error(bytecode_error, diagnostic, sizeof(diagnostic))) {

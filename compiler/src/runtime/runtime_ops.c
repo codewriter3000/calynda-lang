@@ -69,20 +69,36 @@ CalyndaRtWord __calynda_rt_member_load(CalyndaRtWord target, const char *member)
 
 CalyndaRtWord __calynda_rt_index_load(CalyndaRtWord target, CalyndaRtWord index) {
     const CalyndaRtObjectHeader *header = calynda_rt_as_object(target);
+    const CalyndaRtWord *elements;
+    size_t count;
     size_t offset;
 
-    if (!header || header->kind != CALYNDA_RT_OBJECT_ARRAY) {
+    if (!header ||
+        (header->kind != CALYNDA_RT_OBJECT_ARRAY &&
+         header->kind != CALYNDA_RT_OBJECT_HETERO_ARRAY)) {
         fprintf(stderr, "runtime: attempted index load on non-array value\n");
         abort();
     }
 
+    if (header->kind == CALYNDA_RT_OBJECT_ARRAY) {
+        const CalyndaRtArray *array = (const CalyndaRtArray *)(const void *)header;
+
+        count = array->count;
+        elements = array->elements;
+    } else {
+        const CalyndaRtHeteroArray *array = (const CalyndaRtHeteroArray *)(const void *)header;
+
+        count = array->count;
+        elements = array->elements;
+    }
+
     offset = (size_t)rt_signed_from_word(index);
-    if (offset >= ((const CalyndaRtArray *)(const void *)header)->count) {
+    if (offset >= count) {
         fprintf(stderr, "runtime: array index out of bounds (%zu)\n", offset);
         abort();
     }
 
-    return ((const CalyndaRtArray *)(const void *)header)->elements[offset];
+    return elements[offset];
 }
 
 CalyndaRtWord __calynda_rt_array_literal(size_t element_count,
@@ -209,5 +225,6 @@ int calynda_rt_start_process(CalyndaRtProgramStartEntry entry, int argc, char **
     free(elements);
 
     result = entry(arguments);
+    rt_cleanup_registered_objects();
     return (int)(int32_t)result;
 }

@@ -23,6 +23,8 @@ const char *symbol_kind_name(SymbolKind kind) {
         return "type parameter";
     case SYMBOL_KIND_VARIANT:
         return "variant";
+    case SYMBOL_KIND_LAYOUT:
+        return "layout";
     }
 
     return "unknown";

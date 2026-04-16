@@ -96,6 +96,9 @@ bool ae_translate_operand_ext(AsmEmitContext *context,
         operand->text = ae_copy_text(literal->object_label);
         return operand->text != NULL;
     }
+    if (ae_starts_with(operand_text, "typedesc(")) {
+        return ae_translate_type_descriptor_operand(context, operand_text, operand);
+    }
     inner = ae_between_parens(operand_text, "tag(");
     if (inner) {
         operand->kind = ASM_OPERAND_IMMEDIATE;
@@ -137,7 +140,7 @@ bool ae_translate_operand_ext(AsmEmitContext *context,
     }
 
     operand->kind = ASM_OPERAND_CALL_TARGET;
-    if (ae_starts_with(operand_text, "__calynda_rt_") ||
+    if (ae_starts_with(operand_text, "__calynda_") ||
         strcmp(operand_text, "malloc") == 0 ||
         strcmp(operand_text, "calloc") == 0 ||
         strcmp(operand_text, "realloc") == 0 ||
@@ -177,6 +180,9 @@ bool ae_write_operand(FILE *out, const AsmOperand *operand) {
 }
 
 long long ae_runtime_type_tag_value(const char *type_name) {
+    if (strcmp(type_name, "void") == 0) {
+        return CALYNDA_RT_TYPE_VOID;
+    }
     if (strcmp(type_name, "bool") == 0) {
         return CALYNDA_RT_TYPE_BOOL;
     }
@@ -189,8 +195,21 @@ long long ae_runtime_type_tag_value(const char *type_name) {
     if (strcmp(type_name, "string") == 0) {
         return CALYNDA_RT_TYPE_STRING;
     }
-    if (strcmp(type_name, "string[]") == 0 || strstr(type_name, "[]") != NULL) {
+    if (strcmp(type_name, "array") == 0 || strcmp(type_name, "string[]") == 0 ||
+        strstr(type_name, "[]") != NULL) {
         return CALYNDA_RT_TYPE_ARRAY;
+    }
+    if (strcmp(type_name, "closure") == 0) {
+        return CALYNDA_RT_TYPE_CLOSURE;
+    }
+    if (strcmp(type_name, "external") == 0) {
+        return CALYNDA_RT_TYPE_EXTERNAL;
+    }
+    if (strcmp(type_name, "union") == 0) {
+        return CALYNDA_RT_TYPE_UNION;
+    }
+    if (strcmp(type_name, "hetero_array") == 0) {
+        return CALYNDA_RT_TYPE_HETERO_ARRAY;
     }
     return CALYNDA_RT_TYPE_RAW_WORD;
 }

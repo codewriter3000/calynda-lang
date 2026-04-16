@@ -7,6 +7,7 @@ bool mr_lower_module_init_unit(MirBuildContext *context,
     MirBasicBlock *block;
     size_t i;
     bool has_initializers = false;
+    bool ok = false;
 
     if (!context) {
         return false;
@@ -45,9 +46,9 @@ bool mr_lower_module_init_unit(MirBuildContext *context,
 
     unit_context.build = context;
     unit_context.unit = &unit;
+    unit_context.in_checked_manual = context->global_bounds_check;
     if (!mr_create_block(&unit_context, &unit_context.current_block_index)) {
-        mr_unit_free(&unit);
-        return false;
+        goto cleanup;
     }
 
     for (i = 0; i < context->hir_program->top_level_count; i++) {
@@ -64,19 +65,17 @@ bool mr_lower_module_init_unit(MirBuildContext *context,
                                              decl->as.binding.name,
                                              value,
                                              decl->as.binding.source_span)) {
-            mr_unit_free(&unit);
-            return false;
+            goto cleanup;
         }
     }
 
     block = mr_current_block(&unit_context);
     if (!block) {
-        mr_unit_free(&unit);
         mr_set_error(context,
                       (AstSourceSpan){0},
                       NULL,
                       "Internal error: missing MIR block at module init exit.");
-        return false;
+        goto cleanup;
     }
     if (block->terminator.kind == MIR_TERM_NONE) {
         block->terminator.kind = MIR_TERM_RETURN;
@@ -84,21 +83,29 @@ bool mr_lower_module_init_unit(MirBuildContext *context,
     }
 
     if (!mr_append_unit(context->program, unit)) {
-        mr_unit_free(&unit);
         mr_set_error(context,
                       (AstSourceSpan){0},
                       NULL,
                       "Out of memory while assembling MIR module init unit.");
-        return false;
+        goto cleanup;
     }
+
+    ok = true;
 
     if (created_module_init_unit) {
         *created_module_init_unit = true;
     }
-    return true;
+
+cleanup:
+    mr_free_manual_cleanup_state(&unit_context);
+    if (!ok) {
+        mr_unit_free(&unit);
+    }
+    return ok;
 }
 
-bool mir_build_program(MirProgram *program, const HirProgram *hir_program) {
+bool mir_build_program(MirProgram *program, const HirProgram *hir_program,
+                       bool global_bounds_check) {
     MirBuildContext context;
     const HirStartDecl *start_decl = NULL;
     size_t i;
@@ -114,6 +121,7 @@ bool mir_build_program(MirProgram *program, const HirProgram *hir_program) {
     memset(&context, 0, sizeof(context));
     context.program = program;
     context.hir_program = hir_program;
+    context.global_bounds_check = global_bounds_check;
 
     if (hir_get_error(hir_program) != NULL) {
         mr_set_error(&context,

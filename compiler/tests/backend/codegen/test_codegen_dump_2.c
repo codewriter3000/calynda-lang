@@ -120,7 +120,7 @@ void test_codegen_dump_defines_x86_64_sysv_target_and_direct_patterns(void) {
                  "type check codegen program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for codegen program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for codegen program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for codegen program");
@@ -179,7 +179,7 @@ void test_codegen_dump_distinguishes_runtime_backed_operations(void) {
                  "type check runtime-boundary program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for runtime-boundary program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for runtime-boundary program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for runtime-boundary program");

@@ -61,7 +61,10 @@ int tests_failed = 0;
 
 void test_lir_dump_lowers_minimal_callable_slice(void);
 void test_lir_dump_covers_globals_branches_closures_and_runtime_like_ops(void);
+void test_lir_dump_lowers_hetero_array_literal(void);
+void test_lir_dump_lowers_union_descriptors(void);
 void test_lir_dump_lowers_throw_terminator(void);
+void test_lir_dump_lowers_union_tag_and_payload_access(void);
 
 
 int main(void) {
@@ -69,7 +72,10 @@ int main(void) {
 
     RUN_TEST(test_lir_dump_lowers_minimal_callable_slice);
     RUN_TEST(test_lir_dump_covers_globals_branches_closures_and_runtime_like_ops);
+    RUN_TEST(test_lir_dump_lowers_hetero_array_literal);
+    RUN_TEST(test_lir_dump_lowers_union_descriptors);
     RUN_TEST(test_lir_dump_lowers_throw_terminator);
+    RUN_TEST(test_lir_dump_lowers_union_tag_and_payload_access);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

@@ -124,7 +124,7 @@ void hir_statement_free(HirStatement *statement) {
     case HIR_STMT_EXIT:
         break;
     case HIR_STMT_MANUAL:
-        hir_block_free(statement->as.manual_body);
+        hir_block_free(statement->as.manual.body);
         break;
     }
 

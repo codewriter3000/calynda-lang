@@ -136,6 +136,8 @@ bool lr_lower_mir_instruction(LirBuildContext *context,
 
     case MIR_INSTR_CAST:
     case MIR_INSTR_MEMBER:
+    case MIR_INSTR_UNION_GET_TAG:
+    case MIR_INSTR_UNION_GET_PAYLOAD:
     case MIR_INSTR_INDEX_LOAD:
     case MIR_INSTR_ARRAY_LITERAL:
     case MIR_INSTR_TEMPLATE:

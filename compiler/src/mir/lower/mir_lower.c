@@ -47,23 +47,29 @@ bool mr_lower_statement(MirUnitBuildContext *context,
                                               statement->source_span);
 
     case HIR_STMT_RETURN:
-        memset(&block->terminator, 0, sizeof(block->terminator));
-        block->terminator.kind = MIR_TERM_RETURN;
         if (statement->as.return_expression) {
             if (!mr_lower_expression(context, statement->as.return_expression, &value)) {
                 return false;
             }
-            block = mr_current_block(context);
-            if (!block) {
-                mr_value_free(&value);
-                mr_set_error(context->build,
-                              statement->source_span,
-                              NULL,
-                              "Internal error: missing current MIR return block.");
-                return false;
-            }
-            memset(&block->terminator, 0, sizeof(block->terminator));
-            block->terminator.kind = MIR_TERM_RETURN;
+        } else {
+            value = mr_invalid_value();
+        }
+        if (!mr_emit_active_cleanups(context, statement->source_span)) {
+            mr_value_free(&value);
+            return false;
+        }
+        block = mr_current_block(context);
+        if (!block) {
+            mr_value_free(&value);
+            mr_set_error(context->build,
+                          statement->source_span,
+                          NULL,
+                          "Internal error: missing current MIR return block.");
+            return false;
+        }
+        memset(&block->terminator, 0, sizeof(block->terminator));
+        block->terminator.kind = MIR_TERM_RETURN;
+        if (statement->as.return_expression) {
             block->terminator.as.return_term.has_value = true;
             block->terminator.as.return_term.value = value;
         }
@@ -81,6 +87,10 @@ bool mr_lower_statement(MirUnitBuildContext *context,
 
     case HIR_STMT_THROW:
         if (!mr_lower_expression(context, statement->as.throw_expression, &value)) {
+            return false;
+        }
+        if (!mr_emit_active_cleanups(context, statement->source_span)) {
+            mr_value_free(&value);
             return false;
         }
         block = mr_current_block(context);
@@ -105,8 +115,21 @@ bool mr_lower_statement(MirUnitBuildContext *context,
         return false;
 
     case HIR_STMT_MANUAL:
-        if (statement->as.manual_body) {
-            return mr_lower_block_inline(context, statement->as.manual_body);
+        if (statement->as.manual.body) {
+            bool prev_checked = context->in_checked_manual;
+            bool result;
+
+            if (!mr_enter_manual_scope(context, statement->source_span)) {
+                return false;
+            }
+            context->in_checked_manual = statement->as.manual.is_checked
+                                          || context->build->global_bounds_check;
+            result = mr_lower_block_inline(context, statement->as.manual.body);
+            if (result) {
+                result = mr_leave_manual_scope(context, statement->source_span);
+            }
+            context->in_checked_manual = prev_checked;
+            return result;
         }
         return true;
     }
@@ -196,60 +219,4 @@ bool mr_lower_parameters(MirUnitBuildContext *context,
     return true;
 }
 
-bool mr_lower_start_unit(MirBuildContext *context,
-                         const HirStartDecl *start_decl,
-                         bool call_module_init) {
-    MirUnit unit;
-    MirUnitBuildContext unit_context;
 
-    if (!context || !start_decl) {
-        return false;
-    }
-
-    memset(&unit, 0, sizeof(unit));
-    memset(&unit_context, 0, sizeof(unit_context));
-    unit.kind = MIR_UNIT_START;
-    unit.name = ast_copy_text(start_decl->is_boot ? "boot" : "start");
-    unit.return_type = (CheckedType){CHECKED_TYPE_VALUE, AST_PRIMITIVE_INT32, 0, NULL, 0};
-    unit.is_boot = start_decl->is_boot;
-    if (!unit.name) {
-        mr_set_error(context,
-                      start_decl->source_span,
-                      NULL,
-                      "Out of memory while lowering MIR start unit.");
-        return false;
-    }
-
-    unit_context.build = context;
-    unit_context.unit = &unit;
-    if (!mr_create_block(&unit_context, &unit_context.current_block_index) ||
-        !mr_lower_parameters(&unit_context, &start_decl->parameters)) {
-        mr_unit_free(&unit);
-        return false;
-    }
-
-    if (call_module_init &&
-        !mr_append_call_global_instruction(&unit_context,
-                                        MIR_MODULE_INIT_NAME,
-                                        mr_checked_type_void_value(),
-                                        start_decl->source_span)) {
-        mr_unit_free(&unit);
-        return false;
-    }
-
-    if (!mr_lower_block(&unit_context, start_decl->body)) {
-        mr_unit_free(&unit);
-        return false;
-    }
-
-    if (!mr_append_unit(context->program, unit)) {
-        mr_unit_free(&unit);
-        mr_set_error(context,
-                      start_decl->source_span,
-                      NULL,
-                      "Out of memory while assembling MIR start unit.");
-        return false;
-    }
-
-    return true;
-}

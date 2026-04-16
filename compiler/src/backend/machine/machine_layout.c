@@ -51,7 +51,7 @@ size_t mc_compute_helper_slot_count(const LirUnit *lir_unit,
                     needed = instruction->as.array_literal.element_count;
                     break;
                 case CODEGEN_RUNTIME_HETERO_ARRAY_NEW:
-                    needed = instruction->as.hetero_array_new.element_count * 2;
+                    needed = instruction->as.hetero_array_new.element_count;
                     break;
                 case CODEGEN_RUNTIME_TEMPLATE_BUILD:
                     needed = instruction->as.template_literal.part_count * 2;

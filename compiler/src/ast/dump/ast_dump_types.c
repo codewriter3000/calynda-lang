@@ -38,8 +38,8 @@ bool ast_dump_type(AstDumpBuilder *builder, const AstType *type, bool is_inferre
         if (!ast_dump_builder_append(builder, type->name ? type->name : "?")) {
             return false;
         }
-    } else if (type->kind == AST_TYPE_ARR) {
-        if (!ast_dump_builder_append(builder, "arr")) {
+    } else if (type->kind == AST_TYPE_ARR || type->kind == AST_TYPE_PTR) {
+        if (!ast_dump_builder_append(builder, type->kind == AST_TYPE_PTR ? "ptr" : "arr")) {
             return false;
         }
     } else {

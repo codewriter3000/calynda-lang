@@ -112,6 +112,9 @@ bool ae_translate_operand_ext_aarch64(AsmEmitContext *context,
         operand->text = ae_copy_text(lit->object_label);
         return operand->text != NULL;
     }
+    if (ae_starts_with(operand_text, "typedesc(")) {
+        return ae_translate_type_descriptor_operand(context, operand_text, operand);
+    }
 
     /* tag(text) / tag(value) */
     inner = ae_between_parens(operand_text, "tag(");
@@ -162,7 +165,7 @@ bool ae_translate_operand_ext_aarch64(AsmEmitContext *context,
     }
 
     /* Runtime function call target */
-    if (ae_starts_with(operand_text, "__calynda_rt_")) {
+    if (ae_starts_with(operand_text, "__calynda_")) {
         operand->kind = ASM_OPERAND_CALL_TARGET;
         operand->text = ae_copy_text(operand_text);
         return operand->text != NULL;

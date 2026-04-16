@@ -202,10 +202,55 @@ CheckedType hr_checked_type_from_resolved_type(ResolvedType type) {
     return checked;
 }
 
+size_t hr_primitive_byte_size(AstPrimitiveType primitive) {
+    switch (primitive) {
+    case AST_PRIMITIVE_INT8:  case AST_PRIMITIVE_UINT8:
+    case AST_PRIMITIVE_BYTE: case AST_PRIMITIVE_SBYTE:
+    case AST_PRIMITIVE_BOOL: case AST_PRIMITIVE_CHAR:
+        return 1;
+    case AST_PRIMITIVE_INT16: case AST_PRIMITIVE_UINT16:
+    case AST_PRIMITIVE_SHORT:
+        return 2;
+    case AST_PRIMITIVE_INT32:  case AST_PRIMITIVE_UINT32:
+    case AST_PRIMITIVE_INT:    case AST_PRIMITIVE_UINT:
+    case AST_PRIMITIVE_FLOAT32: case AST_PRIMITIVE_FLOAT:
+        return 4;
+    default:
+        return 8;
+    }
+}
+
 CheckedType hr_checked_type_void_value(void) {
     CheckedType type;
 
     memset(&type, 0, sizeof(type));
     type.kind = CHECKED_TYPE_VOID;
     return type;
+}
+
+size_t hr_layout_byte_size(const SymbolTable *symbols, const char *name) {
+    const Scope *root;
+    const Symbol *sym;
+    const AstLayoutDecl *layout;
+    size_t total = 0;
+    size_t i;
+
+    if (!symbols || !name) {
+        return 0;
+    }
+    root = symbol_table_root_scope(symbols);
+    sym = scope_lookup_local(root, name);
+    if (!sym || sym->kind != SYMBOL_KIND_LAYOUT || !sym->declaration) {
+        return 0;
+    }
+    layout = (const AstLayoutDecl *)sym->declaration;
+    for (i = 0; i < layout->field_count; i++) {
+        const AstType *ft = &layout->fields[i].field_type;
+        if (ft->kind == AST_TYPE_PRIMITIVE) {
+            total += hr_primitive_byte_size(ft->primitive);
+        } else {
+            total += 8; /* fallback word size for non-primitive field types */
+        }
+    }
+    return total;
 }

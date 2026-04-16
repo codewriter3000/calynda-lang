@@ -58,6 +58,32 @@ bool lr_lower_mir_instr_ext(LirBuildContext *context,
         }
         return true;
 
+    case MIR_INSTR_UNION_GET_TAG:
+        memset(&lowered, 0, sizeof(lowered));
+        lowered.kind = LIR_INSTR_UNION_GET_TAG;
+        lowered.as.union_get_tag.dest_vreg = instruction->as.union_get_tag.dest_temp;
+        if (!lr_operand_from_mir_value(context, unit,
+                                       instruction->as.union_get_tag.target,
+                                       &lowered.as.union_get_tag.target) ||
+            !lr_append_instruction(block, lowered)) {
+            lr_instruction_free(&lowered);
+            return false;
+        }
+        return true;
+
+    case MIR_INSTR_UNION_GET_PAYLOAD:
+        memset(&lowered, 0, sizeof(lowered));
+        lowered.kind = LIR_INSTR_UNION_GET_PAYLOAD;
+        lowered.as.union_get_payload.dest_vreg = instruction->as.union_get_payload.dest_temp;
+        if (!lr_operand_from_mir_value(context, unit,
+                                       instruction->as.union_get_payload.target,
+                                       &lowered.as.union_get_payload.target) ||
+            !lr_append_instruction(block, lowered)) {
+            lr_instruction_free(&lowered);
+            return false;
+        }
+        return true;
+
     case MIR_INSTR_INDEX_LOAD:
         memset(&lowered, 0, sizeof(lowered));
         lowered.kind = LIR_INSTR_INDEX_LOAD;

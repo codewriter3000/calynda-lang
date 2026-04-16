@@ -87,10 +87,14 @@ const char *codegen_dump_instruction_kind_name(LirInstructionKind kind) {
         return "store-index";
     case LIR_INSTR_STORE_MEMBER:
         return "store-member";
-    case LIR_INSTR_HETERO_ARRAY_NEW:
-        return "hetero-array-new";
     case LIR_INSTR_UNION_NEW:
         return "union-new";
+    case LIR_INSTR_UNION_GET_TAG:
+        return "union-get-tag";
+    case LIR_INSTR_UNION_GET_PAYLOAD:
+        return "union-get-payload";
+    case LIR_INSTR_HETERO_ARRAY_NEW:
+        return "hetero-array-new";
     }
 
     return "unknown";

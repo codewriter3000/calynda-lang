@@ -35,6 +35,14 @@ static const TargetDescriptor *parse_target_flag(int *argc, char ***argv) {
     return target_get_default();
 }
 
+static void parse_bounds_check_flag(int *argc, char ***argv) {
+    if (*argc >= 1 && strcmp((*argv)[0], "--manual-bounds-check") == 0) {
+        calynda_set_global_bounds_check(true);
+        *argc -= 1;
+        *argv += 1;
+    }
+}
+
 int main(int argc, char **argv) {
     const char *program_name = argc > 0 ? argv[0] : "calynda";
 
@@ -52,6 +60,7 @@ int main(int argc, char **argv) {
         const TargetDescriptor *target;
         int sub_argc = argc - 2;
         char **sub_argv = argv + 2;
+        parse_bounds_check_flag(&sub_argc, &sub_argv);
         target = parse_target_flag(&sub_argc, &sub_argv);
         if (!target) { return 64; }
         if (sub_argc != 1) {
@@ -84,9 +93,10 @@ int main(int argc, char **argv) {
             return 64;
         }
 
-        /* Parse --target before the source file */
+        /* Parse --manual-bounds-check and --target before the source file */
         sub_argc = argc - 2;
         sub_argv = argv + 2;
+        parse_bounds_check_flag(&sub_argc, &sub_argv);
         target = parse_target_flag(&sub_argc, &sub_argv);
         if (!target) { return 64; }
         if (sub_argc < 1) {
@@ -152,6 +162,7 @@ int main(int argc, char **argv) {
 
         sub_argc = argc - 2;
         sub_argv = argv + 2;
+        parse_bounds_check_flag(&sub_argc, &sub_argv);
         target = parse_target_flag(&sub_argc, &sub_argv);
         if (!target) { return 64; }
         if (sub_argc < 1) {
@@ -187,16 +198,17 @@ static bool parse_build_output(int argc,
 static void print_usage(FILE *out, const char *program_name) {
     fprintf(out, "Usage: %s <command> ...\n", program_name);
     fprintf(out, "\nCommands:\n");
-    fprintf(out, "  build [--target T] <source> [-o output]   Build a native executable\n");
-    fprintf(out, "  run [--target T] <source> [args...]       Build a temp executable and run it\n");
+    fprintf(out, "  build [--manual-bounds-check] [--target T] <source> [-o output]   Build a native executable\n");
+    fprintf(out, "  run [--manual-bounds-check] [--target T] <source> [args...]       Build a temp executable and run it\n");
     fprintf(out, "  pack <directory> [-o output.car]           Pack a directory into a .car archive\n");
-    fprintf(out, "  asm [--target T] <source.cal>              Emit assembly to stdout\n");
+    fprintf(out, "  asm [--manual-bounds-check] [--target T] <source.cal>              Emit assembly to stdout\n");
     fprintf(out, "  bytecode <source.cal>            Emit portable bytecode text to stdout\n");
     fprintf(out, "  help                             Show this help\n");
     fprintf(out, "\nSource files can be .cal (single file) or .car (multi-file archive).\n");
     fprintf(out, "\nTargets:\n");
     fprintf(out, "  x86_64   (default)   x86_64 System V ELF\n");
     fprintf(out, "  aarch64             AArch64 AAPCS ELF\n");
+    fprintf(out, "  riscv64             RISC-V 64 LP64D ELF\n");
 }
 
 static int emit_program_file(const char *path, CalyndaEmitMode mode,

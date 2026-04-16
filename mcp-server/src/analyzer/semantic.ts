@@ -87,6 +87,10 @@ class SemanticAnalyzer {
       const unionType: CalyndaType = { kind: 'named', name: decl.name, genericArgs: decl.genericParams.map(() => ({ kind: 'unknown' as const })) };
       this.defineSymbol(decl.name, unionType, decl);
       this.globalSymbols.set(decl.name, unionType);
+    } else if (decl.kind === 'LayoutDecl') {
+      const layoutType: CalyndaType = { kind: 'named', name: decl.name, genericArgs: [] };
+      this.defineSymbol(decl.name, layoutType, decl);
+      this.globalSymbols.set(decl.name, layoutType);
     } else if (decl.kind === 'AsmDecl') {
       const type = this.typeFromAnnotation(decl.typeAnnotation);
       this.defineSymbol(decl.name, type, decl);

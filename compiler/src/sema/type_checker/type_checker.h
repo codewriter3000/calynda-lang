@@ -15,7 +15,8 @@ typedef enum {
     CHECKED_TYPE_VALUE,
     CHECKED_TYPE_EXTERNAL,
     CHECKED_TYPE_NAMED,
-    CHECKED_TYPE_TYPE_PARAM
+    CHECKED_TYPE_TYPE_PARAM,
+    CHECKED_TYPE_FUNCTION
 } CheckedTypeKind;
 
 typedef struct {
@@ -24,6 +25,7 @@ typedef struct {
     size_t           array_depth;
     const char      *name;             /* for CHECKED_TYPE_NAMED / TYPE_PARAM */
     size_t           generic_arg_count; /* for CHECKED_TYPE_NAMED */
+    bool             is_bounds_checked; /* for ptr<T, checked> */
 } CheckedType;
 
 typedef struct {

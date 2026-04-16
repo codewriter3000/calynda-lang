@@ -138,7 +138,7 @@ static int emit_program_file(const char *path) {
         goto cleanup;
     }
     if (!hir_build_program(&hir_program, &program, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program) ||
+        !mir_build_program(&mir_program, &hir_program, false) ||
         !lir_build_program(&lir_program, &mir_program) ||
         !codegen_build_program(&codegen_program, &lir_program, target_get_default()) ||
         !machine_build_program(&machine_program, &lir_program, &codegen_program)) {

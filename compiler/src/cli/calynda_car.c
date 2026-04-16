@@ -179,7 +179,7 @@ int calynda_compile_car_to_machine_program(const CarArchive *archive,
         goto cleanup_pipeline;
     }
     if (!hir_build_program(&hir_program, &merged, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program) ||
+        !mir_build_program(&mir_program, &hir_program, false) ||
         !lir_build_program(&lir_program, &mir_program) ||
         !codegen_build_program(&codegen_program, &lir_program, target) ||
         !machine_build_program(machine_program, &lir_program,

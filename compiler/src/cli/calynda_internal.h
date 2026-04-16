@@ -22,6 +22,7 @@ int calynda_compile_to_machine_program(const char *path,
                                        const TargetDescriptor *target);
 int calynda_compile_to_bytecode_program(const char *path,
                                         BytecodeProgram *bytecode_program);
+void calynda_set_global_bounds_check(bool enabled);
 
 /* calynda_car.c */
 int calynda_compile_car_to_machine_program(const CarArchive *archive,

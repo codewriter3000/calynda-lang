@@ -124,6 +124,8 @@ bool type_checker_check_program(TypeChecker *checker,
             if (!tc_resolve_symbol_info(checker, symbol)) {
                 return false;
             }
+        } else if (decl->kind == AST_TOP_LEVEL_LAYOUT) {
+            /* Layout declarations are type metadata only — nothing to type-check. */
         } else if (!tc_check_start_decl(checker, &decl->as.start_decl)) {
             return false;
         }
@@ -184,6 +186,9 @@ bool checked_type_to_string(CheckedType type, char *buffer, size_t buffer_size) 
 
     case CHECKED_TYPE_TYPE_PARAM:
         return snprintf(buffer, buffer_size, "%s", type.name ? type.name : "?") >= 0;
+
+    case CHECKED_TYPE_FUNCTION:
+        return snprintf(buffer, buffer_size, "<function(%zu)>", type.generic_arg_count) >= 0;
     }
 
     return false;

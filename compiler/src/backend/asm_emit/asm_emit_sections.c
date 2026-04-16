@@ -12,6 +12,8 @@ bool ae_emit_unit_text(AsmEmitContext *context,
     size_t block_index;
     bool is_arm64 = context->program->target_desc &&
                     context->program->target_desc->kind == TARGET_KIND_AARCH64_AAPCS_ELF;
+    bool is_riscv64 = context->program->target_desc &&
+                      context->program->target_desc->kind == TARGET_KIND_RISCV64_LP64D_ELF;
 
     symbol = ae_ensure_unit_symbol(context, unit->name);
     if (!symbol) {
@@ -40,20 +42,26 @@ bool ae_emit_unit_text(AsmEmitContext *context,
 
         layout = ae_compute_unit_layout_aarch64(unit);
         frame_size = (layout.saved_reg_words + layout.total_local_words) * 8;
-
         if (!ae_emit_line(out, ".globl %s\n%s:\n", symbol->symbol, symbol->symbol) ||
-            !ae_emit_line(out, "    stp x29, x30, [sp, #-16]!\n") ||
-            !ae_emit_line(out, "    mov x29, sp\n")) {
+            !ae_emit_line(out, "    stp x29, x30, [sp, #-16]!\n    mov x29, sp\n"))
             return false;
-        }
-        if (frame_size > 0 &&
-            !ae_emit_line(out, "    sub sp, sp, #%zu\n", frame_size)) {
+        if (frame_size > 0 && !ae_emit_line(out, "    sub sp, sp, #%zu\n", frame_size))
             return false;
-        }
-        /* Save work register (x16) at first slot below FP */
-        if (!ae_emit_line(out, "    str x16, [x29, #-8]\n")) {
+        if (!ae_emit_line(out, "    str x16, [x29, #-8]\n"))
             return false;
-        }
+    } else if (is_riscv64) {
+        size_t frame_size;
+
+        layout = ae_compute_unit_layout_riscv64(unit);
+        frame_size = (layout.saved_reg_words + layout.total_local_words) * 8;
+        if (!ae_emit_line(out, ".globl %s\n%s:\n", symbol->symbol, symbol->symbol) ||
+            !ae_emit_line(out, "    addi sp, sp, -16\n    sd ra, 8(sp)\n"
+                       "    sd s0, 0(sp)\n    addi s0, sp, 16\n"))
+            return false;
+        if (frame_size > 0 && !ae_emit_line(out, "    addi sp, sp, -%zu\n", frame_size))
+            return false;
+        if (!ae_emit_line(out, "    sd t0, -24(s0)\n    sd s1, -32(s0)\n"))
+            return false;
     } else {
         layout = ae_compute_unit_layout(unit);
 
@@ -83,26 +91,21 @@ bool ae_emit_unit_text(AsmEmitContext *context,
         for (instruction_index = 0;
              instruction_index < unit->blocks[block_index].instruction_count;
              instruction_index++) {
+            const char *itext = unit->blocks[block_index].instructions[instruction_index].text;
             bool instr_ok;
 
             if (is_arm64) {
-                instr_ok = ae_emit_machine_instruction_aarch64(context,
-                                              out,
-                                              unit,
-                                              &layout,
-                                              unit_index,
-                                              block_index,
-                                              instruction_index,
-                                              unit->blocks[block_index].instructions[instruction_index].text);
+                instr_ok = ae_emit_machine_instruction_aarch64(
+                    context, out, unit, &layout, unit_index,
+                    block_index, instruction_index, itext);
+            } else if (is_riscv64) {
+                instr_ok = ae_emit_machine_instruction_riscv64(
+                    context, out, unit, &layout, unit_index,
+                    block_index, instruction_index, itext);
             } else {
-                instr_ok = ae_emit_machine_instruction(context,
-                                              out,
-                                              unit,
-                                              &layout,
-                                              unit_index,
-                                              block_index,
-                                              instruction_index,
-                                              unit->blocks[block_index].instructions[instruction_index].text);
+                instr_ok = ae_emit_machine_instruction(
+                    context, out, unit, &layout, unit_index,
+                    block_index, instruction_index, itext);
             }
             if (!instr_ok) {
                 return false;
@@ -157,7 +160,8 @@ bool ae_emit_data(FILE *out, const AsmEmitContext *context) {
     if (!context) {
         return false;
     }
-    if (context->global_symbol_count == 0 && context->string_literal_count == 0) {
+    if (context->global_symbol_count == 0 && context->string_literal_count == 0 &&
+        context->type_descriptor_count == 0) {
         return true;
     }
     if (!ae_emit_line(out, ".data\n")) {
@@ -205,6 +209,9 @@ bool ae_emit_data(FILE *out, const AsmEmitContext *context) {
             }
         }
     }
+    if (!ae_emit_type_descriptors(out, context)) {
+        return false;
+    }
     for (i = 0; i < context->global_symbol_count; i++) {
         char *sanitized = ae_sanitize_symbol(context->global_symbols[i].name);
 
@@ -221,7 +228,17 @@ bool ae_emit_data(FILE *out, const AsmEmitContext *context) {
                 return false;
             }
         } else {
-            if (!ae_emit_line(out, "    .quad __calynda_pkg_%s\n", sanitized)) {
+            bool is_external_callable =
+                ae_starts_with(context->global_symbols[i].name, "__calynda_") ||
+                strcmp(context->global_symbols[i].name, "malloc") == 0 ||
+                strcmp(context->global_symbols[i].name, "calloc") == 0 ||
+                strcmp(context->global_symbols[i].name, "realloc") == 0 ||
+                strcmp(context->global_symbols[i].name, "free") == 0;
+
+            if (!ae_emit_line(out,
+                              is_external_callable ? "    .quad %s\n"
+                                                   : "    .quad __calynda_pkg_%s\n",
+                              is_external_callable ? context->global_symbols[i].name : sanitized)) {
                 free(sanitized);
                 return false;
             }

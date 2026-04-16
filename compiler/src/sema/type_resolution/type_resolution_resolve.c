@@ -101,6 +101,10 @@ bool tr_resolve_declared_type(TypeResolver *resolver,
         resolved_type = tr_resolved_type_named("arr",
                                                type->generic_args.count,
                                                0);
+    } else if (type->kind == AST_TYPE_PTR) {
+        resolved_type = tr_resolved_type_named("ptr",
+                                               type->generic_args.count,
+                                               0);
     } else {
         resolved_type = tr_resolved_type_value(type->primitive, type->dimension_count);
     }

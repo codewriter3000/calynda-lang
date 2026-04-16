@@ -12,11 +12,22 @@ export function parseType(state: ParserState): AST.TypeNode {
     return voidNode;
   }
 
-  if (state.check('keyword', 'arr')) {
-    state.advance();
+  if (state.check('keyword', 'arr') || state.check('keyword', 'ptr')) {
+    const nameTok = state.advance();
     const genericArgs = parseGenericArgs(state);
-    const namedNode: AST.NamedTypeNode = { kind: 'NamedType', name: 'arr', genericArgs, start: startPos, end: state.position() };
+    const namedNode: AST.NamedTypeNode = { kind: 'NamedType', name: nameTok.value, genericArgs, start: startPos, end: state.position() };
     return namedNode;
+  }
+
+  if (state.check('keyword', 'checked')) {
+    const checkedTok = state.advance();
+    return {
+      kind: 'NamedType',
+      name: checkedTok.value,
+      genericArgs: [],
+      start: state.tokenToPosition(checkedTok),
+      end: state.position(),
+    };
   }
 
   let typeNode: AST.TypeNode;

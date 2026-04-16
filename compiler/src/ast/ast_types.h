@@ -42,6 +42,7 @@ typedef enum {
     AST_TYPE_VOID = 0,
     AST_TYPE_PRIMITIVE,
     AST_TYPE_ARR,
+    AST_TYPE_PTR,
     AST_TYPE_NAMED
 } AstTypeKind;
 

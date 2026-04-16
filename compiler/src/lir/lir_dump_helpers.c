@@ -104,6 +104,45 @@ const char *lir_dump_slot_kind_name(LirSlotKind kind) {
     return "unknown";
 }
 
+const char *lir_dump_type_tag_name(CalyndaRtTypeTag tag) {
+    return tag == CALYNDA_RT_TYPE_VOID ? "void" : tag == CALYNDA_RT_TYPE_BOOL ? "bool" :
+        tag == CALYNDA_RT_TYPE_INT32 ? "int32" : tag == CALYNDA_RT_TYPE_INT64 ? "int64" :
+        tag == CALYNDA_RT_TYPE_STRING ? "string" : tag == CALYNDA_RT_TYPE_ARRAY ? "array" :
+        tag == CALYNDA_RT_TYPE_CLOSURE ? "closure" : tag == CALYNDA_RT_TYPE_EXTERNAL ? "external" :
+        tag == CALYNDA_RT_TYPE_UNION ? "union" :
+        tag == CALYNDA_RT_TYPE_HETERO_ARRAY ? "hetero_array" : "raw_word";
+}
+
+bool lir_dump_type_descriptor(FILE *out, const CalyndaRtTypeDescriptor *type_desc) {
+    size_t index;
+
+    if (fprintf(out, "typedesc(%s|%zu",
+                type_desc->name ? type_desc->name : "?",
+                type_desc->generic_param_count) < 0) {
+        return false;
+    }
+    for (index = 0; index < type_desc->generic_param_count; index++) {
+        CalyndaRtTypeTag tag = type_desc->generic_param_tags
+            ? type_desc->generic_param_tags[index] : CALYNDA_RT_TYPE_RAW_WORD;
+
+        if (fprintf(out, "|g%zu:%s", index, lir_dump_type_tag_name(tag)) < 0) {
+            return false;
+        }
+    }
+    for (index = 0; index < type_desc->variant_count; index++) {
+        const char *variant_name =
+            type_desc->variant_names ? type_desc->variant_names[index] : NULL;
+        const char *tag_name = lir_dump_type_tag_name(type_desc->variant_payload_tags[index]);
+
+        if ((variant_name ? fprintf(out, "|%s:%s", variant_name, tag_name)
+                          : fprintf(out, "|%zu:%s", index, tag_name)) < 0) {
+            return false;
+        }
+    }
+
+    return fputc(')', out) != EOF;
+}
+
 bool lir_dump_template_part(FILE *out, const LirUnit *unit, const LirTemplatePart *part) {
     if (!out || !part) {
         return false;

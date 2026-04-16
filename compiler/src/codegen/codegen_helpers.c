@@ -175,14 +175,24 @@ bool cg_select_instruction(CodegenBuildContext *context,
         selected->selection.as.runtime_helper = CODEGEN_RUNTIME_STORE_MEMBER;
         return true;
 
-    case LIR_INSTR_HETERO_ARRAY_NEW:
-        selected->selection.kind = CODEGEN_SELECTION_RUNTIME;
-        selected->selection.as.runtime_helper = CODEGEN_RUNTIME_HETERO_ARRAY_NEW;
-        return true;
-
     case LIR_INSTR_UNION_NEW:
         selected->selection.kind = CODEGEN_SELECTION_RUNTIME;
         selected->selection.as.runtime_helper = CODEGEN_RUNTIME_UNION_NEW;
+        return true;
+
+    case LIR_INSTR_UNION_GET_TAG:
+        selected->selection.kind = CODEGEN_SELECTION_RUNTIME;
+        selected->selection.as.runtime_helper = CODEGEN_RUNTIME_UNION_GET_TAG;
+        return true;
+
+    case LIR_INSTR_UNION_GET_PAYLOAD:
+        selected->selection.kind = CODEGEN_SELECTION_RUNTIME;
+        selected->selection.as.runtime_helper = CODEGEN_RUNTIME_UNION_GET_PAYLOAD;
+        return true;
+
+    case LIR_INSTR_HETERO_ARRAY_NEW:
+        selected->selection.kind = CODEGEN_SELECTION_RUNTIME;
+        selected->selection.as.runtime_helper = CODEGEN_RUNTIME_HETERO_ARRAY_NEW;
         return true;
     }
 

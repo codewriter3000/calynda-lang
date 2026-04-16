@@ -1,4 +1,4 @@
-export type NodeKind = 'Program' | 'PackageDecl' | 'ImportDecl' | 'StartDecl' | 'BindingDecl' | 'UnionDecl' | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'LambdaExpression' | 'AssignmentExpression' | 'TernaryExpression' | 'BinaryExpression' | 'UnaryExpression' | 'PostfixExpression' | 'CallExpression' | 'IndexExpression' | 'MemberExpression' | 'CastExpression' | 'ArrayLiteral' | 'Identifier' | 'IntegerLiteral' | 'FloatLiteral' | 'BoolLiteral' | 'CharLiteral' | 'StringLiteral' | 'TemplateLiteral' | 'NullLiteral' | 'Parameter' | 'ParameterList' | 'ArrayType' | 'PrimitiveType' | 'NamedType' | 'VoidType';
+export type NodeKind = 'Program' | 'PackageDecl' | 'ImportDecl' | 'StartDecl' | 'BindingDecl' | 'UnionDecl' | 'LayoutDecl' | 'AsmDecl' | 'BootDecl' | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'ManualStatement' | 'LambdaExpression' | 'AssignmentExpression' | 'TernaryExpression' | 'BinaryExpression' | 'UnaryExpression' | 'PostfixExpression' | 'CallExpression' | 'IndexExpression' | 'MemberExpression' | 'CastExpression' | 'ArrayLiteral' | 'Identifier' | 'IntegerLiteral' | 'FloatLiteral' | 'BoolLiteral' | 'CharLiteral' | 'StringLiteral' | 'TemplateLiteral' | 'NullLiteral' | 'Parameter' | 'ParameterList' | 'ArrayType' | 'PrimitiveType' | 'NamedType' | 'VoidType';
 export interface Position {
     line: number;
     column: number;
@@ -23,7 +23,7 @@ export interface ImportDecl extends ASTNode {
     kind: 'ImportDecl';
     name: string;
 }
-export type TopLevelDecl = StartDecl | BindingDecl | UnionDecl;
+export type TopLevelDecl = StartDecl | BindingDecl | UnionDecl | LayoutDecl | AsmDecl | BootDecl;
 export interface UnionVariant {
     name: string;
     payloadType?: TypeNode;
@@ -34,6 +34,26 @@ export interface UnionDecl extends ASTNode {
     name: string;
     genericParams: string[];
     variants: UnionVariant[];
+}
+export interface LayoutDecl extends ASTNode {
+    kind: 'LayoutDecl';
+    name: string;
+    fields: Array<{
+        typeAnnotation: TypeNode;
+        name: string;
+    }>;
+}
+export interface AsmDecl extends ASTNode {
+    kind: 'AsmDecl';
+    modifiers: string[];
+    typeAnnotation: TypeNode;
+    name: string;
+    params: Parameter[];
+    body: string;
+}
+export interface BootDecl extends ASTNode {
+    kind: 'BootDecl';
+    body: Block | Expression;
 }
 export interface StartDecl extends ASTNode {
     kind: 'StartDecl';
@@ -74,7 +94,11 @@ export interface Block extends ASTNode {
     kind: 'Block';
     statements: Statement[];
 }
-export type Statement = LocalBindingStatement | ReturnStatement | ExitStatement | ThrowStatement | ExpressionStatement;
+export type Statement = LocalBindingStatement | ReturnStatement | ExitStatement | ThrowStatement | ExpressionStatement | ManualStatement;
+export interface ManualStatement extends ASTNode {
+    kind: 'ManualStatement';
+    body: Block;
+}
 export interface LocalBindingStatement extends ASTNode {
     kind: 'LocalBindingStatement';
     final: boolean;

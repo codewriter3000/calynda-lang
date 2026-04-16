@@ -140,6 +140,39 @@ bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *prog
                 st_symbol_free(symbol);
                 return false;
             }
+        } else if (decl->kind == AST_TOP_LEVEL_LAYOUT) {
+            const AstLayoutDecl *layout_decl = &decl->as.layout_decl;
+            const Symbol *conflicting_symbol = scope_lookup_local(table->root_scope,
+                                                                  layout_decl->name);
+            Symbol *symbol;
+
+            if (!conflicting_symbol) {
+                conflicting_symbol = symbol_table_find_import(table, layout_decl->name);
+            }
+            if (conflicting_symbol) {
+                st_set_error_at(table,
+                                layout_decl->name_span,
+                                &conflicting_symbol->declaration_span,
+                                "Duplicate symbol '%s' in %s.",
+                                layout_decl->name,
+                                scope_kind_name(table->root_scope->kind));
+                return false;
+            }
+
+            symbol = st_symbol_new(table, SYMBOL_KIND_LAYOUT,
+                                   layout_decl->name, NULL,
+                                   NULL, false, false, false, false, false,
+                                   layout_decl->name_span,
+                                   layout_decl,
+                                   table->root_scope);
+            if (!symbol) {
+                return false;
+            }
+
+            if (!st_scope_append_symbol(table, table->root_scope, symbol)) {
+                st_symbol_free(symbol);
+                return false;
+            }
         }
     }
 

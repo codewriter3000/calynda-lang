@@ -51,8 +51,8 @@ extern int tests_failed;
 void test_mir_dump_lowers_callable_local_bindings_and_nested_closures(void) {
     static const char source[] =
         "start(string[] args) -> {\n"
-        "    int32 offset = 3;\n"
-        "    var render = (int32 x) -> ((int32 y) -> y + x + offset)(1);\n"
+        "    int32 delta = 3;\n"
+        "    var render = (int32 x) -> ((int32 y) -> y + x + delta)(1);\n"
         "    return render(2);\n"
         "};\n";
     static const char expected[] =
@@ -60,31 +60,31 @@ void test_mir_dump_lowers_callable_local_bindings_and_nested_closures(void) {
         "  Unit name=start$lambda0$lambda1 kind=lambda return=int32 params=1 locals=3 blocks=1\n"
         "    Locals:\n"
         "      Local index=0 kind=capture name=x type=int32 final=false\n"
-        "      Local index=1 kind=capture name=offset type=int32 final=false\n"
+        "      Local index=1 kind=capture name=delta type=int32 final=false\n"
         "      Local index=2 kind=param name=y type=int32 final=false\n"
         "    Blocks:\n"
         "      Block bb0:\n"
         "        t0 = binary + local(2:y) local(0:x)\n"
-        "        t1 = binary + temp(0) local(1:offset)\n"
+        "        t1 = binary + temp(0) local(1:delta)\n"
         "        return temp(1)\n"
         "  Unit name=start$lambda0 kind=lambda return=int32 params=1 locals=2 blocks=1\n"
         "    Locals:\n"
-        "      Local index=0 kind=capture name=offset type=int32 final=false\n"
+        "      Local index=0 kind=capture name=delta type=int32 final=false\n"
         "      Local index=1 kind=param name=x type=int32 final=false\n"
         "    Blocks:\n"
         "      Block bb0:\n"
-        "        t0 = closure unit=start$lambda0$lambda1(local(1:x), local(0:offset))\n"
+        "        t0 = closure unit=start$lambda0$lambda1(local(1:x), local(0:delta))\n"
         "        t1 = call temp(0)(int32(1))\n"
         "        return temp(1)\n"
         "  Unit name=start kind=start return=int32 params=1 locals=3 blocks=1\n"
         "    Locals:\n"
         "      Local index=0 kind=param name=args type=string[] final=false\n"
-        "      Local index=1 kind=local name=offset type=int32 final=false\n"
+        "      Local index=1 kind=local name=delta type=int32 final=false\n"
         "      Local index=2 kind=local name=render type=int32 final=false\n"
         "    Blocks:\n"
         "      Block bb0:\n"
-        "        store local(1:offset) <- int32(3)\n"
-        "        t0 = closure unit=start$lambda0(local(1:offset))\n"
+        "        store local(1:delta) <- int32(3)\n"
+        "        t0 = closure unit=start$lambda0(local(1:delta))\n"
         "        store local(2:render) <- temp(0)\n"
         "        t1 = call local(2:render)(int32(2))\n"
         "        return temp(1)\n";
@@ -107,7 +107,7 @@ void test_mir_dump_lowers_callable_local_bindings_and_nested_closures(void) {
                  "type check closure MIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for closure MIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for callable locals and nested closures");
 
     dump = mir_dump_program_to_string(&mir_program);
@@ -167,7 +167,7 @@ void test_mir_dump_lowers_top_level_value_bindings_into_module_init(void) {
                  "type check module-init MIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for module-init MIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for top-level value bindings");
 
     dump = mir_dump_program_to_string(&mir_program);
@@ -224,7 +224,7 @@ void test_mir_dump_lowers_throw_as_terminator(void) {
                  "type check throw MIR program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for throw MIR program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for throw terminator");
 
     dump = mir_dump_program_to_string(&mir_program);

@@ -39,6 +39,52 @@ function getCompletions(input) {
             insertText: 'arr<${1:?}>',
         });
     }
+    if ('boot'.startsWith(prefix)) {
+        items.push({
+            label: 'boot',
+            kind: 'snippet',
+            detail: 'Bare-metal entry point',
+            insertText: 'boot() -> {\n    ${1}\n};',
+        });
+    }
+    if ('manual'.startsWith(prefix)) {
+        items.push({
+            label: 'manual',
+            kind: 'snippet',
+            detail: 'Stable unsafe manual memory boundary',
+            insertText: 'manual {\n    ${1}\n};',
+        });
+        items.push({
+            label: 'manual checked',
+            kind: 'snippet',
+            detail: 'Bounds-checked manual memory boundary',
+            insertText: 'manual checked {\n    ${1}\n};',
+        });
+    }
+    if ('layout'.startsWith(prefix)) {
+        items.push({
+            label: 'layout',
+            kind: 'snippet',
+            detail: 'Primitive-field layout declaration',
+            insertText: 'layout ${1:Point} {\n    int32 ${2:x};\n    int32 ${3:y};\n};',
+        });
+    }
+    if ('ptr'.startsWith(prefix)) {
+        items.push({
+            label: 'ptr<T>',
+            kind: 'snippet',
+            detail: 'Typed pointer type',
+            insertText: 'ptr<${1:int32}>',
+        });
+    }
+    if ('asm'.startsWith(prefix)) {
+        items.push({
+            label: 'asm',
+            kind: 'snippet',
+            detail: 'Inline assembly declaration',
+            insertText: '${1:int32} ${2:name} = asm(${3:int32 a}) -> {\n    ${4}\n};',
+        });
+    }
     if (prefix === '') {
         items.push({
             label: '() -> {}',

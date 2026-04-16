@@ -108,7 +108,13 @@ AstExpression *parse_primary_expression(Parser *parser) {
     case TOK_MALLOC:
     case TOK_CALLOC:
     case TOK_REALLOC:
-    case TOK_FREE: {
+    case TOK_FREE:
+    case TOK_DEREF:
+    case TOK_ADDR:
+    case TOK_OFFSET:
+    case TOK_STORE:
+    case TOK_CLEANUP:
+    case TOK_STACKALLOC: {
         AstMemoryOpKind op_kind;
         size_t expected_args;
 
@@ -116,6 +122,12 @@ AstExpression *parse_primary_expression(Parser *parser) {
         case TOK_MALLOC:  op_kind = AST_MEMORY_MALLOC;  expected_args = 1; break;
         case TOK_CALLOC:  op_kind = AST_MEMORY_CALLOC;  expected_args = 2; break;
         case TOK_REALLOC: op_kind = AST_MEMORY_REALLOC; expected_args = 2; break;
+        case TOK_DEREF:   op_kind = AST_MEMORY_DEREF;   expected_args = 1; break;
+        case TOK_ADDR:    op_kind = AST_MEMORY_ADDR;    expected_args = 1; break;
+        case TOK_OFFSET:  op_kind = AST_MEMORY_OFFSET;  expected_args = 2; break;
+        case TOK_STORE:   op_kind = AST_MEMORY_STORE;   expected_args = 2; break;
+        case TOK_CLEANUP: op_kind = AST_MEMORY_CLEANUP; expected_args = 2; break;
+        case TOK_STACKALLOC: op_kind = AST_MEMORY_STACKALLOC; expected_args = 1; break;
         default:          op_kind = AST_MEMORY_FREE;    expected_args = 1; break;
         }
 

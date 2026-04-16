@@ -18,14 +18,18 @@ bool asm_emit_program(FILE *out, const MachineProgram *program) {
     context.program = program;
     is_arm64 = program->target_desc &&
                program->target_desc->kind == TARGET_KIND_AARCH64_AAPCS_ELF;
+    {
+        bool is_riscv64 = program->target_desc &&
+                          program->target_desc->kind == TARGET_KIND_RISCV64_LP64D_ELF;
 
-    if (is_arm64) {
-        if (fputs(".text\n", out) == EOF) {
-            return false;
-        }
-    } else {
-        if (fputs(".intel_syntax noprefix\n.text\n", out) == EOF) {
-            return false;
+        if (is_arm64 || is_riscv64) {
+            if (fputs(".text\n", out) == EOF) {
+                return false;
+            }
+        } else {
+            if (fputs(".intel_syntax noprefix\n.text\n", out) == EOF) {
+                return false;
+            }
         }
     }
     for (unit_index = 0; unit_index < program->unit_count; unit_index++) {
@@ -33,13 +37,22 @@ bool asm_emit_program(FILE *out, const MachineProgram *program) {
             return false;
         }
     }
-    if (is_arm64) {
-        if (!ae_emit_program_entry_glue_aarch64(&context, out)) {
-            return false;
-        }
-    } else {
-        if (!ae_emit_program_entry_glue(&context, out)) {
-            return false;
+    {
+        bool is_riscv64 = program->target_desc &&
+                          program->target_desc->kind == TARGET_KIND_RISCV64_LP64D_ELF;
+
+        if (is_arm64) {
+            if (!ae_emit_program_entry_glue_aarch64(&context, out)) {
+                return false;
+            }
+        } else if (is_riscv64) {
+            if (!ae_emit_program_entry_glue_riscv64(&context, out)) {
+                return false;
+            }
+        } else {
+            if (!ae_emit_program_entry_glue(&context, out)) {
+                return false;
+            }
         }
     }
     if (!ae_emit_rodata(out, &context) || !ae_emit_data(out, &context) ||

@@ -40,6 +40,11 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                 break;
             }
 
+            if (tc_checked_type_is_hetero_array(target_type)) {
+                info = tc_type_check_info_make_external_value();
+                break;
+            }
+
             if (target_type.kind == CHECKED_TYPE_VALUE && target_type.array_depth > 0) {
                 info = tc_type_check_info_make(tc_checked_type_value(target_type.primitive,
                                                                      target_type.array_depth - 1));
@@ -214,7 +219,8 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                     return NULL;
                 }
             }
-            if (expression->as.memory_op.kind == AST_MEMORY_FREE) {
+            if (expression->as.memory_op.kind == AST_MEMORY_FREE ||
+                expression->as.memory_op.kind == AST_MEMORY_STORE) {
                 info = tc_type_check_info_make(tc_checked_type_void());
             } else {
                 info = tc_type_check_info_make(tc_checked_type_value(AST_PRIMITIVE_INT64, 0));

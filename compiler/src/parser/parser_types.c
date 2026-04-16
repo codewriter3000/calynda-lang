@@ -62,8 +62,9 @@ bool parser_parse_type(Parser *parser, AstType *type) {
         return true;
     }
 
-    if (parser_match(parser, TOK_ARR)) {
-        ast_type_init_arr(&parsed_type);
+    if (parser_match(parser, TOK_ARR) || parser_match(parser, TOK_PTR)) {
+        parsed_type.kind = (parser_previous_token(parser)->type == TOK_PTR)
+                               ? AST_TYPE_PTR : AST_TYPE_ARR;
         if (!parser_parse_generic_args(parser, &parsed_type)) {
             ast_type_free(&parsed_type);
             return false;
@@ -81,6 +82,13 @@ bool parser_parse_type(Parser *parser, AstType *type) {
         parser_advance(parser);
         ast_type_init_named(&parsed_type, name);
         free(name);
+        if (!parsed_type.name) {
+            parser_set_oom_error(parser);
+            return false;
+        }
+    } else if (parser_match(parser, TOK_CHECKED)) {
+        /* 'checked' keyword used as a type-level marker in ptr<T, checked>. */
+        ast_type_init_named(&parsed_type, "checked");
         if (!parsed_type.name) {
             parser_set_oom_error(parser);
             return false;

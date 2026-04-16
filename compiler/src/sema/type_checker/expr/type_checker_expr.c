@@ -126,6 +126,19 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
             if (!tc_expression_is_assignment_target(checker,
                                                     expression->as.assignment.target,
                                                     &target_symbol)) {
+                if (expression->as.assignment.target->kind == AST_EXPR_INDEX) {
+                    const TypeCheckInfo *indexed_target_info = type_checker_get_expression_info(
+                        checker, expression->as.assignment.target->as.index.target);
+
+                    if (indexed_target_info && tc_checked_type_is_hetero_array(
+                            tc_type_check_source_type(indexed_target_info))) {
+                        tc_set_error_at(checker,
+                                        expression->as.assignment.target->source_span,
+                                        NULL,
+                                        "Heterogeneous arrays are shape-locked after literal construction and do not support indexed writes.");
+                        return NULL;
+                    }
+                }
                 const AstSourceSpan *related_span = NULL;
 
                 if (target_symbol && tc_source_span_is_valid(target_symbol->declaration_span)) {

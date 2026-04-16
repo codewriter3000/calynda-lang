@@ -39,6 +39,7 @@ CheckedType tc_checked_type_value(AstPrimitiveType primitive, size_t array_depth
 CheckedType tc_checked_type_named(const char *name, size_t generic_arg_count,
                                   size_t array_depth);
 CheckedType tc_checked_type_type_param(const char *name);
+CheckedType tc_checked_type_function(size_t param_count);
 bool tc_checked_type_is_hetero_array(CheckedType type);
 bool tc_checked_type_equals(CheckedType left, CheckedType right);
 bool tc_checked_type_is_scalar_value(CheckedType type);
@@ -147,5 +148,7 @@ const TypeCheckInfo *tc_check_expression_ext(TypeChecker *checker,
 /* type_checker_expr_more.c */
 const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                                               const AstExpression *expression);
+const TypeCheckInfo *tc_check_memory_operation_expression(TypeChecker *checker,
+                                                          const AstExpression *expression);
 
 #endif /* CALYNDA_TYPE_CHECKER_INTERNAL_H */

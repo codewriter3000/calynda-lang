@@ -94,6 +94,13 @@ AstStatement *parse_statement(Parser *parser) {
         statement->source_span = parser_source_span(parser_current_token(parser));
 
         parser_advance(parser);
+
+        /* Optional 'checked' modifier: manual checked { ... } */
+        if (parser_check(parser, TOK_CHECKED)) {
+            parser_advance(parser);
+            statement->as.manual.is_checked = true;
+        }
+
         statement->as.manual.body = parse_block(parser);
         if (!statement->as.manual.body) {
             ast_statement_free(statement);

@@ -43,6 +43,7 @@ TopLevelDecl
     | BootDecl
     | BindingDecl
     | UnionDecl
+    | LayoutDecl
     | AsmDecl
     ;
 
@@ -116,6 +117,20 @@ UnionVariant
     = Identifier [ "(" Type ")" ]
     ;
 
+(* Memory layout declaration — defines a named struct-like type for *)
+(* use with ptr<T>, offset, deref, and store operations.            *)
+(* Field types must be primitive in 0.4.0.                          *)
+(* Examples:                                                        *)
+(*   layout Point { int32 x; int32 y; };                            *)
+(*   layout Header { int64 size; int64 flags; };                    *)
+LayoutDecl
+    = "layout" Identifier "{" { LayoutField } "}" ";"
+    ;
+
+LayoutField
+    = Type Identifier ";"
+    ;
+
 
 (* ================================================================ *)
 (* 3. TYPES                                                         *)
@@ -129,6 +144,8 @@ Type
     = PrimitiveType [ GenericArgs ] { ArrayDimension }
     | Identifier [ GenericArgs ] { ArrayDimension }            (* named / user-defined type *)
     | "arr" GenericArgs                                        (* heterogeneous array *)
+    | "ptr" GenericArgs                                        (* typed pointer — manual only *)
+    | "ptr" "<" Type "," "checked" ">"                      (* bounds-checked typed pointer *)
     | "void"
     ;
 
@@ -181,11 +198,14 @@ Statement
     | ExpressionStatement
     ;
 
-(* Manual memory boundary — enables malloc/calloc/realloc/free     *)
-(* inside the block. Memory operations return int64 (raw address). *)
-(* Syntax: manual { int64 p = malloc(1024); free(p); };            *)
+(* Manual memory boundary — enables malloc/calloc/realloc/free,    *)
+(* stackalloc, cleanup, and pointer ops inside the block.          *)
+(* Optional 'checked' enables runtime bounds checking for all      *)
+(* memory ops inside the block.                                    *)
+(* Syntax: manual { int64 p = stackalloc(64); free(p); };         *)
+(* Syntax: manual checked { int64 p = malloc(64); }; (* bc mode *)*)
 ManualStatement
-    = "manual" Block ";"
+    = "manual" [ "checked" ] Block ";"
     ;
 
 (* Local variable declaration — same syntax as top-level binding    *)
@@ -396,17 +416,24 @@ PrimaryExpression
     | MemoryOpExpression               (* manual memory operations  *)
     ;
 
-(* Memory allocation and deallocation expressions.                  *)
+(* Memory allocation, deallocation, and pointer operation expressions. *)
 (* Only valid inside a manual { ... } block.                        *)
-(* malloc(size) and free(addr) take 1 argument.                     *)
-(* calloc(count, size) and realloc(addr, size) take 2 arguments.   *)
-(* malloc/calloc/realloc return int64 (raw address).                *)
-(* free returns void.                                               *)
+(* malloc(size), free(addr), deref(ptr), addr(val), stackalloc(size) *)
+(* take 1 argument. cleanup(value, fn), calloc(count, size),        *)
+(* realloc(addr, size), offset(ptr, n), store(ptr, val) take 2.     *)
+(* malloc/calloc/realloc/deref/addr/offset/stackalloc return int64. *)
+(* cleanup returns its first argument. free and store return void.  *)
 MemoryOpExpression
     = "malloc"  "(" Expression ")"
     | "calloc"  "(" Expression "," Expression ")"
     | "realloc" "(" Expression "," Expression ")"
     | "free"    "(" Expression ")"
+    | "deref"   "(" Expression ")"
+    | "addr"    "(" Expression ")"
+    | "offset"  "(" Expression "," Expression ")"
+    | "store"   "(" Expression "," Expression ")"
+    | "cleanup" "(" Expression "," Expression ")"
+    | "stackalloc" "(" Expression ")"
     ;
 
 (* The discard expression _ can be used as an assignment target     *)
@@ -615,8 +642,9 @@ HexDigit
 (*                                                                  *)
 (*   package  import  export  public  private  final  var  start    *)
 (*   return   exit    throw   null    true     false  void          *)
-(*   static   internal  as  union  manual  arr                      *)
-(*   malloc  calloc  realloc  free                                  *)
+(*   static   internal  as  union  manual  arr  ptr  layout        *)
+(*   malloc  calloc  realloc  free  deref  addr  offset  store     *)
+(*   cleanup  stackalloc  checked                                   *)
 (*                                                                  *)
 (*   int8  int16  int32  int64  uint8  uint16  uint32  uint64       *)
 (*   float32  float64  bool  char  string                           *)

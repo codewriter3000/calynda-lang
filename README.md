@@ -1,8 +1,6 @@
 # Calynda
 
-Calynda is a compiled functional systems programming language.
-
-The first public edition ships an end-to-end compiler pipeline, a native Linux x86_64 backend, a portable bytecode emitter, a runtime layer for dynamic language features, and a command-line tool that can build and run `.cal` programs.
+Calynda is a compiled functional systems programming language. It targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files.
 
 ## Repository Layout
 
@@ -14,24 +12,44 @@ This is a monorepo. The packages are:
 | [`mcp-server/`](mcp-server/) | MCP server for AI assistant integration |
 | [`vscode-calynda/`](vscode-calynda/) | VS Code syntax highlighting extension |
 
-## Status
+## Compiler Pipeline
 
-Calynda is currently at 0.1.0.
+The compiler lowers source through the following stages:
 
-What is in this first edition:
+- Recursive-descent parsing with source-aware diagnostics
+- Semantic analysis: symbol resolution and type checking
+- Lowering: AST → HIR → MIR → LIR → codegen plan → machine program → assembly
 
-- Recursive-descent parsing and source-aware diagnostics.
-- Semantic analysis with symbol resolution and type checking.
-- Lowering through AST, HIR, MIR, LIR, codegen planning, machine emission, and assembly emission.
-- Native compilation for Linux x86_64 SysV ELF.
-- Portable `portable-v1` bytecode emission.
-- A small VS Code syntax extension in [vscode-calynda/README.md](vscode-calynda/README.md).
+Two backend paths are supported:
 
-What is not in this edition:
+- **Native**: emits x86_64, AArch64, or RISC-V 64 assembly and links a native executable
+- **Bytecode**: emits `portable-v1` bytecode text
 
-- No interpreter path.
-- No bytecode executor yet.
-- No full language server yet.
+There is no interpreter path. AST or IR interpretation is not part of the design.
+
+## Language Features
+
+- First-class lambdas with arrow syntax
+- Homogeneous typed arrays and heterogeneous `arr<?>` arrays
+- Tagged unions with constructor syntax and read-only `.tag` / `.payload` access
+- Layout declarations for describing typed-pointer memory structures
+- Unsafe manual memory management via `manual { ... };` and `manual checked { ... };`
+- Typed pointers (`ptr<T>`) with `deref`, `store`, `offset`, and `addr` operations
+- Deferred cleanup via `cleanup(value, fn)`, which runs `fn(value)` when the enclosing manual scope exits — including on `return` and `throw` paths
+- Scope-local scratch storage via `stackalloc(size)`, reclaimed at manual-scope exit
+- `manual checked` keeps a growable runtime bounds registry for safer pointer tracking
+- Inline assembly declarations via `asm()`
+- Bare-metal entry point via `boot()` for environments without a standard runtime
+- Template literals with string interpolation
+- Ternary expressions, member access, index access, and casts
+- CAR source archives for bundling `.cal` files
+- `throw` for error propagation
+
+The standard entry point is `start(string[] args)`. Bare-metal programs use `boot()` instead.
+
+For heterogeneous arrays, indexed reads produce `<external>` values, indexed writes are rejected, and equality on extracted values requires an explicit cast.
+
+Layout field types are restricted to scalar primitive types.
 
 More detail is in [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
@@ -53,7 +71,7 @@ The installer builds Calynda and installs:
 
 - a `calynda` launcher in your bin directory
 - the real CLI binary under `lib/calynda/`
-- the required `runtime.o` beside that binary so generated executables can link correctly
+- the required `calynda_runtime.a` archive beside that binary so generated executables can link correctly
 
 If your install bin directory is not on `PATH`, the installer prints the export line to add to your shell profile.
 
@@ -114,47 +132,32 @@ calynda run hello.cal world
 The current CLI commands are:
 
 ```text
-calynda build <source.cal> [-o output]
-calynda run <source.cal> [args...]
-calynda asm <source.cal>
+calynda build [--manual-bounds-check] [--target T] <source> [-o output]
+calynda run [--manual-bounds-check] [--target T] <source> [args...]
+calynda pack <directory> [-o output.car]
+calynda asm [--manual-bounds-check] [--target T] <source.cal>
 calynda bytecode <source.cal>
 calynda help
 ```
 
 What they do:
 
-- `build`: compile a source file to a native executable
+- `build`: compile a `.cal` or `.car` source input to a native executable, optionally with bounds-checked manual memory
 - `run`: build a temporary native executable and execute it
-- `asm`: emit native x86_64 assembly to stdout
+- `pack`: bundle a directory of `.cal` files into a `.car` archive
+- `asm`: emit native assembly to stdout (x86_64 by default, or `--target aarch64-linux` / `--target riscv64-linux`)
 - `bytecode`: emit `portable-v1` bytecode text to stdout
 
-## Language Snapshot
+## Grammar
 
 The grammar lives in [compiler/calynda.ebnf](compiler/calynda.ebnf).
 
-Current language surface includes:
-
-- a required single `start(string[] args)` entry point
-- first-class lambdas with arrow syntax
-- arrays
-- function calls
-- member access and index access
-- casts
-- assignments
-- ternary expressions
-- template literals with interpolation
-- `throw`
-
-The project is intentionally compiled-only right now. Native code and bytecode are the supported backend paths; interpreting AST or IR directly is not part of the design.
-
 ## Backend Model
 
-Current backend split:
+- **Native**: AST → HIR → MIR → LIR → CodegenPlan → MachineProgram → assembly → linked executable
+- **Bytecode**: AST → HIR → MIR → BytecodeProgram `portable-v1`
 
-- native: AST -> HIR -> MIR -> LIR -> CodegenPlan -> MachineProgram -> x86_64 assembly -> linked executable
-- bytecode: AST -> HIR -> MIR -> BytecodeProgram `portable-v1`
-
-The backend direction is described in [backend_strategy.md](backend_strategy.md), and the current bytecode shape is described in [bytecode_isa.md](bytecode_isa.md).
+The backend direction is described in [backend_strategy.md](backend_strategy.md), and the bytecode format is described in [bytecode_isa.md](bytecode_isa.md).
 
 ## Development
 
@@ -191,7 +194,7 @@ See [mcp-server/README.md](mcp-server/README.md) for installation and configurat
 
 ## Current Limits
 
-- Native compilation currently targets Linux x86_64 SysV ELF.
+- Native compilation currently targets Linux x86_64 SysV ELF, with cross-compilation support for AArch64 and RISC-V 64.
 - Final native linking currently uses `gcc`.
 - The runtime surface is deliberately small and only covers the helpers the compiler lowers to today.
 - The bytecode backend emits a portable compiled form, but this repository does not yet ship a bytecode runner.

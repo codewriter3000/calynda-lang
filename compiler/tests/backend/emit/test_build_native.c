@@ -10,6 +10,7 @@
 int tests_run = 0;
 int tests_passed = 0;
 int tests_failed = 0;
+static const char *test_binary_path = NULL;
 
 #define ASSERT_TRUE(condition, msg) do {                                    \
     tests_run++;                                                            \
@@ -62,16 +63,11 @@ bool write_temp_source(const char *source, char *path_buffer, size_t buffer_size
     char template_path[] = "/tmp/calynda-source-XXXXXX";
     FILE *file;
     int fd;
-
     if (!source || !path_buffer || buffer_size == 0) {
         return false;
     }
-
     fd = mkstemp(template_path);
-    if (fd < 0) {
-        return false;
-    }
-
+    if (fd < 0) return false;
     file = fdopen(fd, "wb");
     if (!file) {
         close(fd);
@@ -86,7 +82,6 @@ bool write_temp_source(const char *source, char *path_buffer, size_t buffer_size
         unlink(template_path);
         return false;
     }
-
     memcpy(path_buffer, template_path, strlen(template_path) + 1);
     return true;
 }
@@ -94,18 +89,12 @@ bool write_temp_source(const char *source, char *path_buffer, size_t buffer_size
 bool make_temp_output_path(char *path_buffer, size_t buffer_size) {
     char template_path[] = "/tmp/calynda-exe-XXXXXX";
     int fd;
-
     if (!path_buffer || buffer_size == 0) {
         return false;
     }
-
     fd = mkstemp(template_path);
-    if (fd < 0) {
-        return false;
-    }
-    close(fd);
-    unlink(template_path);
-
+    if (fd < 0) return false;
+    close(fd); unlink(template_path);
     if (strlen(template_path) + 1 > buffer_size) {
         return false;
     }
@@ -116,23 +105,16 @@ bool make_temp_output_path(char *path_buffer, size_t buffer_size) {
 int run_process(const char *path, char *const argv[]) {
     pid_t child;
     int status;
-
     child = fork();
-    if (child < 0) {
-        return -1;
-    }
-
+    if (child < 0) return -1;
     if (child == 0) {
         execv(path, argv);
         _exit(127);
     }
-
     if (waitpid(child, &status, 0) < 0) {
         return -1;
     }
-    if (!WIFEXITED(status)) {
-        return -1;
-    }
+    if (!WIFEXITED(status)) return -1;
     return WEXITSTATUS(status);
 }
 
@@ -145,23 +127,19 @@ bool run_process_capture_stdout(const char *path,
     pid_t child;
     int status;
     size_t length = 0;
-
     if (!path || !argv || !buffer || buffer_size == 0 || !exit_code) {
         return false;
     }
-
     buffer[0] = '\0';
     if (pipe(pipe_fds) != 0) {
         return false;
     }
-
     child = fork();
     if (child < 0) {
         close(pipe_fds[0]);
         close(pipe_fds[1]);
         return false;
     }
-
     if (child == 0) {
         close(pipe_fds[0]);
         dup2(pipe_fds[1], STDOUT_FILENO);
@@ -169,11 +147,9 @@ bool run_process_capture_stdout(const char *path,
         execv(path, argv);
         _exit(127);
     }
-
     close(pipe_fds[1]);
     while (length + 1 < buffer_size) {
         ssize_t read_size = read(pipe_fds[0], buffer + length, buffer_size - length - 1);
-
         if (read_size <= 0) {
             break;
         }
@@ -181,7 +157,6 @@ bool run_process_capture_stdout(const char *path,
     }
     buffer[length] = '\0';
     close(pipe_fds[0]);
-
     if (waitpid(child, &status, 0) < 0 || !WIFEXITED(status)) {
         return false;
     }
@@ -190,36 +165,50 @@ bool run_process_capture_stdout(const char *path,
 }
 
 bool build_native_executable(const char *source, char *output_path, size_t output_path_size) {
+    const char *build_tool = "./build/build_native";
+    char build_path[128];
     char source_path[64];
-    char *build_argv[] = {
-        (char *)"./build/build_native",
-        source_path,
-        output_path,
-        NULL
-    };
+    char *build_argv[] = { NULL, source_path, output_path, NULL };
     int exit_code;
+    if (test_binary_path) {
+        char *slash = strrchr(test_binary_path, '/');
+        if (slash) {
+            size_t dir_len = (size_t)(slash - test_binary_path + 1);
 
+            if (dir_len + sizeof("build_native") > sizeof(build_path)) return false;
+            memcpy(build_path, test_binary_path, dir_len);
+            memcpy(build_path + dir_len, "build_native", sizeof("build_native"));
+            build_tool = build_path;
+        }
+    }
+    build_argv[0] = (char *)build_tool;
     if (!write_temp_source(source, source_path, sizeof(source_path)) ||
         !make_temp_output_path(output_path, output_path_size)) {
         unlink(source_path);
         return false;
     }
-
-    exit_code = run_process("./build/build_native", build_argv);
+    exit_code = run_process(build_tool, build_argv);
     unlink(source_path);
     return exit_code == 0;
 }
 
-void test_build_native_runs_simple_start_program(void);
-void test_build_native_handles_direct_eight_argument_calls(void);
-void test_build_native_runs_runtime_lambda_program(void);
-void test_build_native_auto_calls_zero_arg_template_callable(void);
-void test_build_native_runs_boot_program(void);
-void test_build_native_runs_boot_program_with_block(void);
-void test_build_native_runs_manual_malloc_free(void);
-
-
-int main(void) {
+void test_build_native_runs_simple_start_program(void),
+     test_build_native_handles_direct_eight_argument_calls(void),
+     test_build_native_runs_runtime_lambda_program(void),
+     test_build_native_auto_calls_zero_arg_template_callable(void);
+void test_build_native_runs_boot_program(void),
+     test_build_native_runs_boot_program_with_block(void),
+     test_build_native_runs_manual_malloc_free(void),
+     test_build_native_typed_ptr_offset_stride(void);
+void test_build_native_stackalloc_store_deref(void),
+     test_build_native_stackalloc_typed_ptr(void),
+     test_build_native_formats_hetero_arrays(void),
+     test_build_native_indexes_hetero_arrays(void),
+    test_build_native_compares_hetero_arrays_by_identity(void),
+     test_build_native_formats_union_variants(void),
+     test_build_native_layout_field_access(void);
+int main(int argc, char **argv) {
+    test_binary_path = argc > 0 ? argv[0] : NULL;
     printf("Running native build tests...\n\n");
 
     RUN_TEST(test_build_native_runs_simple_start_program);
@@ -229,6 +218,13 @@ int main(void) {
     RUN_TEST(test_build_native_runs_boot_program);
     RUN_TEST(test_build_native_runs_boot_program_with_block);
     RUN_TEST(test_build_native_runs_manual_malloc_free);
+    RUN_TEST(test_build_native_typed_ptr_offset_stride);
+    RUN_TEST(test_build_native_stackalloc_store_deref);
+    RUN_TEST(test_build_native_stackalloc_typed_ptr);
+    RUN_TEST(test_build_native_formats_hetero_arrays); RUN_TEST(test_build_native_indexes_hetero_arrays);
+    RUN_TEST(test_build_native_compares_hetero_arrays_by_identity);
+    RUN_TEST(test_build_native_formats_union_variants);
+    RUN_TEST(test_build_native_layout_field_access);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

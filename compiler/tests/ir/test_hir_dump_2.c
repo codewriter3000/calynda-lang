@@ -130,8 +130,8 @@ void test_hir_dump_normalizes_exit_and_keeps_external_callable_metadata(void) {
     static const char source[] =
         "import io.stdlib;\n"
         "void printer = stdlib.print;\n"
-        "void cleanup = () -> { exit; };\n"
-        "start(string[] args) -> { cleanup(); return 0; };\n";
+        "void disposer = () -> { exit; };\n"
+        "start(string[] args) -> { disposer(); return 0; };\n";
     Parser parser;
     AstProgram program;
     SymbolTable symbols;
@@ -160,15 +160,15 @@ void test_hir_dump_normalizes_exit_and_keeps_external_callable_metadata(void) {
     ASSERT_CONTAINS("Member name=print type=<external> callable=(...) -> <external>",
                     dump,
                     "external member expression keeps callable signature");
-    ASSERT_CONTAINS("Binding name=cleanup type=void final=false callable=() -> void",
+    ASSERT_CONTAINS("Binding name=disposer type=void final=false callable=() -> void",
                     dump,
                     "zero-arg lambda binding keeps exact callable signature");
-    ASSERT_CONTAINS("Return span=3:24\n",
+    ASSERT_CONTAINS("Return span=3:25\n",
                     dump,
                     "exit lowers to return in HIR");
     ASSERT_TRUE(strstr(dump, "Exit span=") == NULL,
                 "exit syntax does not survive into HIR dump");
-    ASSERT_CONTAINS("Symbol name=cleanup kind=top-level binding type=void callable=() -> void",
+    ASSERT_CONTAINS("Symbol name=disposer kind=top-level binding type=void callable=() -> void",
                     dump,
                     "callable symbol references retain signature metadata");
 

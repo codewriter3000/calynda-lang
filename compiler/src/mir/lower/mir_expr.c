@@ -4,9 +4,6 @@
 bool mr_lower_call_expression(MirUnitBuildContext *context,
                               const HirExpression *expression,
                               MirValue *value);
-bool mr_lower_memory_op_expression(MirUnitBuildContext *context,
-                                   const HirExpression *expression,
-                                   MirValue *value);
 
 bool mr_lower_expression(MirUnitBuildContext *context,
                          const HirExpression *expression,

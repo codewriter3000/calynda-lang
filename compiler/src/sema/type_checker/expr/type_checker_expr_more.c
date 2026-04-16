@@ -5,6 +5,23 @@ bool tc_check_array_literal(TypeChecker *checker,
                             const AstExpression *expression,
                             TypeCheckInfo *info);
 
+static const Symbol *tc_find_named_type_symbol(const TypeChecker *checker,
+                                               CheckedType type) {
+    const Scope *root_scope;
+    const Symbol *symbol;
+
+    if (!checker || type.kind != CHECKED_TYPE_NAMED || !type.name) {
+        return NULL;
+    }
+
+    root_scope = symbol_table_root_scope(checker->symbols);
+    symbol = root_scope ? scope_lookup_local(root_scope, type.name) : NULL;
+    if (!symbol) {
+        symbol = symbol_table_find_import(checker->symbols, type.name);
+    }
+    return symbol;
+}
+
 const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                                               const AstExpression *expression) {
     TypeCheckInfo info = tc_type_check_info_make(tc_checked_type_invalid());
@@ -40,6 +57,11 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                 break;
             }
 
+            if (tc_checked_type_is_hetero_array(target_type)) {
+                info = tc_type_check_info_make_external_value();
+                break;
+            }
+
             if (target_type.kind == CHECKED_TYPE_VALUE && target_type.array_depth > 0) {
                 info = tc_type_check_info_make(tc_checked_type_value(target_type.primitive,
                                                                      target_type.array_depth - 1));
@@ -60,6 +82,7 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
             const TypeCheckInfo *target_info = tc_check_expression(
                 checker, expression->as.member.target);
             CheckedType target_type;
+            const Symbol *union_sym;
             char target_text[64];
 
             if (!target_info) {
@@ -72,10 +95,10 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                 break;
             }
 
-            /* Union member access: Option.Some */
+            /* Union constructor access: Option.Some */
             if (target_type.kind == CHECKED_TYPE_NAMED &&
                 expression->as.member.target->kind == AST_EXPR_IDENTIFIER) {
-                const Symbol *union_sym = symbol_table_resolve_identifier(
+                union_sym = symbol_table_resolve_identifier(
                     checker->symbols, expression->as.member.target);
                 if (union_sym && union_sym->kind == SYMBOL_KIND_UNION) {
                     const Scope *union_scope = symbol_table_find_scope(
@@ -102,6 +125,25 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                                     expression->as.member.member ? expression->as.member.member : "?");
                     return NULL;
                 }
+            }
+
+            union_sym = tc_find_named_type_symbol(checker, target_type);
+            if (union_sym && union_sym->kind == SYMBOL_KIND_UNION) {
+                if (strcmp(expression->as.member.member, "tag") == 0) {
+                    info = tc_type_check_info_make(tc_checked_type_value(AST_PRIMITIVE_INT32, 0));
+                    break;
+                }
+                if (strcmp(expression->as.member.member, "payload") == 0) {
+                    info = tc_type_check_info_make_external_value();
+                    break;
+                }
+
+                tc_set_error_at(checker,
+                                expression->source_span,
+                                NULL,
+                                "Union values support only '.tag' and '.payload' access, but got '%s'.",
+                                expression->as.member.member ? expression->as.member.member : "?");
+                return NULL;
             }
 
             checked_type_to_string(target_type, target_text, sizeof(target_text));
@@ -193,34 +235,7 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
         break;
 
     case AST_EXPR_MEMORY_OP:
-        {
-            size_t i;
-            for (i = 0; i < expression->as.memory_op.arguments.count; i++) {
-                const TypeCheckInfo *arg_info = tc_check_expression(
-                    checker, expression->as.memory_op.arguments.items[i]);
-                CheckedType arg_type;
-                if (!arg_info) {
-                    return NULL;
-                }
-                arg_type = tc_type_check_source_type(arg_info);
-                if (!tc_checked_type_is_integral(arg_type)) {
-                    char arg_text[64];
-                    checked_type_to_string(arg_type, arg_text, sizeof(arg_text));
-                    tc_set_error_at(checker,
-                                    expression->as.memory_op.arguments.items[i]->source_span,
-                                    NULL,
-                                    "Memory operation argument must have an integral type but got %s.",
-                                    arg_text);
-                    return NULL;
-                }
-            }
-            if (expression->as.memory_op.kind == AST_MEMORY_FREE) {
-                info = tc_type_check_info_make(tc_checked_type_void());
-            } else {
-                info = tc_type_check_info_make(tc_checked_type_value(AST_PRIMITIVE_INT64, 0));
-            }
-        }
-        break;
+        return tc_check_memory_operation_expression(checker, expression);
 
     default:
         break;

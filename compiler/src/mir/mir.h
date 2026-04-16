@@ -86,7 +86,8 @@ typedef struct {
 void mir_program_init(MirProgram *program);
 void mir_program_free(MirProgram *program);
 
-bool mir_build_program(MirProgram *program, const HirProgram *hir_program);
+bool mir_build_program(MirProgram *program, const HirProgram *hir_program,
+                       bool global_bounds_check);
 
 const MirBuildError *mir_get_error(const MirProgram *program);
 bool mir_format_error(const MirBuildError *error,

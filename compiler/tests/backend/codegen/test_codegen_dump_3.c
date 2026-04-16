@@ -95,7 +95,7 @@ void test_codegen_dump_allocates_registers_then_spills(void) {
                  "type check spilling codegen program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for spilling codegen program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for spilling codegen program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for spilling codegen program");
@@ -168,7 +168,7 @@ void test_codegen_dump_routes_throw_through_runtime_helper(void) {
                  "type check throw codegen program");
     REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
                  "lower HIR for throw codegen program");
-    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program),
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
                  "lower MIR for throw codegen program");
     REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
                  "lower LIR for throw codegen program");

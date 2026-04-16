@@ -31,7 +31,10 @@ struct HirStatement {
         HirExpression  *return_expression;
         HirExpression  *throw_expression;
         HirExpression  *expression;
-        HirBlock       *manual_body;
+        struct {
+            HirBlock   *body;
+            bool        is_checked;
+        } manual;
     } as;
 };
 

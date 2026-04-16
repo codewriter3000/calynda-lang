@@ -10,6 +10,7 @@ bool mc_emit_unary(MachineBuildContext *context,
     const TargetDescriptor *td = mc_target(context);
     const char *work_reg;
     bool is_arm64 = mc_is_aarch64(context);
+    bool is_riscv64 = mc_is_riscv64(context);
     bool ok = false;
 
     if (!mc_format_operand(td, lir_unit, codegen_unit, instruction->as.unary.operand, &operand)) {
@@ -34,7 +35,7 @@ bool mc_emit_unary(MachineBuildContext *context,
         goto cleanup;
     }
 
-    if (is_arm64) {
+    if (is_arm64 || is_riscv64) {
         switch (instruction->as.unary.operator) {
         case AST_UNARY_OP_PLUS:
             break;
@@ -45,14 +46,23 @@ bool mc_emit_unary(MachineBuildContext *context,
             ok = mc_append_line(context, block, "mvn %s, %s", work_reg, work_reg);
             break;
         case AST_UNARY_OP_LOGICAL_NOT:
-            ok = mc_append_line(context, block, "cmp %s, bool(false)", work_reg) &&
-                 mc_append_line(context, block, "cset %s, eq", work_reg);
+            if (is_riscv64)
+                ok = mc_append_line(context, block, "seqz %s, %s", work_reg, work_reg);
+            else
+                ok = mc_append_line(context, block, "cmp %s, bool(false)", work_reg) &&
+                     mc_append_line(context, block, "cset %s, eq", work_reg);
             break;
         case AST_UNARY_OP_PRE_INCREMENT:
-            ok = mc_append_line(context, block, "add %s, %s, i64(1)", work_reg, work_reg);
+            if (is_riscv64)
+                ok = mc_append_line(context, block, "addi %s, %s, 1", work_reg, work_reg);
+            else
+                ok = mc_append_line(context, block, "add %s, %s, i64(1)", work_reg, work_reg);
             break;
         case AST_UNARY_OP_PRE_DECREMENT:
-            ok = mc_append_line(context, block, "sub %s, %s, i64(1)", work_reg, work_reg);
+            if (is_riscv64)
+                ok = mc_append_line(context, block, "addi %s, %s, -1", work_reg, work_reg);
+            else
+                ok = mc_append_line(context, block, "sub %s, %s, i64(1)", work_reg, work_reg);
             break;
         case AST_UNARY_OP_DEREF:
         case AST_UNARY_OP_ADDRESS_OF:

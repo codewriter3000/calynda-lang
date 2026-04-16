@@ -93,6 +93,7 @@ typedef struct {
 typedef struct {
     const char       *name;
     size_t            generic_param_count;
+    const CalyndaRtTypeTag *generic_param_tags;
     size_t            variant_count;
     const char *const *variant_names;
     const CalyndaRtTypeTag *variant_payload_tags;
@@ -107,9 +108,9 @@ typedef struct {
 
 typedef struct {
     CalyndaRtObjectHeader  header;
+    const CalyndaRtTypeDescriptor *type_desc;
     size_t                 count;
     CalyndaRtWord         *elements;
-    CalyndaRtTypeTag      *element_tags;
 } CalyndaRtHeteroArray;
 
 extern CalyndaRtPackage __calynda_pkg_stdlib;
@@ -159,9 +160,34 @@ uint32_t __calynda_rt_union_get_tag(CalyndaRtWord value);
 CalyndaRtWord __calynda_rt_union_get_payload(CalyndaRtWord value);
 bool __calynda_rt_union_check_tag(CalyndaRtWord value, uint32_t expected_tag);
 
-CalyndaRtWord __calynda_rt_hetero_array_new(size_t element_count,
-                                            const CalyndaRtWord *elements,
-                                            const CalyndaRtTypeTag *element_tags);
+CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_desc,
+                                            size_t element_count,
+                                            const CalyndaRtWord *elements);
 CalyndaRtTypeTag __calynda_rt_hetero_array_get_tag(CalyndaRtWord target, CalyndaRtWord index);
+
+/* Manual memory pointer operations */
+CalyndaRtWord __calynda_deref(CalyndaRtWord ptr);
+CalyndaRtWord __calynda_deref_sized(CalyndaRtWord ptr, CalyndaRtWord size);
+CalyndaRtWord __calynda_addr(CalyndaRtWord value);
+CalyndaRtWord __calynda_offset(CalyndaRtWord ptr, CalyndaRtWord count);
+CalyndaRtWord __calynda_offset_stride(CalyndaRtWord ptr, CalyndaRtWord count,
+                                      CalyndaRtWord stride);
+void          __calynda_store(CalyndaRtWord ptr, CalyndaRtWord value);
+void          __calynda_store_sized(CalyndaRtWord ptr, CalyndaRtWord value,
+                                    CalyndaRtWord size);
+/* stackalloc() returns scratch storage whose lifetime ends with the enclosing
+    manual scope once compiler-inserted cleanup runs. */
+CalyndaRtWord __calynda_stackalloc(CalyndaRtWord size);
+
+/* Bounds-checked memory operations (manual checked {} mode). */
+CalyndaRtWord __calynda_bc_malloc(CalyndaRtWord size);
+CalyndaRtWord __calynda_bc_calloc(CalyndaRtWord n, CalyndaRtWord size);
+CalyndaRtWord __calynda_bc_realloc(CalyndaRtWord ptr, CalyndaRtWord new_size);
+void          __calynda_bc_free(CalyndaRtWord ptr);
+CalyndaRtWord __calynda_bc_stackalloc(CalyndaRtWord size);
+CalyndaRtWord __calynda_bc_deref(CalyndaRtWord ptr);
+void          __calynda_bc_store(CalyndaRtWord ptr, CalyndaRtWord value);
+CalyndaRtWord __calynda_bc_offset(CalyndaRtWord ptr, CalyndaRtWord idx,
+                                  CalyndaRtWord elem_size);
 
 #endif /* CALYNDA_RUNTIME_H */

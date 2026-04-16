@@ -68,8 +68,32 @@ export function getCompletions(input: CompleteInput): CompletionItem[] {
     items.push({
       label: 'manual',
       kind: 'snippet',
-      detail: 'Manual memory boundary (experimental)',
+      detail: 'Stable unsafe manual memory boundary',
       insertText: 'manual {\n    ${1}\n};',
+    });
+    items.push({
+      label: 'manual checked',
+      kind: 'snippet',
+      detail: 'Bounds-checked manual memory boundary',
+      insertText: 'manual checked {\n    ${1}\n};',
+    });
+  }
+
+  if ('layout'.startsWith(prefix)) {
+    items.push({
+      label: 'layout',
+      kind: 'snippet',
+      detail: 'Primitive-field layout declaration',
+      insertText: 'layout ${1:Point} {\n    int32 ${2:x};\n    int32 ${3:y};\n};',
+    });
+  }
+
+  if ('ptr'.startsWith(prefix)) {
+    items.push({
+      label: 'ptr<T>',
+      kind: 'snippet',
+      detail: 'Typed pointer type',
+      insertText: 'ptr<${1:int32}>',
     });
   }
 
