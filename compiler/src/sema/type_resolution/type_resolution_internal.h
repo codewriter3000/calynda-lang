@@ -29,6 +29,13 @@ bool tr_append_type_entry(TypeResolver *resolver,
 bool tr_append_cast_entry(TypeResolver *resolver,
                           const AstExpression *cast_expression,
                           ResolvedType target_type);
+bool tr_append_alias_entry(TypeResolver *resolver,
+                           const char *name,
+                           const AstTypeAliasDecl *decl);
+const AstTypeAliasDecl *tr_find_alias_decl(const TypeResolver *resolver,
+                                           const char *name);
+ResolvedType tr_resolved_type_with_extra_arrays(ResolvedType type,
+                                                size_t extra_array_depth);
 
 /* type_resolution_resolve.c */
 bool tr_resolve_declared_type(TypeResolver *resolver,

@@ -39,6 +39,10 @@ typedef struct {
     AstExpression *operand;
 } AstPostDecrementExpression;
 
+typedef struct {
+    AstExpression *callable;
+} AstSpawnExpression;
+
 typedef enum {
     AST_MEMORY_MALLOC = 0,
     AST_MEMORY_CALLOC,
@@ -74,7 +78,8 @@ typedef enum {
     AST_EXPR_DISCARD,
     AST_EXPR_POST_INCREMENT,
     AST_EXPR_POST_DECREMENT,
-    AST_EXPR_MEMORY_OP
+    AST_EXPR_MEMORY_OP,
+    AST_EXPR_SPAWN
 } AstExpressionKind;
 
 struct AstExpression {
@@ -97,6 +102,7 @@ struct AstExpression {
         AstPostIncrementExpression post_increment;
         AstPostDecrementExpression post_decrement;
         AstMemoryOpExpression     memory_op;
+        AstSpawnExpression        spawn;
     } as;
 };
 
@@ -184,6 +190,15 @@ typedef struct {
     AstModifier  *modifiers;
     size_t       modifier_count;
     size_t       modifier_capacity;
+    AstType      target_type;
+    char         *name;
+    AstSourceSpan name_span;
+} AstTypeAliasDecl;
+
+typedef struct {
+    AstModifier  *modifiers;
+    size_t       modifier_count;
+    size_t       modifier_capacity;
     AstType      return_type;
     char         *name;
     AstSourceSpan name_span;
@@ -210,7 +225,8 @@ typedef enum {
     AST_TOP_LEVEL_BINDING,
     AST_TOP_LEVEL_UNION,
     AST_TOP_LEVEL_ASM,
-    AST_TOP_LEVEL_LAYOUT
+    AST_TOP_LEVEL_LAYOUT,
+    AST_TOP_LEVEL_TYPE_ALIAS
 } AstTopLevelDeclKind;
 
 struct AstTopLevelDecl {
@@ -221,6 +237,7 @@ struct AstTopLevelDecl {
         AstUnionDecl   union_decl;
         AstAsmDecl     asm_decl;
         AstLayoutDecl  layout_decl;
+        AstTypeAliasDecl type_alias_decl;
     } as;
 };
 

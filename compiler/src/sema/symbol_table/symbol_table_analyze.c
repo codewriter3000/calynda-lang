@@ -20,6 +20,7 @@ bool st_analyze_top_level_decl(SymbolTable *table,
         return true;
 
     case AST_TOP_LEVEL_LAYOUT:
+    case AST_TOP_LEVEL_TYPE_ALIAS:
         /* Layout declarations have no expressions to walk. */
         return true;
     }

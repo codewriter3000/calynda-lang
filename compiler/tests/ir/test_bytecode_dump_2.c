@@ -123,10 +123,37 @@ static void test_bytecode_dump_lowers_binary_unary_store_index_store_member(void
     free(dump);
 }
 
+
+/* ------------------------------------------------------------------ */
+/*  G-BC-2: Duplicate string constants are deduplicated in the pool   */
+/* ------------------------------------------------------------------ */
+static void test_bytecode_dump_deduplicates_string_constants(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    string a = \"hello\";\n"
+        "    string b = \"hello\";\n"
+        "    return 0;\n"
+        "};\n";
+    char *dump;
+    const char *first;
+    const char *second;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump),
+                 "build constant pool dedup dump");
+    first = strstr(dump, "literal kind=string text=\"hello\"");
+    REQUIRE_TRUE(first != NULL,
+                 "string constant appears at least once in constant pool");
+    second = strstr(first + 1, "literal kind=string text=\"hello\"");
+    ASSERT_TRUE(second == NULL,
+                "duplicate string constant is deduplicated in bytecode constant pool");
+    free(dump);
+}
+
 int main(void) {
     printf("Running bytecode dump tests (part 2)...\n\n");
 
     RUN_TEST(test_bytecode_dump_lowers_binary_unary_store_index_store_member);
+    RUN_TEST(test_bytecode_dump_deduplicates_string_constants);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

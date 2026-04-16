@@ -40,6 +40,24 @@ extern int tests_failed;
     fn();                                                               \
 } while (0)
 
+static char *copy_token_text_without_underscores(Token tok) {
+    char *copy = malloc(tok.length + 1);
+    size_t in_index;
+    size_t out_index = 0;
+
+    if (!copy) {
+        return NULL;
+    }
+
+    for (in_index = 0; in_index < tok.length; in_index++) {
+        if (tok.start[in_index] != '_') {
+            copy[out_index++] = tok.start[in_index];
+        }
+    }
+    copy[out_index] = '\0';
+    return copy;
+}
+
 
 /* ------------------------------------------------------------------ */
 /*  Test: keywords                                                    */
@@ -84,7 +102,7 @@ void test_keywords(void) {
 
 void test_identifiers(void) {
     Tokenizer t;
-    tokenizer_init(&t, "foo _bar baz123 _0");
+    tokenizer_init(&t, "foo _bar baz123 _0 _100");
     Token tok;
 
     tok = tokenizer_next(&t);
@@ -100,6 +118,9 @@ void test_identifiers(void) {
     ASSERT_TOKEN(tok, TOK_IDENTIFIER, "_0");
 
     tok = tokenizer_next(&t);
+    ASSERT_TOKEN(tok, TOK_IDENTIFIER, "_100");
+
+    tok = tokenizer_next(&t);
     ASSERT_EQ_INT(TOK_EOF, tok.type, "EOF");
 }
 
@@ -110,9 +131,10 @@ void test_identifiers(void) {
 
 void test_integer_literals(void) {
     Tokenizer t;
+    char *normalized;
 
     /* Decimal */
-    tokenizer_init(&t, "0 42 1234567890");
+    tokenizer_init(&t, "0 42 1234567890 1_000");
     Token tok;
 
     tok = tokenizer_next(&t);
@@ -124,6 +146,19 @@ void test_integer_literals(void) {
     tok = tokenizer_next(&t);
     ASSERT_TOKEN(tok, TOK_INT_LIT, "1234567890");
 
+    tok = tokenizer_next(&t);
+    ASSERT_TOKEN(tok, TOK_INT_LIT, "1_000");
+    normalized = copy_token_text_without_underscores(tok);
+    tests_run++;
+    if (normalized && strtoull(normalized, NULL, 10) == 1000ULL) {
+        tests_passed++;
+    } else {
+        tests_failed++;
+        fprintf(stderr, "  FAIL [%s:%d] underscored decimal value parsed incorrectly\n",
+                __FILE__, __LINE__);
+    }
+    free(normalized);
+
     /* Binary */
     tokenizer_init(&t, "0b1010 0B11");
     tok = tokenizer_next(&t);
@@ -132,11 +167,23 @@ void test_integer_literals(void) {
     ASSERT_TOKEN(tok, TOK_INT_LIT, "0B11");
 
     /* Hex */
-    tokenizer_init(&t, "0xFF 0X1A");
+    tokenizer_init(&t, "0xFF 0X1A 0xFF_00");
     tok = tokenizer_next(&t);
     ASSERT_TOKEN(tok, TOK_INT_LIT, "0xFF");
     tok = tokenizer_next(&t);
     ASSERT_TOKEN(tok, TOK_INT_LIT, "0X1A");
+    tok = tokenizer_next(&t);
+    ASSERT_TOKEN(tok, TOK_INT_LIT, "0xFF_00");
+    normalized = copy_token_text_without_underscores(tok);
+    tests_run++;
+    if (normalized && strtoull(normalized, NULL, 0) == 65280ULL) {
+        tests_passed++;
+    } else {
+        tests_failed++;
+        fprintf(stderr, "  FAIL [%s:%d] underscored hex value parsed incorrectly\n",
+                __FILE__, __LINE__);
+    }
+    free(normalized);
 
     /* Octal */
     tokenizer_init(&t, "0o77 0O01");
@@ -154,8 +201,10 @@ void test_integer_literals(void) {
 void test_float_literals(void) {
     Tokenizer t;
     Token tok;
+    char *normalized;
+    double value;
 
-    tokenizer_init(&t, "3.14 1.0e10 2.5E-3 42e2");
+    tokenizer_init(&t, "3.14 1.0e10 2.5E-3 42e2 3.141_592 1_e10");
 
     tok = tokenizer_next(&t);
     ASSERT_TOKEN(tok, TOK_FLOAT_LIT, "3.14");
@@ -168,6 +217,34 @@ void test_float_literals(void) {
 
     tok = tokenizer_next(&t);
     ASSERT_TOKEN(tok, TOK_FLOAT_LIT, "42e2");
+
+    tok = tokenizer_next(&t);
+    ASSERT_TOKEN(tok, TOK_FLOAT_LIT, "3.141_592");
+    normalized = copy_token_text_without_underscores(tok);
+    value = normalized ? strtod(normalized, NULL) : 0.0;
+    tests_run++;
+    if (normalized && value > 3.141591 && value < 3.141593) {
+        tests_passed++;
+    } else {
+        tests_failed++;
+        fprintf(stderr, "  FAIL [%s:%d] underscored float value parsed incorrectly\n",
+                __FILE__, __LINE__);
+    }
+    free(normalized);
+
+    tok = tokenizer_next(&t);
+    ASSERT_TOKEN(tok, TOK_FLOAT_LIT, "1_e10");
+    normalized = copy_token_text_without_underscores(tok);
+    value = normalized ? strtod(normalized, NULL) : 0.0;
+    tests_run++;
+    if (normalized && value == 1e10) {
+        tests_passed++;
+    } else {
+        tests_failed++;
+        fprintf(stderr, "  FAIL [%s:%d] underscored exponent value parsed incorrectly\n",
+                __FILE__, __LINE__);
+    }
+    free(normalized);
 }
 
 
@@ -214,4 +291,3 @@ void test_string_literals(void) {
     tok = tokenizer_next(&t);
     ASSERT_TOKEN(tok, TOK_STRING_LIT, "\"\"");
 }
-

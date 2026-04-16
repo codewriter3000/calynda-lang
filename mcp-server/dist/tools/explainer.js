@@ -64,7 +64,7 @@ function explainTopic(input) {
         return: '`return expr;` returns a value from a lambda. `return;` for void lambdas. The type checker enforces contextual return errors for non-void lambdas and start.',
         null: '`null` is the null value. void functions implicitly return null.',
         union: 'Tagged unions with optional generic parameters. Syntax: `union Option<T> { Some(T), None };`. Unions support variant construction (`Option.Some(42)`, `Option.None`) plus read-only `.tag` and `.payload` access on union values.',
-        generic: 'Reified generics use `<T>` syntax. Named types, union declarations, `arr<?>`, and `ptr<T>` support type parameters. Wildcard `?` survives into the shared runtime descriptor model for 0.4.0 metadata.',
+        generic: 'Reified generics use `<T>` syntax. Named types, union declarations, `arr<?>`, and `ptr<T>` support type parameters. Wildcard `?` survives into the shared runtime descriptor model for 0.5.0 metadata.',
         closure: 'Closures are created via lambda expressions and capture outer locals/parameters. MIR lowers them to MIR_UNIT_LAMBDA + MIR_INSTR_CLOSURE. The capture environment is passed in r15 on x86_64.',
         increment: 'Pre/post increment/decrement: `++x`, `x++`, `--x`, `x--`. MIR uses a read-modify-write pattern for post-ops. Machine layer emits x86 `inc`/`dec` for pre-ops.',
         discard: 'The discard expression `_` can be used as an assignment target to explicitly ignore a value: `_ = computeSomething();`',
@@ -72,8 +72,12 @@ function explainTopic(input) {
         internal: 'The `internal` modifier on local bindings restricts access to nested lambda scopes only; the type checker enforces visibility by walking scope boundaries.',
         asm: '`asm()` is an inline assembly declaration. Syntax: `int32 name = asm(int32 a, int32 b) -> { mov eax, edi; add eax, esi; ret };`. The assembly body is passed through to the assembler unchanged. Parameters follow normal Calynda type syntax and map to ABI registers. The `export` and `static` modifiers are supported.',
         boot: '`boot()` is a bare-metal entry point that bypasses the Calynda runtime entirely and emits a raw `_start` symbol. Intended for freestanding and embedded targets. Syntax: `boot() -> 0;` or `boot() -> { ... };`. `boot()` and `start()` cannot coexist in the same compilation unit.',
-        manual: '`manual { ... };` and `manual checked { ... };` are the stable unsafe 0.4.0 manual-memory surface. Built-ins include malloc/calloc/realloc/free, cleanup(value, fn), stackalloc(size), deref, store, offset, and addr. `ptr<T>` adds typed sizing for deref/store/offset, `manual checked` routes through growable bounds tracking, and `stackalloc(size)` means manual-scope scratch storage reclaimed at scope exit.',
-        layout: '`layout Name { int32 x; int32 y; };` declares a struct-like type for use with `ptr<T>`, `offset`, `deref`, and `store`. In 0.4.0, layout fields are intentionally restricted to scalar primitive types.',
+        manual: '`manual { ... };` and `manual checked { ... };` are the stable unsafe 0.5.0 manual-memory surface. Built-ins include malloc/calloc/realloc/free, cleanup(value, fn), stackalloc(size), deref, store, offset, and addr. `ptr<T>` adds typed sizing for deref/store/offset, `manual checked` routes through growable bounds tracking, and `stackalloc(size)` means manual-scope scratch storage reclaimed at scope exit.',
+        layout: '`layout Name { int32 x; int32 y; };` declares a struct-like type for use with `ptr<T>`, `offset`, `deref`, and `store`. In 0.5.0, layout fields are intentionally restricted to scalar primitive types.',
+        spawn: '`spawn expr` launches a new thread. The right-hand side must be a zero-argument void callable, and the expression returns a `Thread` handle.',
+        'type alias': '`type Name = ExistingType;` creates a top-level type alias. Type aliases may carry normal declaration modifiers before `type`.',
+        'numeric literal': 'Numeric literal separators use `_`. The tokenizer strips underscores before parsing, so forms like `1_000`, `0xFF_FF`, and `3.141_592` follow the existing literal grammar.',
+        numeric: 'Numeric literal separators use `_`. The tokenizer strips underscores before parsing, so forms like `1_000`, `0xFF_FF`, and `3.141_592` follow the existing literal grammar.',
         arm64: 'ARM64 / AArch64 is a supported compilation target. Pass `--target aarch64-linux` to `calynda build` to produce AArch64 assembly. The default target remains Linux x86_64 SysV.',
     };
     for (const [key, explanation] of Object.entries(keywordExplanations)) {
@@ -85,7 +89,7 @@ function explainTopic(input) {
         }
     }
     return {
-        explanation: `No specific documentation found for "${input.topic}". Calynda is a compiled functional systems programming language with ~200 C source files across 12 directories.\n\nLanguage topics: types, lambdas, start, unions, generics, closures, templates, arrays, casts, throw, exit, modifiers, imports.\n\nCompiler topics: pipeline, architecture, tokenizer, parser, AST, symbol table, type checker, HIR, MIR, LIR, codegen, machine, asm, bytecode, runtime, backend, build, source tree, error pattern.`,
+        explanation: `No specific documentation found for "${input.topic}". Calynda is a compiled functional systems programming language with ~200 C source files across 12 directories.\n\nLanguage topics: types, thread, mutex, spawn, type alias, numeric literals, lambdas, start, unions, generics, closures, templates, arrays, casts, throw, exit, modifiers, imports.\n\nCompiler topics: pipeline, architecture, tokenizer, parser, AST, symbol table, type checker, HIR, MIR, LIR, codegen, machine, asm, bytecode, runtime, backend, build, source tree, error pattern.`,
     };
 }
 //# sourceMappingURL=explainer.js.map

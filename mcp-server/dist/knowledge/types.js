@@ -16,5 +16,7 @@ exports.TYPE_DOCS = {
     char: { name: 'char', description: 'Single Unicode character', size: '4 bytes', examples: ["char letter = 'A';", "char newline = '\\n';"] },
     string: { name: 'string', description: 'Immutable UTF-8 string', examples: ['string greeting = "hello";', 'string name = "world";'] },
     void: { name: 'void', description: 'No return value (functions implicitly return null)', examples: ['void doSomething = () -> { exit; };'] },
+    thread: { name: 'Thread', description: 'Opaque handle to a running thread. Created by spawn. Supports .join().', examples: ['Thread worker = spawn work;', 'worker.join();'] },
+    mutex: { name: 'Mutex', description: 'Mutual exclusion lock. Created with Mutex.new(). Supports .lock() and .unlock().', examples: ['Mutex guard = Mutex.new();', 'guard.lock();', 'guard.unlock();'] },
 };
 //# sourceMappingURL=types.js.map

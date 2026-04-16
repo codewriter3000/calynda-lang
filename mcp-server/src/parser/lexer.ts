@@ -102,35 +102,40 @@ export class Lexer implements LexerContext {
   private readNumber(line: number, col: number, offset: number): Token {
     let value = '';
     const ch = this.peek();
+    const readDigits = (pattern: RegExp) => {
+      while (pattern.test(this.peek()) || (this.peek() === '_' && pattern.test(this.peek(1)))) {
+        value += this.advance();
+      }
+    };
 
     if (ch === '0') {
       const next = this.peek(1);
       if (next === 'b' || next === 'B') {
         value += this.advance() + this.advance();
-        while (/[01]/.test(this.peek())) value += this.advance();
+        readDigits(/[01]/);
         return this.makeToken('integer', value, line, col, offset);
       }
       if (next === 'x' || next === 'X') {
         value += this.advance() + this.advance();
-        while (/[0-9a-fA-F]/.test(this.peek())) value += this.advance();
+        readDigits(/[0-9a-fA-F]/);
         return this.makeToken('integer', value, line, col, offset);
       }
       if (next === 'o' || next === 'O') {
         value += this.advance() + this.advance();
-        while (/[0-7]/.test(this.peek())) value += this.advance();
+        readDigits(/[0-7]/);
         return this.makeToken('integer', value, line, col, offset);
       }
     }
 
-    while (/[0-9]/.test(this.peek())) value += this.advance();
+    readDigits(/[0-9]/);
 
     if (this.peek() === '.' && /[0-9]/.test(this.peek(1))) {
       value += this.advance();
-      while (/[0-9]/.test(this.peek())) value += this.advance();
+      readDigits(/[0-9]/);
       if (this.peek() === 'e' || this.peek() === 'E') {
         value += this.advance();
         if (this.peek() === '+' || this.peek() === '-') value += this.advance();
-        while (/[0-9]/.test(this.peek())) value += this.advance();
+        readDigits(/[0-9]/);
       }
       return this.makeToken('float', value, line, col, offset);
     }

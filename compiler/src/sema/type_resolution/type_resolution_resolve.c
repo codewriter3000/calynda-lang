@@ -20,6 +20,29 @@ static bool parse_array_size_literal(const char *text, unsigned long long *value
     return true;
 }
 
+static bool tr_resolve_declared_type_impl(TypeResolver *resolver,
+                                          const AstType *type,
+                                          AstSourceSpan primary_span,
+                                          const char *subject_kind,
+                                          const char *subject_name,
+                                          bool allow_void,
+                                          const char **alias_stack,
+                                          size_t alias_stack_count);
+
+static bool tr_alias_stack_contains(const char **alias_stack,
+                                    size_t alias_stack_count,
+                                    const char *name) {
+    size_t i;
+
+    for (i = 0; i < alias_stack_count; i++) {
+        if (alias_stack[i] && name && strcmp(alias_stack[i], name) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static bool validate_array_dimensions(TypeResolver *resolver,
                                       const AstType *type,
                                       AstSourceSpan primary_span,
@@ -70,6 +93,24 @@ bool tr_resolve_declared_type(TypeResolver *resolver,
                               const char *subject_kind,
                               const char *subject_name,
                               bool allow_void) {
+    return tr_resolve_declared_type_impl(resolver,
+                                         type,
+                                         primary_span,
+                                         subject_kind,
+                                         subject_name,
+                                         allow_void,
+                                         NULL,
+                                         0);
+}
+
+static bool tr_resolve_declared_type_impl(TypeResolver *resolver,
+                                          const AstType *type,
+                                          AstSourceSpan primary_span,
+                                          const char *subject_kind,
+                                          const char *subject_name,
+                                          bool allow_void,
+                                          const char **alias_stack,
+                                          size_t alias_stack_count) {
     ResolvedType resolved_type;
 
     if (!type) {
@@ -93,7 +134,65 @@ bool tr_resolve_declared_type(TypeResolver *resolver,
         }
 
         resolved_type = tr_resolved_type_void();
+    } else if (type->kind == AST_TYPE_THREAD) {
+        resolved_type = tr_resolved_type_named("Thread", 0, type->dimension_count);
+    } else if (type->kind == AST_TYPE_MUTEX) {
+        resolved_type = tr_resolved_type_named("Mutex", 0, type->dimension_count);
     } else if (type->kind == AST_TYPE_NAMED) {
+        const AstTypeAliasDecl *alias_decl = tr_find_alias_decl(resolver, type->name);
+
+        if (alias_decl) {
+            const char **next_alias_stack =
+                calloc(alias_stack_count + 1, sizeof(*next_alias_stack));
+            const ResolvedType *alias_resolved_type;
+            ResolvedType adjusted_type;
+            size_t i;
+
+            if (tr_alias_stack_contains(alias_stack, alias_stack_count, type->name)) {
+                tr_set_error_at(resolver,
+                                primary_span,
+                                &alias_decl->name_span,
+                                "Type alias '%s' is circular.",
+                                type->name);
+                return false;
+            }
+
+            if (!next_alias_stack) {
+                tr_set_error(resolver,
+                             "Out of memory while resolving type aliases.");
+                return false;
+            }
+
+            for (i = 0; i < alias_stack_count; i++) {
+                next_alias_stack[i] = alias_stack[i];
+            }
+            next_alias_stack[alias_stack_count] = type->name;
+
+            if (!tr_resolve_declared_type_impl(resolver,
+                                               &alias_decl->target_type,
+                                               alias_decl->name_span,
+                                               "Type alias",
+                                               alias_decl->name,
+                                               allow_void,
+                                               next_alias_stack,
+                                               alias_stack_count + 1)) {
+                free(next_alias_stack);
+                return false;
+            }
+            free(next_alias_stack);
+
+            alias_resolved_type = type_resolver_get_type(resolver, &alias_decl->target_type);
+            if (!alias_resolved_type) {
+                tr_set_error(resolver,
+                             "Internal error: missing resolved type alias target.");
+                return false;
+            }
+
+            adjusted_type = tr_resolved_type_with_extra_arrays(*alias_resolved_type,
+                                                               type->dimension_count);
+            return tr_append_type_entry(resolver, type, adjusted_type);
+        }
+
         resolved_type = tr_resolved_type_named(type->name,
                                                type->generic_args.count,
                                                type->dimension_count);

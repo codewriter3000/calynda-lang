@@ -100,6 +100,15 @@ static void registry_free_owned_object(void *pointer) {
             free((CalyndaRtTypeDescriptor *)(uintptr_t)hetero_array->type_desc);
         }
         break;
+    case CALYNDA_RT_OBJECT_THREAD:
+        if (!((CalyndaRtThread *)pointer)->joined) {
+            pthread_join(((CalyndaRtThread *)pointer)->thread, NULL);
+            ((CalyndaRtThread *)pointer)->joined = true;
+        }
+        break;
+    case CALYNDA_RT_OBJECT_MUTEX:
+        pthread_mutex_destroy(&((CalyndaRtMutex *)pointer)->mutex);
+        break;
     case CALYNDA_RT_OBJECT_PACKAGE:
     case CALYNDA_RT_OBJECT_EXTERN_CALLABLE:
     case CALYNDA_RT_OBJECT_UNION:
@@ -209,6 +218,41 @@ CalyndaRtClosure *rt_new_closure_object(CalyndaRtClosureEntry code_ptr,
         return NULL;
     }
     return closure_object;
+}
+
+CalyndaRtThread *rt_new_thread_object(void) {
+    CalyndaRtThread *thread_object = calloc(1, sizeof(*thread_object));
+
+    if (!thread_object) {
+        return NULL;
+    }
+    thread_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
+    thread_object->header.kind = CALYNDA_RT_OBJECT_THREAD;
+    if (!rt_register_object_pointer(thread_object)) {
+        free(thread_object);
+        return NULL;
+    }
+    return thread_object;
+}
+
+CalyndaRtMutex *rt_new_mutex_object(void) {
+    CalyndaRtMutex *mutex_object = calloc(1, sizeof(*mutex_object));
+
+    if (!mutex_object) {
+        return NULL;
+    }
+    mutex_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
+    mutex_object->header.kind = CALYNDA_RT_OBJECT_MUTEX;
+    if (pthread_mutex_init(&mutex_object->mutex, NULL) != 0) {
+        free(mutex_object);
+        return NULL;
+    }
+    if (!rt_register_object_pointer(mutex_object)) {
+        pthread_mutex_destroy(&mutex_object->mutex);
+        free(mutex_object);
+        return NULL;
+    }
+    return mutex_object;
 }
 bool calynda_rt_is_object(CalyndaRtWord word) { return calynda_rt_as_object(word) != NULL; }
 

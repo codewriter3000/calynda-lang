@@ -107,6 +107,12 @@ ResolvedType tr_resolved_type_named(const char *name, size_t generic_arg_count,
     return type;
 }
 
+ResolvedType tr_resolved_type_with_extra_arrays(ResolvedType type,
+                                                size_t extra_array_depth) {
+    type.array_depth += extra_array_depth;
+    return type;
+}
+
 bool tr_source_span_is_valid(AstSourceSpan span) {
     return span.start_line > 0 && span.start_column > 0;
 }
@@ -181,4 +187,40 @@ bool tr_append_cast_entry(TypeResolver *resolver,
     resolver->cast_entries[resolver->cast_count].target_type = target_type;
     resolver->cast_count++;
     return true;
+}
+
+bool tr_append_alias_entry(TypeResolver *resolver,
+                           const char *name,
+                           const AstTypeAliasDecl *decl) {
+    if (!reserve_items((void **)&resolver->alias_entries,
+                       &resolver->alias_capacity,
+                       resolver->alias_count + 1,
+                       sizeof(*resolver->alias_entries))) {
+        tr_set_error(resolver,
+                     "Out of memory while storing type alias information.");
+        return false;
+    }
+
+    resolver->alias_entries[resolver->alias_count].name = name;
+    resolver->alias_entries[resolver->alias_count].decl = decl;
+    resolver->alias_count++;
+    return true;
+}
+
+const AstTypeAliasDecl *tr_find_alias_decl(const TypeResolver *resolver,
+                                           const char *name) {
+    size_t i;
+
+    if (!resolver || !name) {
+        return NULL;
+    }
+
+    for (i = 0; i < resolver->alias_count; i++) {
+        if (resolver->alias_entries[i].name &&
+            strcmp(resolver->alias_entries[i].name, name) == 0) {
+            return resolver->alias_entries[i].decl;
+        }
+    }
+
+    return NULL;
 }

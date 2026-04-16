@@ -86,6 +86,17 @@ void ast_binding_decl_free_fields_internal(AstBindingDecl *decl) {
     memset(decl, 0, sizeof(*decl));
 }
 
+void ast_type_alias_decl_free_fields_internal(AstTypeAliasDecl *decl) {
+    if (!decl) {
+        return;
+    }
+
+    free(decl->modifiers);
+    ast_type_free(&decl->target_type);
+    free(decl->name);
+    memset(decl, 0, sizeof(*decl));
+}
+
 AstTopLevelDecl *ast_top_level_decl_new(AstTopLevelDeclKind kind) {
     AstTopLevelDecl *decl = calloc(1, sizeof(*decl));
 
@@ -106,6 +117,8 @@ AstTopLevelDecl *ast_top_level_decl_new(AstTopLevelDeclKind kind) {
         ast_parameter_list_init(&decl->as.asm_decl.parameters);
     } else if (kind == AST_TOP_LEVEL_LAYOUT) {
         memset(&decl->as.layout_decl, 0, sizeof(decl->as.layout_decl));
+    } else if (kind == AST_TOP_LEVEL_TYPE_ALIAS) {
+        ast_type_init_void(&decl->as.type_alias_decl.target_type);
     }
 
     return decl;
@@ -146,6 +159,9 @@ void ast_top_level_decl_free(AstTopLevelDecl *decl) {
         memset(&decl->as.layout_decl, 0, sizeof(decl->as.layout_decl));
         break;
     }
+    case AST_TOP_LEVEL_TYPE_ALIAS:
+        ast_type_alias_decl_free_fields_internal(&decl->as.type_alias_decl);
+        break;
     }
 
     free(decl);
@@ -180,6 +196,20 @@ bool ast_asm_decl_add_modifier(AstAsmDecl *decl, AstModifier modifier) {
 }
 
 bool ast_union_decl_add_modifier(AstUnionDecl *decl, AstModifier modifier) {
+    if (!decl) {
+        return false;
+    }
+
+    if (!ast_reserve_items((void **)&decl->modifiers, &decl->modifier_capacity,
+                           decl->modifier_count + 1, sizeof(*decl->modifiers))) {
+        return false;
+    }
+
+    decl->modifiers[decl->modifier_count++] = modifier;
+    return true;
+}
+
+bool ast_type_alias_decl_add_modifier(AstTypeAliasDecl *decl, AstModifier modifier) {
     if (!decl) {
         return false;
     }

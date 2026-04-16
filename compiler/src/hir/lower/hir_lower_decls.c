@@ -118,7 +118,8 @@ bool hr_lower_top_level_decls(HirBuildContext *context) {
         }
 
         /* Layout declarations are type metadata only — skip during HIR lowering. */
-        if (ast_decl->kind == AST_TOP_LEVEL_LAYOUT) {
+        if (ast_decl->kind == AST_TOP_LEVEL_LAYOUT ||
+            ast_decl->kind == AST_TOP_LEVEL_TYPE_ALIAS) {
             continue;
         }
 

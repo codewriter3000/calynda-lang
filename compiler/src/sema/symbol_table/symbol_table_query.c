@@ -19,6 +19,8 @@ const char *symbol_kind_name(SymbolKind kind) {
         return "local";
     case SYMBOL_KIND_UNION:
         return "union";
+    case SYMBOL_KIND_TYPE_ALIAS:
+        return "type alias";
     case SYMBOL_KIND_TYPE_PARAMETER:
         return "type parameter";
     case SYMBOL_KIND_VARIANT:

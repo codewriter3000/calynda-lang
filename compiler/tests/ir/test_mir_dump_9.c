@@ -150,3 +150,24 @@ void test_mir_dump_double_capture_closure(void) {
     ASSERT_CONTAINS("capture", dump, "double capture shows captured variables");
     free(dump);
 }
+
+
+/* ------------------------------------------------------------------ */
+/*  G-MIR-8: MIR error API is safe when no error has occurred        */
+/*                                                                    */
+/*  Verifies: mir_format_error(NULL, ...) returns false without       */
+/*  crashing, and mir_get_error returns NULL on a fresh program.      */
+/* ------------------------------------------------------------------ */
+void test_mir_dump_error_api_format_null_is_safe(void) {
+    MirProgram fresh;
+    char buf[128];
+
+    mir_program_init(&fresh);
+    ASSERT_TRUE(mir_get_error(&fresh) == NULL,
+                "mir_get_error returns NULL on freshly initialised program");
+    ASSERT_TRUE(!mir_format_error(NULL, NULL, 0),
+                "mir_format_error with NULL error and NULL buffer returns false");
+    ASSERT_TRUE(!mir_format_error(NULL, buf, sizeof(buf)),
+                "mir_format_error with NULL error and valid buffer returns false");
+    mir_program_free(&fresh);
+}

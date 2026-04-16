@@ -101,6 +101,7 @@ void test_parse_malformed_missing_semicolon(void);
 void test_parse_malformed_stray_token(void);
 void test_parse_manual_checked_block(void);
 void test_parse_union_multi_generic(void);
+void test_parse_type_alias_and_spawn_threading(void);
 
 
 int main(void) {
@@ -142,6 +143,7 @@ int main(void) {
     RUN_TEST(test_parse_malformed_stray_token);
     RUN_TEST(test_parse_manual_checked_block);
     RUN_TEST(test_parse_union_multi_generic);
+    RUN_TEST(test_parse_type_alias_and_spawn_threading);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

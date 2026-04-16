@@ -217,11 +217,43 @@ static void test_semantic_dump_program_to_file_with_unresolved_identifier(void) 
     parser_free(&parser);
 }
 
+static void test_semantic_dump_shows_type_alias_symbol(void) {
+    static const char source[] =
+        "export type ExitCode = int32;\n"
+        "start(string[] args) -> 0;\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse semantic type alias program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build semantic type alias symbols");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                 "type check semantic type alias program");
+
+    dump = semantic_dump_program_to_string(&symbols, &checker);
+    REQUIRE_TRUE(dump != NULL, "render semantic type alias dump");
+    ASSERT_TRUE(strstr(dump, "kind=type alias") != NULL, "semantic dump shows type alias kind");
+    ASSERT_TRUE(strstr(dump, "transparent=true") != NULL,
+                "semantic dump shows transparent alias flag");
+
+    free(dump);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 int main(void) {
     printf("Running semantic dump tests...\n");
 
     RUN_TEST(test_semantic_dump_program_to_string);
     RUN_TEST(test_semantic_dump_program_to_file_with_unresolved_identifier);
+    RUN_TEST(test_semantic_dump_shows_type_alias_symbol);
 
     printf("\nSemantic dump tests run: %d\n", tests_run);
     printf("Passed: %d\n", tests_passed);

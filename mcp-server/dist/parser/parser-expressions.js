@@ -102,20 +102,21 @@ function parsePrimary(state) {
     if (tok.type === 'integer') {
         state.advance();
         const raw = tok.value;
+        const normalized = raw.replaceAll('_', '');
         let val;
-        if (raw.startsWith('0b') || raw.startsWith('0B'))
-            val = parseInt(raw.slice(2), 2);
-        else if (raw.startsWith('0x') || raw.startsWith('0X'))
-            val = parseInt(raw.slice(2), 16);
-        else if (raw.startsWith('0o') || raw.startsWith('0O'))
-            val = parseInt(raw.slice(2), 8);
+        if (normalized.startsWith('0b') || normalized.startsWith('0B'))
+            val = parseInt(normalized.slice(2), 2);
+        else if (normalized.startsWith('0x') || normalized.startsWith('0X'))
+            val = parseInt(normalized.slice(2), 16);
+        else if (normalized.startsWith('0o') || normalized.startsWith('0O'))
+            val = parseInt(normalized.slice(2), 8);
         else
-            val = parseInt(raw, 10);
+            val = parseInt(normalized, 10);
         return { kind: 'IntegerLiteral', value: val, raw, start: startPos, end: state.position() };
     }
     if (tok.type === 'float') {
         state.advance();
-        return { kind: 'FloatLiteral', value: parseFloat(tok.value), raw: tok.value, start: startPos, end: state.position() };
+        return { kind: 'FloatLiteral', value: parseFloat(tok.value.replaceAll('_', '')), raw: tok.value, start: startPos, end: state.position() };
     }
     if (tok.type === 'string') {
         state.advance();

@@ -61,6 +61,11 @@ bool sd_dump_symbols(SemanticDumpBuilder *builder,
                 return false;
             }
         }
+        if (symbol->kind == SYMBOL_KIND_TYPE_ALIAS) {
+            if (!sd_builder_append(builder, " transparent=true")) {
+                return false;
+            }
+        }
         if (sd_source_span_is_valid(symbol->declaration_span)) {
             if (!sd_builder_append(builder, " span=") ||
                 !sd_builder_append_span(builder, symbol->declaration_span)) {

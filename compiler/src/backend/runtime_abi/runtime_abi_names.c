@@ -46,6 +46,10 @@ const char *runtime_abi_argument_role_name(RuntimeAbiArgumentRole role) {
         return "expected_tag";
     case RUNTIME_ABI_ARG_ELEMENT_TAG_PACK:
         return "element_tag_pack";
+    case RUNTIME_ABI_ARG_THREAD_VALUE:
+        return "thread_value";
+    case RUNTIME_ABI_ARG_MUTEX_VALUE:
+        return "mutex_value";
     }
 
     return "unknown";

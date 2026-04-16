@@ -184,6 +184,54 @@ const RuntimeAbiHelperSignature runtime_abi_helpers[] = {
         },
         2,
         RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_THREAD_SPAWN,
+        CALYNDA_RT_THREAD_SPAWN,
+        RUNTIME_ABI_RETURN_VALUE,
+        {
+            { RUNTIME_ABI_ARG_CALLABLE_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_THREAD_JOIN,
+        CALYNDA_RT_THREAD_JOIN,
+        RUNTIME_ABI_RETURN_VOID,
+        {
+            { RUNTIME_ABI_ARG_THREAD_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_MUTEX_NEW,
+        CALYNDA_RT_MUTEX_NEW,
+        RUNTIME_ABI_RETURN_VALUE,
+        { { RUNTIME_ABI_ARG_MUTEX_VALUE, CODEGEN_REG_RDI } },
+        0,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_MUTEX_LOCK,
+        CALYNDA_RT_MUTEX_LOCK,
+        RUNTIME_ABI_RETURN_VOID,
+        {
+            { RUNTIME_ABI_ARG_MUTEX_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
+    },
+    {
+        CODEGEN_RUNTIME_MUTEX_UNLOCK,
+        CALYNDA_RT_MUTEX_UNLOCK,
+        RUNTIME_ABI_RETURN_VOID,
+        {
+            { RUNTIME_ABI_ARG_MUTEX_VALUE, CODEGEN_REG_RDI }
+        },
+        1,
+        RUNTIME_ABI_PACK_NONE
     }
 };
 

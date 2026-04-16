@@ -1,4 +1,4 @@
-export type NodeKind = 'Program' | 'PackageDecl' | 'ImportDecl' | 'StartDecl' | 'BindingDecl' | 'UnionDecl' | 'LayoutDecl' | 'AsmDecl' | 'BootDecl' | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'ManualStatement' | 'LambdaExpression' | 'AssignmentExpression' | 'TernaryExpression' | 'BinaryExpression' | 'UnaryExpression' | 'PostfixExpression' | 'CallExpression' | 'IndexExpression' | 'MemberExpression' | 'CastExpression' | 'ArrayLiteral' | 'Identifier' | 'IntegerLiteral' | 'FloatLiteral' | 'BoolLiteral' | 'CharLiteral' | 'StringLiteral' | 'TemplateLiteral' | 'NullLiteral' | 'Parameter' | 'ParameterList' | 'ArrayType' | 'PrimitiveType' | 'NamedType' | 'VoidType';
+export type NodeKind = 'Program' | 'PackageDecl' | 'ImportDecl' | 'StartDecl' | 'BindingDecl' | 'TypeAliasDecl' | 'UnionDecl' | 'LayoutDecl' | 'AsmDecl' | 'BootDecl' | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'ManualStatement' | 'LambdaExpression' | 'AssignmentExpression' | 'TernaryExpression' | 'BinaryExpression' | 'UnaryExpression' | 'PostfixExpression' | 'CallExpression' | 'IndexExpression' | 'MemberExpression' | 'CastExpression' | 'ArrayLiteral' | 'Identifier' | 'IntegerLiteral' | 'FloatLiteral' | 'BoolLiteral' | 'CharLiteral' | 'StringLiteral' | 'TemplateLiteral' | 'NullLiteral' | 'Parameter' | 'ParameterList' | 'ArrayType' | 'PrimitiveType' | 'NamedType' | 'VoidType';
 export interface Position {
     line: number;
     column: number;
@@ -23,7 +23,7 @@ export interface ImportDecl extends ASTNode {
     kind: 'ImportDecl';
     name: string;
 }
-export type TopLevelDecl = StartDecl | BindingDecl | UnionDecl | LayoutDecl | AsmDecl | BootDecl;
+export type TopLevelDecl = StartDecl | BindingDecl | TypeAliasDecl | UnionDecl | LayoutDecl | AsmDecl | BootDecl;
 export interface UnionVariant {
     name: string;
     payloadType?: TypeNode;
@@ -34,6 +34,12 @@ export interface UnionDecl extends ASTNode {
     name: string;
     genericParams: string[];
     variants: UnionVariant[];
+}
+export interface TypeAliasDecl extends ASTNode {
+    kind: 'TypeAliasDecl';
+    modifiers: string[];
+    name: string;
+    target: TypeNode;
 }
 export interface LayoutDecl extends ASTNode {
     kind: 'LayoutDecl';

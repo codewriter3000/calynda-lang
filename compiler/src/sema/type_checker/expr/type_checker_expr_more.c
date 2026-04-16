@@ -4,6 +4,7 @@
 bool tc_check_array_literal(TypeChecker *checker,
                             const AstExpression *expression,
                             TypeCheckInfo *info);
+static const AstParameterList tc_empty_parameter_list = { NULL, 0, 0 };
 
 static const Symbol *tc_find_named_type_symbol(const TypeChecker *checker,
                                                CheckedType type) {
@@ -20,6 +21,13 @@ static const Symbol *tc_find_named_type_symbol(const TypeChecker *checker,
         symbol = symbol_table_find_import(checker->symbols, type.name);
     }
     return symbol;
+}
+
+static bool tc_checked_type_is_named_type(CheckedType type, const char *name) {
+    return type.kind == CHECKED_TYPE_NAMED &&
+           type.array_depth == 0 &&
+           type.name != NULL &&
+           strcmp(type.name, name) == 0;
 }
 
 const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
@@ -90,6 +98,31 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
             }
 
             target_type = tc_type_check_source_type(target_info);
+            if (tc_checked_type_is_named_type(target_type, "Thread") &&
+                strcmp(expression->as.member.member, "join") == 0) {
+                info = tc_type_check_info_make_callable(tc_checked_type_void(),
+                                                        &tc_empty_parameter_list);
+                info.type = target_type;
+                break;
+            }
+            if (tc_checked_type_is_named_type(target_type, "Mutex")) {
+                if (expression->as.member.target->kind == AST_EXPR_IDENTIFIER &&
+                    expression->as.member.target->as.identifier &&
+                    strcmp(expression->as.member.target->as.identifier, "Mutex") == 0 &&
+                    strcmp(expression->as.member.member, "new") == 0) {
+                    info = tc_type_check_info_make_callable(tc_checked_type_named("Mutex", 0, 0),
+                                                            &tc_empty_parameter_list);
+                    info.type = target_type;
+                    break;
+                }
+                if (strcmp(expression->as.member.member, "lock") == 0 ||
+                    strcmp(expression->as.member.member, "unlock") == 0) {
+                    info = tc_type_check_info_make_callable(tc_checked_type_void(),
+                                                            &tc_empty_parameter_list);
+                    info.type = target_type;
+                    break;
+                }
+            }
             if (target_type.kind == CHECKED_TYPE_EXTERNAL) {
                 info = tc_type_check_info_make_external_callable();
                 break;
@@ -236,6 +269,26 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
 
     case AST_EXPR_MEMORY_OP:
         return tc_check_memory_operation_expression(checker, expression);
+
+    case AST_EXPR_SPAWN:
+        {
+            const TypeCheckInfo *callable_info = tc_check_expression(checker,
+                                                                     expression->as.spawn.callable);
+            if (!callable_info) {
+                return NULL;
+            }
+            if (!callable_info->is_callable ||
+                (callable_info->parameters && callable_info->parameters->count != 0) ||
+                callable_info->callable_return_type.kind != CHECKED_TYPE_VOID) {
+                tc_set_error_at(checker,
+                                expression->as.spawn.callable->source_span,
+                                NULL,
+                                "spawn requires a zero-argument callable returning void.");
+                return NULL;
+            }
+            info = tc_type_check_info_make(tc_checked_type_named("Thread", 0, 0));
+        }
+        break;
 
     default:
         break;

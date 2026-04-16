@@ -106,6 +106,8 @@ bool tr_resolve_expression(TypeResolver *resolver, const AstExpression *expressi
             }
         }
         return true;
+    case AST_EXPR_SPAWN:
+        return tr_resolve_expression(resolver, expression->as.spawn.callable);
     }
 
     return false;

@@ -16,6 +16,10 @@ const char *calynda_rt_object_kind_name(CalyndaRtObjectKind kind) {
         return "union";
     case CALYNDA_RT_OBJECT_HETERO_ARRAY:
         return "hetero-array";
+    case CALYNDA_RT_OBJECT_THREAD:
+        return "thread";
+    case CALYNDA_RT_OBJECT_MUTEX:
+        return "mutex";
     }
 
     return "unknown";

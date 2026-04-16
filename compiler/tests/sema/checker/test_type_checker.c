@@ -125,6 +125,8 @@ void test_type_checker_accepts_layout_declaration(void);
 void test_type_checker_rejects_non_primitive_layout_field(void);
 void test_type_checker_error_has_source_span(void);
 void test_type_checker_accepts_pre_increment(void);
+void test_type_checker_accepts_threading_builtins_and_type_alias(void);
+void test_type_checker_rejects_spawn_non_void_callable(void);
 
 
 int main(void) {
@@ -188,6 +190,8 @@ int main(void) {
     RUN_TEST(test_type_checker_rejects_non_primitive_layout_field);
     RUN_TEST(test_type_checker_error_has_source_span);
     RUN_TEST(test_type_checker_accepts_pre_increment);
+    RUN_TEST(test_type_checker_accepts_threading_builtins_and_type_alias);
+    RUN_TEST(test_type_checker_rejects_spawn_non_void_callable);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

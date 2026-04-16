@@ -20,7 +20,7 @@ exports.GRAMMAR_EXPRESSIONS = `
 (* 12. Shift               <<  >>                                   *)
 (* 13. Additive            +  -                                     *)
 (* 14. Multiplicative      *  /  %                                  *)
-(* 15. Unary prefix        !  ~  -  +  *  &  ++  --                 *)
+(* 15. Unary prefix        !  ~  -  +  spawn  ++  --                *)
 (* 16. Postfix             ()  []  .  ++  --                         *)
 (* 17. Primary             literals, identifiers, _, parens,        *)
 (*                          lambdas, casts                          *)
@@ -145,8 +145,13 @@ MultiplicativeExpression
 
 (* --- Unary prefix ----------------------------------------------- *)
 
+SpawnExpr
+    = "spawn" UnaryExpression
+    ;
+
 UnaryExpression
     = ( "!" | "~" | "-" | "+" ) UnaryExpression
+    | SpawnExpr
     | "++" UnaryExpression                                     (* prefix increment *)
     | "--" UnaryExpression                                     (* prefix decrement *)
     | PostfixExpression

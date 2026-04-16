@@ -210,7 +210,8 @@ void test_build_native_stackalloc_store_deref(void),
 void test_build_native_double_capture_closure(void),
      test_build_native_primitive_types(void),
      test_build_native_varargs_passthrough(void),
-     test_build_native_template_literal(void);
+     test_build_native_template_literal(void),
+     test_build_native_threading_helpers(void);
 void test_build_native_manual_checked_abort(void),
      test_build_native_car_multifile(void);
 int main(int argc, char **argv) {
@@ -235,6 +236,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_build_native_primitive_types);
     RUN_TEST(test_build_native_varargs_passthrough);
     RUN_TEST(test_build_native_template_literal);
+    RUN_TEST(test_build_native_threading_helpers);
     RUN_TEST(test_build_native_manual_checked_abort);
     RUN_TEST(test_build_native_car_multifile);
 

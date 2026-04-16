@@ -1,5 +1,6 @@
 #include "runtime.h"
 
+#include <stdint.h>
 #include <stdio.h>
 
 extern int tests_run;
@@ -108,4 +109,35 @@ void test_runtime_start_process_cleans_hetero_arrays_and_nested_objects(void) {
                 "start process cleanup releases hetero array containers");
     ASSERT_TRUE(!calynda_rt_is_object(hetero_cleanup_string),
                 "start process cleanup releases nested hetero array objects independently");
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  G-RT-4: __calynda_deref_sized / __calynda_store_sized for every  */
+/*          primitive width (1, 2, 4, 8 bytes)                        */
+/* ------------------------------------------------------------------ */
+void test_runtime_deref_sized_and_store_sized_primitive_widths(void) {
+    uint8_t buf[8] = {0};
+    CalyndaRtWord ptr = (CalyndaRtWord)(uintptr_t)buf;
+
+    /* 1-byte round-trip */
+    __calynda_store_sized(ptr, 0xAB, 1);
+    ASSERT_EQ_WORD(0xAB, __calynda_deref_sized(ptr, 1),
+                   "1-byte store/deref round-trip");
+
+    /* 2-byte round-trip */
+    __calynda_store_sized(ptr, 0x1234, 2);
+    ASSERT_EQ_WORD(0x1234, __calynda_deref_sized(ptr, 2),
+                   "2-byte store/deref round-trip");
+
+    /* 4-byte round-trip */
+    __calynda_store_sized(ptr, 0xDEADBEEFU, 4);
+    ASSERT_EQ_WORD(0xDEADBEEFU, __calynda_deref_sized(ptr, 4),
+                   "4-byte store/deref round-trip");
+
+    /* 8-byte round-trip */
+    __calynda_store_sized(ptr, (CalyndaRtWord)0x0102030405060708LL, 8);
+    ASSERT_EQ_WORD((CalyndaRtWord)0x0102030405060708LL,
+                   __calynda_deref_sized(ptr, 8),
+                   "8-byte store/deref round-trip");
 }

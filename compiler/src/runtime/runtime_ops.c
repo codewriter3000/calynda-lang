@@ -44,6 +44,12 @@ CalyndaRtWord __calynda_rt_call_callable(CalyndaRtWord callable,
     }
 }
 
+CalyndaRtWord calynda_rt_callable_dispatch(CalyndaRtWord callable,
+                                           const CalyndaRtWord *arguments,
+                                           size_t argument_count) {
+    return __calynda_rt_call_callable(callable, argument_count, arguments);
+}
+
 CalyndaRtWord __calynda_rt_member_load(CalyndaRtWord target, const char *member) {
     const CalyndaRtObjectHeader *header = calynda_rt_as_object(target);
 

@@ -37,6 +37,7 @@ const char *token_type_name(TokenType type) {
     case TOK_INTERNAL:       return "INTERNAL";
     case TOK_STATIC:         return "STATIC";
     case TOK_UNION:          return "UNION";
+    case TOK_TYPE:           return "TYPE";
     case TOK_MANUAL:         return "MANUAL";
     case TOK_ARR:            return "ARR";
     case TOK_PTR:            return "PTR";
@@ -53,6 +54,7 @@ const char *token_type_name(TokenType type) {
     case TOK_LAYOUT:         return "LAYOUT";
     case TOK_CHECKED:        return "CHECKED";
     case TOK_ASM:            return "ASM";
+    case TOK_SPAWN:          return "SPAWN";
     case TOK_ASM_BODY:       return "ASM_BODY";
     case TOK_INT8:           return "INT8";
     case TOK_INT16:          return "INT16";

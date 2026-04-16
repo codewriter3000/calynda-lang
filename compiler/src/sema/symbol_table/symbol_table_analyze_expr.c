@@ -36,6 +36,12 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
                 return st_resolutions_append(table, expression, scope, resolved);
             }
 
+            if (expression->as.identifier &&
+                (strcmp(expression->as.identifier, "Mutex") == 0 ||
+                 strcmp(expression->as.identifier, "Thread") == 0)) {
+                return true;
+            }
+
             return st_unresolved_append(table, expression, scope);
         }
 
@@ -110,6 +116,8 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
             }
         }
         return true;
+    case AST_EXPR_SPAWN:
+        return st_analyze_expression(table, expression->as.spawn.callable, scope);
     }
 
     return false;

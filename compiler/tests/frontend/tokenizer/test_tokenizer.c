@@ -60,6 +60,8 @@ void test_increment_decrement_tokens(void);
 void test_compound_assignment_tokens(void);
 void test_memory_op_keywords(void);
 void test_ellipsis_token(void);
+void test_type_and_spawn_keywords(void);
+void test_crlf_line_tracking(void);
 
 
 /* ------------------------------------------------------------------ */
@@ -89,6 +91,8 @@ int main(void) {
     RUN_TEST(test_compound_assignment_tokens);
     RUN_TEST(test_memory_op_keywords);
     RUN_TEST(test_ellipsis_token);
+    RUN_TEST(test_type_and_spawn_keywords);
+    RUN_TEST(test_crlf_line_tracking);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

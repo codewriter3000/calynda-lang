@@ -80,11 +80,21 @@ bool parser_parse_type(Parser *parser, AstType *type) {
             return false;
         }
         parser_advance(parser);
-        ast_type_init_named(&parsed_type, name);
+        if (strcmp(name, "Thread") == 0) {
+            ast_type_init_thread(&parsed_type);
+        } else if (strcmp(name, "Mutex") == 0) {
+            ast_type_init_mutex(&parsed_type);
+        } else {
+            ast_type_init_named(&parsed_type, name);
+        }
         free(name);
         if (!parsed_type.name) {
-            parser_set_oom_error(parser);
-            return false;
+            if (parsed_type.kind == AST_TYPE_THREAD || parsed_type.kind == AST_TYPE_MUTEX) {
+                /* no-op */
+            } else {
+                parser_set_oom_error(parser);
+                return false;
+            }
         }
     } else if (parser_match(parser, TOK_CHECKED)) {
         /* 'checked' keyword used as a type-level marker in ptr<T, checked>. */
@@ -104,7 +114,9 @@ bool parser_parse_type(Parser *parser, AstType *type) {
     }
 
     /* Optional generic arguments. */
-    if (parser_check(parser, TOK_LT)) {
+    if ((parsed_type.kind == AST_TYPE_NAMED || parsed_type.kind == AST_TYPE_ARR ||
+         parsed_type.kind == AST_TYPE_PTR) &&
+        parser_check(parser, TOK_LT)) {
         if (!parser_parse_generic_args(parser, &parsed_type)) {
             ast_type_free(&parsed_type);
             return false;

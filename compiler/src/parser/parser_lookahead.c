@@ -32,7 +32,7 @@ bool is_primitive_type_token(TokenType type) {
 
 bool is_type_start_token(TokenType type) {
     return type == TOK_VOID || type == TOK_IDENTIFIER || type == TOK_ARR ||
-           type == TOK_PTR || is_primitive_type_token(type);
+            type == TOK_PTR || is_primitive_type_token(type);
 }
 
 bool scan_generic_args_pattern(const Parser *parser, size_t *index) {

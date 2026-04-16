@@ -234,6 +234,12 @@ bool ast_dump_expression_node(AstDumpBuilder *builder,
 
         return true;
     }
+    case AST_EXPR_SPAWN:
+        return ast_dump_builder_start_line(builder, indent) &&
+               ast_dump_builder_append(builder, "SpawnExpr") &&
+               ast_dump_builder_finish_line(builder) &&
+               ast_dump_expression_label(builder, indent + 1, "Callable",
+                                     expression->as.spawn.callable);
     }
 
     return false;

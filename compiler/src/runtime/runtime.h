@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <pthread.h>
 
 typedef uint64_t CalyndaRtWord;
 
@@ -19,7 +20,9 @@ typedef enum {
     CALYNDA_RT_OBJECT_PACKAGE,
     CALYNDA_RT_OBJECT_EXTERN_CALLABLE,
     CALYNDA_RT_OBJECT_UNION,
-    CALYNDA_RT_OBJECT_HETERO_ARRAY
+    CALYNDA_RT_OBJECT_HETERO_ARRAY,
+    CALYNDA_RT_OBJECT_THREAD,
+    CALYNDA_RT_OBJECT_MUTEX
 } CalyndaRtObjectKind;
 
 typedef enum {
@@ -113,6 +116,23 @@ typedef struct {
     CalyndaRtWord         *elements;
 } CalyndaRtHeteroArray;
 
+typedef struct {
+    CalyndaRtObjectHeader header;
+    pthread_t             thread;
+    bool                  joined;
+} CalyndaRtThread;
+
+typedef struct {
+    CalyndaRtObjectHeader header;
+    pthread_mutex_t       mutex;
+} CalyndaRtMutex;
+
+#define CALYNDA_RT_THREAD_SPAWN   "__calynda_rt_thread_spawn"
+#define CALYNDA_RT_THREAD_JOIN    "__calynda_rt_thread_join"
+#define CALYNDA_RT_MUTEX_NEW      "__calynda_rt_mutex_new"
+#define CALYNDA_RT_MUTEX_LOCK     "__calynda_rt_mutex_lock"
+#define CALYNDA_RT_MUTEX_UNLOCK   "__calynda_rt_mutex_unlock"
+
 extern CalyndaRtPackage __calynda_pkg_stdlib;
 
 bool calynda_rt_is_object(CalyndaRtWord word);
@@ -134,6 +154,9 @@ CalyndaRtWord calynda_rt_make_string_copy(const char *bytes);
 CalyndaRtWord __calynda_rt_closure_new(CalyndaRtClosureEntry code_ptr,
                                        size_t capture_count,
                                        const CalyndaRtWord *captures);
+CalyndaRtWord calynda_rt_callable_dispatch(CalyndaRtWord callable,
+                                           const CalyndaRtWord *arguments,
+                                           size_t argument_count);
 CalyndaRtWord __calynda_rt_call_callable(CalyndaRtWord callable,
                                          size_t argument_count,
                                          const CalyndaRtWord *arguments);
@@ -164,6 +187,12 @@ CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_
                                             size_t element_count,
                                             const CalyndaRtWord *elements);
 CalyndaRtTypeTag __calynda_rt_hetero_array_get_tag(CalyndaRtWord target, CalyndaRtWord index);
+
+CalyndaRtWord __calynda_rt_thread_spawn(CalyndaRtWord callable);
+void          __calynda_rt_thread_join(CalyndaRtWord thread_handle);
+CalyndaRtWord __calynda_rt_mutex_new(void);
+void          __calynda_rt_mutex_lock(CalyndaRtWord mutex_handle);
+void          __calynda_rt_mutex_unlock(CalyndaRtWord mutex_handle);
 
 /* Manual memory pointer operations */
 CalyndaRtWord __calynda_deref(CalyndaRtWord ptr);

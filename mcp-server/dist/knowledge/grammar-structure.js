@@ -4,10 +4,9 @@ exports.GRAMMAR_STRUCTURE = void 0;
 exports.GRAMMAR_STRUCTURE = `
 (* ===================================================================== *)
 (* Calynda — EBNF Grammar Snapshot                                        *)
-(* Cloned from compiler/calynda.ebnf on 2026-04-16                        *)
+(* Snapshot version 0.5.0                                                 *)
+(* Cloned from compiler/calynda_v2.ebnf on 2026-04-16                     *)
 (* ===================================================================== *)
-
-
 (* ================================================================ *)
 (* 1. PROGRAM STRUCTURE                                             *)
 (* ================================================================ *)
@@ -47,6 +46,7 @@ TopLevelDecl
     | BootDecl
     | AsmDecl
     | BindingDecl
+    | TypeAliasDecl
     | UnionDecl
     | LayoutDecl
     ;
@@ -84,6 +84,10 @@ BindingDecl
     = { Modifier } ( Type | "var" ) Identifier "=" Expression ";"
     ;
 
+TypeAliasDecl
+    = { Modifier } "type" Identifier "=" Type ";"
+    ;
+
 Modifier
     = "export"
     | "public"
@@ -119,7 +123,7 @@ UnionVariant
 
 (* Memory layout declaration — defines a named struct-like type for *)
 (* use with ptr<T>, offset, deref, and store operations.            *)
-(* Field types must be primitive in 0.4.0.                          *)
+(* Field types must be primitive in 0.5.0.                          *)
 LayoutDecl
     = "layout" Identifier "{" { LayoutField } "}" ";"
     ;
@@ -140,6 +144,8 @@ LayoutField
 (* forms.                                                           *)
 Type
     = PrimitiveType [ GenericArgs ] { ArrayDimension }
+    | "Thread" { ArrayDimension }                               (* semantically-resolved built-in handle *)
+    | "Mutex" { ArrayDimension }                                (* semantically-resolved built-in handle *)
     | Identifier [ GenericArgs ] { ArrayDimension }            (* named / user-defined type *)
     | "arr" GenericArgs                                        (* heterogeneous array *)
     | "ptr" GenericArgs                                        (* typed pointer — manual only *)
@@ -177,8 +183,6 @@ GenericArg
     = "?"                                                      (* wildcard *)
     | Type
     ;
-
-
 (* ================================================================ *)
 (* 4. STATEMENTS & BLOCKS                                           *)
 (* ================================================================ *)

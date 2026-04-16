@@ -19,6 +19,16 @@ bool sd_append_ast_type(SemanticDumpBuilder *builder,
             return false;
         }
         break;
+    case AST_TYPE_THREAD:
+        if (!sd_builder_append(builder, "Thread")) {
+            return false;
+        }
+        break;
+    case AST_TYPE_MUTEX:
+        if (!sd_builder_append(builder, "Mutex")) {
+            return false;
+        }
+        break;
     case AST_TYPE_PRIMITIVE:
         if (!sd_builder_append(builder, sd_primitive_type_name(type->primitive))) {
             return false;

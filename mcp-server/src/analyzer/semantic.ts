@@ -8,11 +8,15 @@ export interface AnalysisResult {
 }
 
 type Scope = Map<string, CalyndaType>;
+const BUILTIN_SYMBOLS: Array<[string, CalyndaType]> = [
+  ['Thread', { kind: 'named', name: 'Thread', genericArgs: [] }],
+  ['Mutex', { kind: 'named', name: 'Mutex', genericArgs: [] }],
+];
 
 class SemanticAnalyzer {
   private diagnostics: Diagnostic[] = [];
-  private scopes: Scope[] = [new Map()];
-  private globalSymbols: Map<string, CalyndaType> = new Map();
+  private scopes: Scope[] = [new Map(BUILTIN_SYMBOLS)];
+  private globalSymbols: Map<string, CalyndaType> = new Map(BUILTIN_SYMBOLS);
 
   analyze(program: AST.Program): AnalysisResult {
     for (const decl of program.declarations) {
@@ -83,6 +87,10 @@ class SemanticAnalyzer {
       this.analyzeExpression(decl.value);
       this.defineSymbol(decl.name, type, decl);
       this.globalSymbols.set(decl.name, type);
+    } else if (decl.kind === 'TypeAliasDecl') {
+      const aliasType = this.typeFromAnnotation(decl.target);
+      this.defineSymbol(decl.name, aliasType, decl);
+      this.globalSymbols.set(decl.name, aliasType);
     } else if (decl.kind === 'UnionDecl') {
       const unionType: CalyndaType = { kind: 'named', name: decl.name, genericArgs: decl.genericParams.map(() => ({ kind: 'unknown' as const })) };
       this.defineSymbol(decl.name, unionType, decl);

@@ -45,7 +45,7 @@ function parseType(state) {
         state.advance();
         let size;
         if (state.check('integer')) {
-            size = parseInt(state.advance().value, 10);
+            size = parseInt(state.advance().value.replaceAll('_', ''), 10);
         }
         state.eat('rbracket');
         typeNode = { kind: 'ArrayType', elementType: typeNode, size, start: arrStart, end: state.position() };
@@ -209,6 +209,11 @@ function parseMultiplicative(state) {
 }
 function parseUnary(state) {
     const startPos = state.position();
+    if (state.check('keyword', 'spawn')) {
+        const op = state.advance().value;
+        const operand = parseUnary(state);
+        return { kind: 'UnaryExpression', operator: op, operand, start: startPos, end: state.position() };
+    }
     if (state.check('bang') || state.check('tilde') || state.check('minus') || state.check('plus')) {
         const op = state.advance().value;
         const operand = parseUnary(state);

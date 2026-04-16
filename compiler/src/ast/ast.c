@@ -136,6 +136,22 @@ void ast_type_init_named(AstType *type, const char *name) {
     type->name = ast_copy_text(name);
 }
 
+void ast_type_init_thread(AstType *type) {
+    if (!type) {
+        return;
+    }
+    memset(type, 0, sizeof(*type));
+    type->kind = AST_TYPE_THREAD;
+}
+
+void ast_type_init_mutex(AstType *type) {
+    if (!type) {
+        return;
+    }
+    memset(type, 0, sizeof(*type));
+    type->kind = AST_TYPE_MUTEX;
+}
+
 void ast_type_free(AstType *type) {
     size_t i;
 

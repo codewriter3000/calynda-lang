@@ -126,3 +126,61 @@ void test_type_checker_accepts_pre_increment(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
+
+void test_type_checker_accepts_threading_builtins_and_type_alias(void) {
+    static const char source[] =
+        "type ExitCode = int32;\n"
+        "start(string[] args) -> {\n"
+        "    Thread t = spawn () -> {\n"
+        "        exit;\n"
+        "    };\n"
+        "    Mutex m = Mutex.new();\n"
+        "    t.join();\n"
+        "    m.lock();\n"
+        "    m.unlock();\n"
+        "    ExitCode code = 0;\n"
+        "    return code;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse threading type checker source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols threading type checker");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "threading builtins and aliases type check");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_rejects_spawn_non_void_callable(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    Thread t = spawn () -> 1;\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse bad spawn source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols bad spawn");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
+                "spawn rejects non-void callable");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}

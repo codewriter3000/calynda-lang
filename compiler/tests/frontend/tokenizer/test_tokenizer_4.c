@@ -113,6 +113,21 @@ void test_errors(void) {
     tokenizer_init(&t, "0xG");
     tok = tokenizer_next(&t);
     ASSERT_EQ_INT(TOK_ERROR, tok.type, "bad hex literal");
+
+    /* Trailing underscore in number */
+    tokenizer_init(&t, "100_");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_ERROR, tok.type, "trailing underscore in number");
+
+    /* Underscore immediately after decimal point */
+    tokenizer_init(&t, "3._14");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_ERROR, tok.type, "underscore after decimal point");
+
+    /* Consecutive underscores in number */
+    tokenizer_init(&t, "1__0");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_ERROR, tok.type, "consecutive underscores in number");
 }
 
 
@@ -152,4 +167,3 @@ void test_asm_tokens(void) {
     tok = tokenizer_next(&t);  /* TOK_ASM_BODY */
     ASSERT_EQ_INT(TOK_ASM_BODY, tok.type, "nested brace asm body captured");
 }
-

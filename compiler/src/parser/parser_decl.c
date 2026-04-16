@@ -92,6 +92,10 @@ AstTopLevelDecl *parse_top_level_decl(Parser *parser) {
         return parse_layout_decl(parser);
     }
 
+    if (parser_check(parser, TOK_TYPE)) {
+        return parse_type_alias_decl(parser);
+    }
+
     /* Peek past any modifier tokens to decide binding vs union. */
     if (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
         parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_EXPORT) ||
@@ -109,6 +113,9 @@ AstTopLevelDecl *parse_top_level_decl(Parser *parser) {
         if (parser_token_at(parser, ahead)->type == TOK_UNION) {
             return parse_union_decl(parser);
         }
+        if (parser_token_at(parser, ahead)->type == TOK_TYPE) {
+            return parse_type_alias_decl(parser);
+        }
         return parse_binding_decl(parser);
     }
 
@@ -124,6 +131,62 @@ AstTopLevelDecl *parse_top_level_decl(Parser *parser) {
     parser_set_error(parser, *parser_current_token(parser),
                      "Expected top-level declaration.");
     return NULL;
+}
+
+AstTopLevelDecl *parse_type_alias_decl(Parser *parser) {
+    AstTopLevelDecl *decl = ast_top_level_decl_new(AST_TOP_LEVEL_TYPE_ALIAS);
+    const Token *name_token;
+
+    if (!decl) {
+        parser_set_oom_error(parser);
+        return NULL;
+    }
+
+    while (parser_check(parser, TOK_PUBLIC) || parser_check(parser, TOK_PRIVATE) ||
+           parser_check(parser, TOK_EXPORT)) {
+        AstModifier modifier = AST_MODIFIER_PUBLIC;
+
+        switch (parser_current_token(parser)->type) {
+        case TOK_PRIVATE:
+            modifier = AST_MODIFIER_PRIVATE;
+            break;
+        case TOK_EXPORT:
+            modifier = AST_MODIFIER_EXPORT;
+            break;
+        default:
+            break;
+        }
+
+        parser_advance(parser);
+        if (!ast_type_alias_decl_add_modifier(&decl->as.type_alias_decl, modifier)) {
+            ast_top_level_decl_free(decl);
+            parser_set_oom_error(parser);
+            return NULL;
+        }
+    }
+
+    if (!parser_consume(parser, TOK_TYPE, "Expected 'type'.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    name_token = parser_current_token(parser);
+    decl->as.type_alias_decl.name =
+        parser_consume_identifier(parser, "Expected type alias name.");
+    if (!decl->as.type_alias_decl.name) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+    decl->as.type_alias_decl.name_span = parser_source_span(name_token);
+
+    if (!parser_consume(parser, TOK_ASSIGN, "Expected '=' after type alias name.") ||
+        !parser_parse_type(parser, &decl->as.type_alias_decl.target_type) ||
+        !parser_consume(parser, TOK_SEMICOLON, "Expected ';' after type alias declaration.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    return decl;
 }
 
 AstTopLevelDecl *parse_start_decl(Parser *parser) {
@@ -250,4 +313,3 @@ AstTopLevelDecl *parse_binding_decl(Parser *parser) {
 
     return decl;
 }
-

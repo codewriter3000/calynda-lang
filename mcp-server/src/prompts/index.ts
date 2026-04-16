@@ -46,11 +46,14 @@ const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Bare-metal entry point: boot() -> expr; bypasses runtime, emits _start (cannot coexist with start)
 - Inline assembly: int32 name = asm(int32 a) -> { ... }; passed through to assembler unchanged
 - Stable unsafe manual memory: manual { ... }; / manual checked { ... }; with malloc/calloc/realloc/free, cleanup(value, fn), stackalloc(size), deref/store/offset/addr, and ptr<T>
-- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<?>, ptr<T>, layout types, void
+- Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<?>, ptr<T>, layout types, Thread, Mutex, void
 - Java-style aliases: byte, sbyte, short, int, long, ulong, uint, float, double
+- Type aliases: type Name = ExistingType;
+- Threading: spawn launches a zero-arg void callable and returns Thread; Mutex.new() creates a mutex with .lock()/.unlock()
 - Tagged unions with reified generics: union Option<T> { Some(T), None }; union values expose read-only .tag and .payload
 - Heterogeneous arrays: arr<?> mixed = [1, "hello", true]; indexed reads produce external values and indexed writes remain rejected
-- Layout declarations exist for ptr<T> use; layout fields are limited to scalar primitive types in 0.4.0
+- Layout declarations exist for ptr<T> use; layout fields are limited to scalar primitive types in 0.5.0
+- Numeric literals support underscore separators; the tokenizer strips underscores before parsing
 - Template literals with \${} interpolation (backtick strings)
 - No built-in if/else or loops — use ternary for conditionals, library functions for iteration
 - throw keyword for errors, exit; is sugar for return; in void lambdas

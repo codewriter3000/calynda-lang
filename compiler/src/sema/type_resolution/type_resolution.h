@@ -39,6 +39,11 @@ typedef struct {
 } TypeResolutionError;
 
 typedef struct {
+    const char               *name;
+    const AstTypeAliasDecl   *decl;
+} TypeAliasEntry;
+
+typedef struct {
     const AstProgram      *program;
     ResolvedTypeEntry     *type_entries;
     size_t                 type_count;
@@ -46,6 +51,9 @@ typedef struct {
     ResolvedCastTypeEntry *cast_entries;
     size_t                 cast_count;
     size_t                 cast_capacity;
+    TypeAliasEntry        *alias_entries;
+    size_t                 alias_count;
+    size_t                 alias_capacity;
     TypeResolutionError    error;
     bool                   has_error;
 } TypeResolver;

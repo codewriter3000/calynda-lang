@@ -46,7 +46,7 @@ export function parseType(state: ParserState): AST.TypeNode {
     state.advance();
     let size: number | undefined;
     if (state.check('integer')) {
-      size = parseInt(state.advance().value, 10);
+      size = parseInt(state.advance().value.replaceAll('_', ''), 10);
     }
     state.eat('rbracket');
     typeNode = { kind: 'ArrayType', elementType: typeNode, size, start: arrStart, end: state.position() };
@@ -228,6 +228,11 @@ function parseMultiplicative(state: ParserState): AST.Expression {
 
 export function parseUnary(state: ParserState): AST.Expression {
   const startPos = state.position();
+  if (state.check('keyword', 'spawn')) {
+    const op = state.advance().value;
+    const operand = parseUnary(state);
+    return { kind: 'UnaryExpression', operator: op, operand, start: startPos, end: state.position() };
+  }
   if (state.check('bang') || state.check('tilde') || state.check('minus') || state.check('plus')) {
     const op = state.advance().value;
     const operand = parseUnary(state);

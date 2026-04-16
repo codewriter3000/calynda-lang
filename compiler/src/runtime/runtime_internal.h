@@ -31,6 +31,8 @@ bool rt_format_hetero_array_text(const CalyndaRtHeteroArray *array,
 CalyndaRtWord rt_word_from_signed(long long value);
 long long rt_signed_from_word(CalyndaRtWord value);
 bool rt_is_runtime_string_word(CalyndaRtWord word);
+CalyndaRtThread *rt_new_thread_object(void);
+CalyndaRtMutex *rt_new_mutex_object(void);
 CalyndaRtWord rt_dispatch_extern_callable(const CalyndaRtExternCallable *callable,
                                           size_t argument_count,
                                           const CalyndaRtWord *arguments);

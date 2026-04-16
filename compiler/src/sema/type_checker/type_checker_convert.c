@@ -109,6 +109,10 @@ bool tc_checked_type_assignable(CheckedType target, CheckedType source) {
         return true;
     }
 
+    if (target.kind == CHECKED_TYPE_FUNCTION && source.kind == CHECKED_TYPE_FUNCTION) {
+        return target.generic_arg_count == source.generic_arg_count;
+    }
+
     if (target.kind == CHECKED_TYPE_VOID) {
         return source.kind == CHECKED_TYPE_VOID ||
                source.kind == CHECKED_TYPE_NULL ||

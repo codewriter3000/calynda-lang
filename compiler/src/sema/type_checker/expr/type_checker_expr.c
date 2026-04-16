@@ -81,6 +81,16 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
             const Symbol *symbol = symbol_table_resolve_identifier(checker->symbols, expression);
 
             if (!symbol) {
+                if (expression->as.identifier &&
+                    strcmp(expression->as.identifier, "Mutex") == 0) {
+                    info = tc_type_check_info_make(tc_checked_type_named("Mutex", 0, 0));
+                    break;
+                }
+                if (expression->as.identifier &&
+                    strcmp(expression->as.identifier, "Thread") == 0) {
+                    info = tc_type_check_info_make(tc_checked_type_named("Thread", 0, 0));
+                    break;
+                }
                 tc_set_error_at(checker,
                                 expression->source_span,
                                 NULL,

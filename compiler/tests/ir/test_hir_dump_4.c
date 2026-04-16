@@ -179,3 +179,46 @@ void test_hir_dump_lowers_manual_block_with_memory_ops(void) {
     parser_free(&parser);
 }
 
+void test_hir_dump_lowers_threading_helpers(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    Thread t = spawn () -> { };\n"
+        "    Mutex m = Mutex.new();\n"
+        "    t.join();\n"
+        "    m.lock();\n"
+        "    m.unlock();\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse threading HIR source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build threading HIR symbols");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                 "type check threading HIR source");
+    REQUIRE_TRUE(hir_build_program(&hir, &program, &symbols, &checker),
+                 "build threading HIR");
+
+    dump = hir_dump_program_to_string(&hir);
+    REQUIRE_TRUE(dump != NULL, "threading HIR dump string is not NULL");
+    ASSERT_CONTAINS("__calynda_rt_thread_spawn", dump, "HIR lowers spawn to helper");
+    ASSERT_CONTAINS("__calynda_rt_thread_join", dump, "HIR lowers join to helper");
+    ASSERT_CONTAINS("__calynda_rt_mutex_new", dump, "HIR lowers mutex new to helper");
+    ASSERT_CONTAINS("__calynda_rt_mutex_lock", dump, "HIR lowers mutex lock to helper");
+    ASSERT_CONTAINS("__calynda_rt_mutex_unlock", dump, "HIR lowers mutex unlock to helper");
+
+    free(dump);
+    hir_program_free(&hir);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}

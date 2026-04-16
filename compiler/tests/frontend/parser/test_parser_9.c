@@ -169,3 +169,43 @@ void test_parse_union_multi_generic(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
+
+void test_parse_type_alias_and_spawn_threading(void) {
+    static const char source[] =
+        "export type Grid = float64[][];\n"
+        "start(string[] args) -> {\n"
+        "    Thread t = spawn () -> {\n"
+        "    };\n"
+        "    Mutex m = Mutex.new();\n"
+        "    t.join();\n"
+        "    m.lock();\n"
+        "    m.unlock();\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    const AstTopLevelDecl *alias_decl;
+    const AstStatement *thread_stmt;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse type alias + threading");
+    ASSERT_EQ_INT(AST_TOP_LEVEL_TYPE_ALIAS, program.top_level_decls[0]->kind,
+                  "first decl is type alias");
+    alias_decl = program.top_level_decls[0];
+    ASSERT_TRUE(strcmp(alias_decl->as.type_alias_decl.name, "Grid") == 0,
+                "type alias name is Grid");
+    ASSERT_EQ_INT(AST_TYPE_PRIMITIVE, alias_decl->as.type_alias_decl.target_type.kind,
+                  "alias target root is primitive array");
+    ASSERT_EQ_INT(2, (int)alias_decl->as.type_alias_decl.target_type.dimension_count,
+                  "alias target preserves array depth");
+
+    thread_stmt = program.top_level_decls[1]->as.start_decl.body.as.block->statements[0];
+    ASSERT_EQ_INT(AST_STMT_LOCAL_BINDING, thread_stmt->kind, "thread binding parses");
+    ASSERT_EQ_INT(AST_TYPE_THREAD, thread_stmt->as.local_binding.declared_type.kind,
+                  "Thread parses as built-in type");
+    ASSERT_EQ_INT(AST_EXPR_SPAWN, thread_stmt->as.local_binding.initializer->kind,
+                  "spawn parses as dedicated expression");
+
+    ast_program_free(&program);
+    parser_free(&parser);
+}

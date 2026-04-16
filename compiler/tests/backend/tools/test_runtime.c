@@ -91,6 +91,8 @@ static CalyndaRtWord capture_start_arguments(CalyndaRtWord arguments) {
 void test_runtime_start_process_cleans_hetero_arrays_and_nested_objects(void);
 void test_runtime_checked_stackalloc_uses_tracked_scratch_storage(void);
 void test_runtime_checked_registry_grows_past_legacy_pointer_limit(void);
+void test_runtime_thread_and_mutex_helpers(void);
+void test_runtime_deref_sized_and_store_sized_primitive_widths(void);
 
 static void test_runtime_layout_dump_defines_object_model(void) {
     static const char expected[] =
@@ -232,6 +234,31 @@ static void test_runtime_start_process_boxes_cli_arguments(void) {
                 "start process releases boxed cli arguments before returning");
 }
 
+static CalyndaRtWord set_thread_flag(const CalyndaRtWord *captures,
+                                     size_t capture_count,
+                                     const CalyndaRtWord *arguments,
+                                     size_t argument_count) {
+    (void)capture_count;
+    (void)arguments;
+    (void)argument_count;
+    *(int *)(uintptr_t)captures[0] = 1;
+    return 0;
+}
+
+void test_runtime_thread_and_mutex_helpers(void) {
+    int ran = 0;
+    CalyndaRtWord captures[1] = { (CalyndaRtWord)(uintptr_t)&ran };
+    CalyndaRtWord callable = __calynda_rt_closure_new(set_thread_flag, 1, captures);
+    CalyndaRtWord thread = __calynda_rt_thread_spawn(callable);
+    CalyndaRtWord mutex = __calynda_rt_mutex_new();
+
+    __calynda_rt_mutex_lock(mutex);
+    __calynda_rt_mutex_unlock(mutex);
+    __calynda_rt_thread_join(thread);
+
+    ASSERT_EQ_WORD(1, (CalyndaRtWord)ran, "thread helper runs callable");
+}
+
 int main(void) {
     printf("Running runtime tests...\n\n");
 
@@ -245,6 +272,8 @@ int main(void) {
     RUN_TEST(test_runtime_checked_stackalloc_uses_tracked_scratch_storage);
     RUN_TEST(test_runtime_checked_registry_grows_past_legacy_pointer_limit);
     RUN_TEST(test_runtime_start_process_boxes_cli_arguments);
+    RUN_TEST(test_runtime_thread_and_mutex_helpers);
+    RUN_TEST(test_runtime_deref_sized_and_store_sized_primitive_widths);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

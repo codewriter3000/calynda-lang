@@ -73,6 +73,7 @@ AstTopLevelDecl *parse_top_level_decl(Parser *parser);
 AstTopLevelDecl *parse_start_decl(Parser *parser);
 AstTopLevelDecl *parse_boot_decl(Parser *parser);
 AstTopLevelDecl *parse_binding_decl(Parser *parser);
+AstTopLevelDecl *parse_type_alias_decl(Parser *parser);
 AstTopLevelDecl *parse_asm_decl(Parser *parser);
 AstBlock *parse_block(Parser *parser);
 

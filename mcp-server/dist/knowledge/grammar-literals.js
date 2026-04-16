@@ -9,13 +9,12 @@ exports.GRAMMAR_LITERALS = `
 PrimaryExpression
     = Literal
     | Identifier
-    | DiscardExpression                (* _ discard / wildcard      *)
+    | DiscardExpression | SpawnExpr    (* _ discard / wildcard; spawn prefix *)
     | "(" Expression ")"              (* parenthesized expression  *)
     | CastExpression                   (* type conversion           *)
     | ArrayLiteral                     (* array literal [1, 2, 3]   *)
     | MemoryOpExpression               (* manual memory operations  *)
     ;
-
 (* The discard expression _ can be used as an assignment target     *)
 (* to explicitly ignore a value.                                    *)
 (* Example: _ = computeSomething();                                 *)
@@ -73,7 +72,8 @@ Literal
 (* Binary:   0b1100                                                 *)
 (* Hex:      0xAF                                                   *)
 (* Octal:    0o741                                                  *)
-
+(* Numeric literal underscores are stripped by the tokenizer, so    *)
+(* the literal grammar below is unchanged.                          *)
 IntegerLiteral
     = DecimalLiteral
     | BinaryLiteral
@@ -97,10 +97,8 @@ HexLiteral
 OctalLiteral
     = "0" ( "o" | "O" ) OctalDigit { OctalDigit }
     ;
-
 (* --- Float literals --------------------------------------------- *)
 (* Examples: 3.14, 1.0e10, 2.5E-3                                  *)
-
 FloatLiteral
     = Digit { Digit } "." Digit { Digit } [ Exponent ]
     | Digit { Digit } Exponent
@@ -109,16 +107,12 @@ FloatLiteral
 Exponent
     = ( "e" | "E" ) [ "+" | "-" ] Digit { Digit }
     ;
-
 (* --- Bool ------------------------------------------------------- *)
-
 BoolLiteral
     = "true" | "false"
     ;
-
 (* --- Char ------------------------------------------------------- *)
 (* Single character in single quotes with backslash escapes.        *)
-
 CharLiteral
     = "'" ( CharChar | EscapeSequence ) "'"
     ;
@@ -126,10 +120,8 @@ CharLiteral
 CharChar
     = (* any character except single-quote, backslash, or newline *)
     ;
-
 (* --- String ----------------------------------------------------- *)
 (* Double-quoted string with backslash escapes. No interpolation.   *)
-
 StringLiteral
     = '"' { StringChar | EscapeSequence } '"'
     ;
@@ -137,13 +129,11 @@ StringLiteral
 StringChar
     = (* any character except double-quote, backslash, or newline *)
     ;
-
 (* --- Template literal ------------------------------------------- *)
 (* Backtick-delimited string with \${expression} interpolation and   *)
 (* backslash escaping. Follows JavaScript template literal syntax.  *)
 (*                                                                  *)
 (* Example: \`Hello \${name}, you are \${age + 1} years old\`           *)
-
 TemplateLiteral
     = "\`" { TemplateChar | EscapeSequence | TemplateInterpolation } "\`"
     ;
@@ -155,15 +145,11 @@ TemplateChar
 TemplateInterpolation
     = "\${" Expression "}"
     ;
-
 (* --- Null ------------------------------------------------------- *)
-
 NullLiteral
     = "null"
     ;
-
 (* --- Escape sequences ------------------------------------------- *)
-
 EscapeSequence
     = "\\" ( "n" | "t" | "r" | "\\" | "'" | '"' | "\`" | "$" | "0" )
     | "\\" "u" HexDigit HexDigit HexDigit HexDigit
@@ -240,7 +226,7 @@ HexDigit
 (*                                                                  *)
 (*   package  import  export  public  private  final  var  start    *)
 (*   boot   return   exit    throw   null    true     false  void   *)
-(*   static   internal  as  union  manual  arr  asm                 *)
+(*   static   internal  as  type  union  manual  arr  asm  spawn    *)
 (*   malloc  calloc  realloc  free                                  *)
 (*                                                                  *)
 (*   int8  int16  int32  int64  uint8  uint16  uint32  uint64       *)

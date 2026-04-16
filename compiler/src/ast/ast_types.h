@@ -43,7 +43,9 @@ typedef enum {
     AST_TYPE_PRIMITIVE,
     AST_TYPE_ARR,
     AST_TYPE_PTR,
-    AST_TYPE_NAMED
+    AST_TYPE_NAMED,
+    AST_TYPE_THREAD,
+    AST_TYPE_MUTEX
 } AstTypeKind;
 
 typedef struct {

@@ -15,6 +15,11 @@ function getCompletions(input) {
             items.push({ label: t, kind: 'type', detail: 'primitive type' });
         }
     }
+    for (const t of keywords_1.BUILTIN_TYPES) {
+        if (t.startsWith(prefix)) {
+            items.push({ label: t, kind: 'type', detail: 'built-in type' });
+        }
+    }
     if ('start'.startsWith(prefix)) {
         items.push({
             label: 'start',
@@ -29,6 +34,14 @@ function getCompletions(input) {
             kind: 'snippet',
             detail: 'Tagged union declaration',
             insertText: 'union ${1:Name}<${2:T}> { ${3:Variant}(${4:T}) };',
+        });
+    }
+    if ('type'.startsWith(prefix)) {
+        items.push({
+            label: 'type',
+            kind: 'snippet',
+            detail: 'Type alias declaration',
+            insertText: 'type ${1:Name} = ${2:int32};',
         });
     }
     if (prefix === '' || 'arr'.startsWith(prefix)) {
@@ -59,6 +72,14 @@ function getCompletions(input) {
             kind: 'snippet',
             detail: 'Bounds-checked manual memory boundary',
             insertText: 'manual checked {\n    ${1}\n};',
+        });
+    }
+    if ('spawn'.startsWith(prefix)) {
+        items.push({
+            label: 'spawn',
+            kind: 'snippet',
+            detail: 'Spawn a zero-argument void callable',
+            insertText: 'spawn ${1:task}',
         });
     }
     if ('layout'.startsWith(prefix)) {

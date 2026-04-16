@@ -14,6 +14,8 @@ void ast_type_init_void(AstType *type);
 void ast_type_init_primitive(AstType *type, AstPrimitiveType primitive);
 void ast_type_init_arr(AstType *type);
 void ast_type_init_named(AstType *type, const char *name);
+void ast_type_init_thread(AstType *type);
+void ast_type_init_mutex(AstType *type);
 void ast_type_free(AstType *type);
 bool ast_type_add_dimension(AstType *type, bool has_size, const char *size_literal);
 bool ast_type_add_generic_arg(AstType *type, AstGenericArg *arg);
@@ -42,6 +44,7 @@ void ast_top_level_decl_free(AstTopLevelDecl *decl);
 bool ast_binding_decl_add_modifier(AstBindingDecl *decl, AstModifier modifier);
 bool ast_asm_decl_add_modifier(AstAsmDecl *decl, AstModifier modifier);
 bool ast_union_decl_add_modifier(AstUnionDecl *decl, AstModifier modifier);
+bool ast_type_alias_decl_add_modifier(AstTypeAliasDecl *decl, AstModifier modifier);
 bool ast_decl_has_modifier(const AstModifier *modifiers, size_t count,
                            AstModifier modifier);
 

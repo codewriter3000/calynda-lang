@@ -1,4 +1,5 @@
 #include "codegen_internal.h"
+#include "runtime.h"
 
 const char *codegen_target_name(CodegenTargetKind target) {
     return target_kind_name(target);
@@ -72,6 +73,16 @@ const char *codegen_runtime_helper_name(CodegenRuntimeHelper helper) {
         return "__calynda_rt_hetero_array_new";
     case CODEGEN_RUNTIME_HETERO_ARRAY_GET_TAG:
         return "__calynda_rt_hetero_array_get_tag";
+    case CODEGEN_RUNTIME_THREAD_SPAWN:
+        return CALYNDA_RT_THREAD_SPAWN;
+    case CODEGEN_RUNTIME_THREAD_JOIN:
+        return CALYNDA_RT_THREAD_JOIN;
+    case CODEGEN_RUNTIME_MUTEX_NEW:
+        return CALYNDA_RT_MUTEX_NEW;
+    case CODEGEN_RUNTIME_MUTEX_LOCK:
+        return CALYNDA_RT_MUTEX_LOCK;
+    case CODEGEN_RUNTIME_MUTEX_UNLOCK:
+        return CALYNDA_RT_MUTEX_UNLOCK;
     }
 
     return "__calynda_rt_unknown";

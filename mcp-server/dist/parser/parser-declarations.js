@@ -74,6 +74,9 @@ function parseTopLevelDecl(state) {
         state.check('keyword', 'arr') || state.check('keyword', 'ptr')) {
         return parseBindingDecl(state, modifiers);
     }
+    if (state.check('keyword', 'type')) {
+        return parseTypeAliasDecl(state, modifiers);
+    }
     if (state.check('keyword', 'union')) {
         return parseUnionDecl(state, modifiers);
     }
@@ -156,6 +159,15 @@ function parseBootDecl(state) {
     const body = (0, parser_expressions_1.parseLambdaBody)(state);
     state.eat('semicolon');
     return { kind: 'BootDecl', body, start: state.tokenToPosition(startTok), end: state.position() };
+}
+function parseTypeAliasDecl(state, modifiers) {
+    const startPos = state.position();
+    state.eat('keyword', 'type');
+    const name = state.eat('identifier').value;
+    state.eat('eq');
+    const target = (0, parser_statements_1.parseType)(state);
+    state.eat('semicolon');
+    return { kind: 'TypeAliasDecl', modifiers, name, target, start: startPos, end: state.position() };
 }
 function parseBindingDecl(state, modifiers) {
     const startPos = state.position();

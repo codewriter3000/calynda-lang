@@ -42,6 +42,7 @@ TopLevelDecl
     = StartDecl
     | BootDecl
     | BindingDecl
+    | TypeAliasDecl
     | UnionDecl
     | LayoutDecl
     | AsmDecl
@@ -69,6 +70,10 @@ BootDecl
 (*   var y = 42;                                                    *)
 BindingDecl
     = { Modifier } ( Type | "var" ) Identifier "=" Expression ";"
+    ;
+
+TypeAliasDecl
+    = { Modifier } "type" Identifier "=" Type ";"
     ;
 
 (* Inline assembly function binding.                                *)
@@ -119,7 +124,7 @@ UnionVariant
 
 (* Memory layout declaration — defines a named struct-like type for *)
 (* use with ptr<T>, offset, deref, and store operations.            *)
-(* Field types must be primitive in 0.4.0.                          *)
+(* Field types must be primitive in 0.5.0.                          *)
 (* Examples:                                                        *)
 (*   layout Point { int32 x; int32 y; };                            *)
 (*   layout Header { int64 size; int64 flags; };                    *)
@@ -142,6 +147,8 @@ LayoutField
 (* types (resolved via Identifier) and the built-in arr<T> form.    *)
 Type
     = PrimitiveType [ GenericArgs ] { ArrayDimension }
+    | "Thread" { ArrayDimension }                               (* semantically-resolved built-in handle *)
+    | "Mutex" { ArrayDimension }                                (* semantically-resolved built-in handle *)
     | Identifier [ GenericArgs ] { ArrayDimension }            (* named / user-defined type *)
     | "arr" GenericArgs                                        (* heterogeneous array *)
     | "ptr" GenericArgs                                        (* typed pointer — manual only *)
@@ -250,7 +257,7 @@ ExpressionStatement
 (* 12. Shift               <<  >>                                   *)
 (* 13. Additive            +  -                                     *)
 (* 14. Multiplicative      *  /  %                                  *)
-(* 15. Unary prefix        !  ~  -  +  ++  --                        *)
+(* 15. Unary prefix        !  ~  -  +  spawn  ++  --                 *)
 (* 16. Postfix             ()  []  .  ++  --                         *)
 (* 17. Primary             literals, identifiers, _, parens,        *)
 (*                          lambdas, casts                          *)
@@ -377,9 +384,14 @@ MultiplicativeExpression
 
 UnaryExpression
     = ( "!" | "~" | "-" | "+" ) UnaryExpression
+    | SpawnExpr                                               (* spawn prefix *)
     | "++" UnaryExpression                                     (* prefix increment *)
     | "--" UnaryExpression                                     (* prefix decrement *)
     | PostfixExpression
+    ;
+
+SpawnExpr
+    = "spawn" UnaryExpression
     ;
 
 (* --- Postfix ---------------------------------------------------- *)
@@ -409,7 +421,7 @@ ArgumentList
 PrimaryExpression
     = Literal
     | Identifier
-    | DiscardExpression                (* _ discard / wildcard      *)
+    | DiscardExpression | SpawnExpr    (* _ discard / wildcard; spawn prefix *)
     | "(" Expression ")"              (* parenthesized expression  *)
     | CastExpression                   (* type conversion           *)
     | ArrayLiteral                     (* array literal [1, 2, 3]   *)
@@ -475,6 +487,8 @@ Literal
 (* Binary:   0b1100                                                 *)
 (* Hex:      0xAF                                                   *)
 (* Octal:    0o741                                                  *)
+(* Numeric literal underscores are stripped by the tokenizer, so    *)
+(* the literal grammar below is unchanged.                          *)
 
 IntegerLiteral
     = DecimalLiteral
@@ -641,10 +655,11 @@ HexDigit
 (* variable or function names:                                      *)
 (*                                                                  *)
 (*   package  import  export  public  private  final  var  start    *)
-(*   return   exit    throw   null    true     false  void          *)
-(*   static   internal  as  union  manual  arr  ptr  layout        *)
+(*   boot   return   exit    throw   null    true     false  void   *)
+(*   static   internal  as  type  union  manual  arr  ptr  layout   *)
+(*   spawn  asm  checked                                            *)
 (*   malloc  calloc  realloc  free  deref  addr  offset  store     *)
-(*   cleanup  stackalloc  checked                                   *)
+(*   cleanup  stackalloc                                            *)
 (*                                                                  *)
 (*   int8  int16  int32  int64  uint8  uint16  uint32  uint64       *)
 (*   float32  float64  bool  char  string                           *)

@@ -197,7 +197,27 @@ start(string[] args) -> {
   arr<?> mixed = [1, "hello", true];
 };`,
   },
+  {
+    name: 'alpha-threading-aliases',
+    description: 'Alpha.1 threading, mutex, type alias, and numeric literal separator example',
+    tags: ['alpha-1', 'spawn', 'thread', 'mutex', 'type-alias', 'numeric-literal'],
+    code: `type Counter = int32;
+
+start(string[] args) -> {
+    Counter shared = 1_000;
+    Mutex guard = Mutex.new();
+    void work = () -> {
+        guard.lock();
+        Counter next = shared + 0x10_00;
+        shared = next;
+        guard.unlock();
+        exit;
+    };
+    Thread worker = spawn work;
+    worker.join();
+    return 0;
+};`,
+  },
 ];
 
 export const EXAMPLES: Example[] = [...BASE_EXAMPLES, ...EXAMPLES_V3];
-

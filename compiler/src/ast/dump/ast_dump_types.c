@@ -34,6 +34,14 @@ bool ast_dump_type(AstDumpBuilder *builder, const AstType *type, bool is_inferre
         if (!ast_dump_builder_append(builder, "void")) {
             return false;
         }
+    } else if (type->kind == AST_TYPE_THREAD) {
+        if (!ast_dump_builder_append(builder, "Thread")) {
+            return false;
+        }
+    } else if (type->kind == AST_TYPE_MUTEX) {
+        if (!ast_dump_builder_append(builder, "Mutex")) {
+            return false;
+        }
     } else if (type->kind == AST_TYPE_NAMED) {
         if (!ast_dump_builder_append(builder, type->name ? type->name : "?")) {
             return false;

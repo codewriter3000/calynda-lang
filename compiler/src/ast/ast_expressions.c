@@ -244,6 +244,9 @@ void ast_expression_free(AstExpression *expression) {
     case AST_EXPR_MEMORY_OP:
         ast_expression_list_free_internal(&expression->as.memory_op.arguments);
         break;
+    case AST_EXPR_SPAWN:
+        ast_expression_free(expression->as.spawn.callable);
+        break;
     }
 
     free(expression);

@@ -84,7 +84,12 @@ void test_runtime_abi_dump_defines_helper_surface(void) {
         "  helper __calynda_rt_union_get_tag return=rax args=[rdi=target_value]\n"
         "  helper __calynda_rt_union_get_payload return=rax args=[rdi=target_value]\n"
         "  helper __calynda_rt_hetero_array_new return=rax args=[rdi=type_descriptor, rsi=element_count, rdx=element_pack] pack=value-word\n"
-        "  helper __calynda_rt_hetero_array_get_tag return=rax args=[rdi=target_value, rsi=index_value]\n";
+        "  helper __calynda_rt_hetero_array_get_tag return=rax args=[rdi=target_value, rsi=index_value]\n"
+        "  helper __calynda_rt_thread_spawn return=rax args=[rdi=callable]\n"
+        "  helper __calynda_rt_thread_join return=void args=[rdi=thread_value]\n"
+        "  helper __calynda_rt_mutex_new return=rax args=[]\n"
+        "  helper __calynda_rt_mutex_lock return=void args=[rdi=mutex_value]\n"
+        "  helper __calynda_rt_mutex_unlock return=void args=[rdi=mutex_value]\n";
     char *dump;
 
     dump = runtime_abi_dump_surface_to_string(CODEGEN_TARGET_X86_64_SYSV_ELF);
@@ -120,6 +125,11 @@ void test_machine_dump_emits_minimal_direct_instruction_stream(void) {
         "  helper __calynda_rt_union_get_payload return=rax args=[rdi=target_value]\n"
         "  helper __calynda_rt_hetero_array_new return=rax args=[rdi=type_descriptor, rsi=element_count, rdx=element_pack] pack=value-word\n"
         "  helper __calynda_rt_hetero_array_get_tag return=rax args=[rdi=target_value, rsi=index_value]\n"
+        "  helper __calynda_rt_thread_spawn return=rax args=[rdi=callable]\n"
+        "  helper __calynda_rt_thread_join return=void args=[rdi=thread_value]\n"
+        "  helper __calynda_rt_mutex_new return=rax args=[]\n"
+        "  helper __calynda_rt_mutex_lock return=void args=[rdi=mutex_value]\n"
+        "  helper __calynda_rt_mutex_unlock return=void args=[rdi=mutex_value]\n"
         "  Unit name=add kind=binding return=int32 frame_slots=2 spills=0 helper_slots=0 outgoing_stack=0 blocks=1\n"
         "    Blocks:\n"
         "      Block bb0:\n"
@@ -225,4 +235,3 @@ void test_machine_dump_routes_throw_terminator_to_runtime_helper(void) {
                     "throw terminators lower through the throw runtime helper");
     free(dump);
 }
-

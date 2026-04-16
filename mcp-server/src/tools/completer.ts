@@ -1,4 +1,4 @@
-import { KEYWORDS, PRIMITIVE_TYPES } from '../knowledge/keywords';
+import { BUILTIN_TYPES, KEYWORDS, PRIMITIVE_TYPES } from '../knowledge/keywords';
 
 export interface CompleteInput {
   code: string;
@@ -28,6 +28,12 @@ export function getCompletions(input: CompleteInput): CompletionItem[] {
     }
   }
 
+  for (const t of BUILTIN_TYPES) {
+    if (t.startsWith(prefix)) {
+      items.push({ label: t, kind: 'type', detail: 'built-in type' });
+    }
+  }
+
   if ('start'.startsWith(prefix)) {
     items.push({
       label: 'start',
@@ -43,6 +49,15 @@ export function getCompletions(input: CompleteInput): CompletionItem[] {
       kind: 'snippet',
       detail: 'Tagged union declaration',
       insertText: 'union ${1:Name}<${2:T}> { ${3:Variant}(${4:T}) };',
+    });
+  }
+
+  if ('type'.startsWith(prefix)) {
+    items.push({
+      label: 'type',
+      kind: 'snippet',
+      detail: 'Type alias declaration',
+      insertText: 'type ${1:Name} = ${2:int32};',
     });
   }
 
@@ -76,6 +91,15 @@ export function getCompletions(input: CompleteInput): CompletionItem[] {
       kind: 'snippet',
       detail: 'Bounds-checked manual memory boundary',
       insertText: 'manual checked {\n    ${1}\n};',
+    });
+  }
+
+  if ('spawn'.startsWith(prefix)) {
+    items.push({
+      label: 'spawn',
+      kind: 'snippet',
+      detail: 'Spawn a zero-argument void callable',
+      insertText: 'spawn ${1:task}',
     });
   }
 

@@ -96,6 +96,45 @@ bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *prog
                 st_symbol_free(symbol);
                 return false;
             }
+        } else if (decl->kind == AST_TOP_LEVEL_TYPE_ALIAS) {
+            const AstTypeAliasDecl *type_alias_decl = &decl->as.type_alias_decl;
+            const Symbol *conflicting_symbol = scope_lookup_local(table->root_scope,
+                                                                  type_alias_decl->name);
+            Symbol *symbol;
+
+            if (!conflicting_symbol) {
+                conflicting_symbol = symbol_table_find_import(table, type_alias_decl->name);
+            }
+            if (conflicting_symbol) {
+                st_set_error_at(table,
+                                type_alias_decl->name_span,
+                                &conflicting_symbol->declaration_span,
+                                "Duplicate symbol '%s' in %s.",
+                                type_alias_decl->name,
+                                scope_kind_name(table->root_scope->kind));
+                return false;
+            }
+
+            symbol = st_symbol_new(table, SYMBOL_KIND_TYPE_ALIAS,
+                                   type_alias_decl->name, NULL,
+                                   &type_alias_decl->target_type,
+                                   false, true,
+                                   ast_decl_has_modifier(type_alias_decl->modifiers,
+                                                         type_alias_decl->modifier_count,
+                                                         AST_MODIFIER_EXPORT),
+                                   false,
+                                   false,
+                                   type_alias_decl->name_span,
+                                   type_alias_decl,
+                                   table->root_scope);
+            if (!symbol) {
+                return false;
+            }
+
+            if (!st_scope_append_symbol(table, table->root_scope, symbol)) {
+                st_symbol_free(symbol);
+                return false;
+            }
         } else if (decl->kind == AST_TOP_LEVEL_ASM) {
             const AstAsmDecl *asm_decl = &decl->as.asm_decl;
             const Symbol *conflicting_symbol = scope_lookup_local(table->root_scope,

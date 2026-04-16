@@ -143,3 +143,39 @@ void test_ellipsis_token(void) {
     tok = tokenizer_next(&t);
     ASSERT_TOKEN(tok, TOK_ELLIPSIS, "...");
 }
+
+void test_type_and_spawn_keywords(void) {
+    Tokenizer t;
+    Token tok;
+
+    tokenizer_init(&t, "type spawn");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_TYPE, tok.type, "type keyword");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(TOK_SPAWN, tok.type, "spawn keyword");
+}
+
+
+/* ------------------------------------------------------------------ */
+/*  G-TOK-11: CRLF line endings advance line counter correctly        */
+/* ------------------------------------------------------------------ */
+void test_crlf_line_tracking(void) {
+    Tokenizer t;
+    Token tok;
+
+    /* Simple two-line CRLF source: single identifier per line */
+    tokenizer_init(&t, "a\r\nb");
+    tok = tokenizer_next(&t); /* 'a' identifier on line 1 */
+    ASSERT_EQ_INT(1, tok.line, "CRLF: first identifier is on line 1");
+    tok = tokenizer_next(&t); /* 'b' identifier on line 2 */
+    ASSERT_EQ_INT(2, tok.line, "CRLF: identifier after CRLF is on line 2");
+
+    /* Three lines separated by CRLF */
+    tokenizer_init(&t, "x\r\ny\r\nz");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(1, tok.line, "CRLF: three-line first token is on line 1");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(2, tok.line, "CRLF: three-line second token is on line 2");
+    tok = tokenizer_next(&t);
+    ASSERT_EQ_INT(3, tok.line, "CRLF: three-line third token is on line 3");
+}

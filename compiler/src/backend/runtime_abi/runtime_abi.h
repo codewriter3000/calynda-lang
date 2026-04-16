@@ -2,6 +2,7 @@
 #define CALYNDA_RUNTIME_ABI_H
 
 #include "codegen.h"
+#include "runtime.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -35,7 +36,9 @@ typedef enum {
     RUNTIME_ABI_ARG_VARIANT_TAG,
     RUNTIME_ABI_ARG_PAYLOAD_VALUE,
     RUNTIME_ABI_ARG_EXPECTED_TAG,
-    RUNTIME_ABI_ARG_ELEMENT_TAG_PACK
+    RUNTIME_ABI_ARG_ELEMENT_TAG_PACK,
+    RUNTIME_ABI_ARG_THREAD_VALUE,
+    RUNTIME_ABI_ARG_MUTEX_VALUE
 } RuntimeAbiArgumentRole;
 
 typedef enum {

@@ -1,10 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.analyze = analyze;
+const BUILTIN_SYMBOLS = [
+    ['Thread', { kind: 'named', name: 'Thread', genericArgs: [] }],
+    ['Mutex', { kind: 'named', name: 'Mutex', genericArgs: [] }],
+];
 class SemanticAnalyzer {
     diagnostics = [];
-    scopes = [new Map()];
-    globalSymbols = new Map();
+    scopes = [new Map(BUILTIN_SYMBOLS)];
+    globalSymbols = new Map(BUILTIN_SYMBOLS);
     analyze(program) {
         for (const decl of program.declarations) {
             this.analyzeTopLevelDecl(decl);
@@ -72,6 +76,11 @@ class SemanticAnalyzer {
             this.analyzeExpression(decl.value);
             this.defineSymbol(decl.name, type, decl);
             this.globalSymbols.set(decl.name, type);
+        }
+        else if (decl.kind === 'TypeAliasDecl') {
+            const aliasType = this.typeFromAnnotation(decl.target);
+            this.defineSymbol(decl.name, aliasType, decl);
+            this.globalSymbols.set(decl.name, aliasType);
         }
         else if (decl.kind === 'UnionDecl') {
             const unionType = { kind: 'named', name: decl.name, genericArgs: decl.genericParams.map(() => ({ kind: 'unknown' })) };

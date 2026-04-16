@@ -138,6 +138,7 @@ int build_native_run_linker(const char *assembly_path,
         } else {
             execlp("gcc",
                    "gcc",
+                   "-pthread",
                    "-no-pie",
                    "-x",
                    "assembler",

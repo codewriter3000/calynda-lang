@@ -41,6 +41,7 @@ void type_resolver_free(TypeResolver *resolver) {
 
     free(resolver->type_entries);
     free(resolver->cast_entries);
+    free(resolver->alias_entries);
     memset(resolver, 0, sizeof(*resolver));
 }
 
@@ -58,6 +59,17 @@ bool type_resolver_resolve_program(TypeResolver *resolver, const AstProgram *pro
     for (i = 0; i < program->top_level_count; i++) {
         const AstTopLevelDecl *decl = program->top_level_decls[i];
 
+        if (decl && decl->kind == AST_TOP_LEVEL_TYPE_ALIAS &&
+            !tr_append_alias_entry(resolver,
+                                   decl->as.type_alias_decl.name,
+                                   &decl->as.type_alias_decl)) {
+            return false;
+        }
+    }
+
+    for (i = 0; i < program->top_level_count; i++) {
+        const AstTopLevelDecl *decl = program->top_level_decls[i];
+
         if (!decl) {
             continue;
         }
@@ -65,6 +77,15 @@ bool type_resolver_resolve_program(TypeResolver *resolver, const AstProgram *pro
         if (decl->kind == AST_TOP_LEVEL_BINDING) {
             if (!tr_resolve_binding_decl(resolver, &decl->as.binding_decl) ||
                 !tr_resolve_expression(resolver, decl->as.binding_decl.initializer)) {
+                return false;
+            }
+        } else if (decl->kind == AST_TOP_LEVEL_TYPE_ALIAS) {
+            if (!tr_resolve_declared_type(resolver,
+                                          &decl->as.type_alias_decl.target_type,
+                                          decl->as.type_alias_decl.name_span,
+                                          "Type alias",
+                                          decl->as.type_alias_decl.name,
+                                          true)) {
                 return false;
             }
         } else if (decl->kind == AST_TOP_LEVEL_UNION) {

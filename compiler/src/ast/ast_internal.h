@@ -16,6 +16,7 @@ void ast_literal_free_internal(AstLiteral *literal);
 void ast_lambda_body_init_internal(AstLambdaBody *body);
 void ast_lambda_body_free_internal(AstLambdaBody *body);
 void ast_binding_decl_free_fields_internal(AstBindingDecl *decl);
+void ast_type_alias_decl_free_fields_internal(AstTypeAliasDecl *decl);
 void ast_local_binding_free_fields_internal(AstLocalBindingStatement *binding);
 
 #endif

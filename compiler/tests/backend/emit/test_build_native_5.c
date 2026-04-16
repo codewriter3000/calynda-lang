@@ -274,3 +274,29 @@ void test_build_native_car_multifile(void) {
     rmdir(dir_path);
     unlink(out_path);
 }
+
+void test_build_native_threading_helpers(void) {
+    static const char source[] =
+        "type ExitCode = int32;\n"
+        "start(string[] args) -> {\n"
+        "    Thread t = spawn () -> {\n"
+        "    };\n"
+        "    Mutex m = Mutex.new();\n"
+        "    m.lock();\n"
+        "    m.unlock();\n"
+        "    t.join();\n"
+        "    ExitCode code = 0;\n"
+        "    return code;\n"
+        "};\n";
+    char output_path[64];
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build threading helper program");
+    {
+        char *argv[] = { output_path, NULL };
+        exit_code = run_process(output_path, argv);
+    }
+    ASSERT_EQ_INT(0, exit_code, "threading helper program returns 0");
+    unlink(output_path);
+}

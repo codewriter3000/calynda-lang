@@ -64,6 +64,7 @@ void test_mir_dump_stackalloc_auto_registers_free(void);
 void test_mir_dump_lowers_union_tag_and_payload_access(void);
 void test_mir_dump_valid_program_has_no_error(void);
 void test_mir_dump_double_capture_closure(void);
+void test_mir_dump_error_api_format_null_is_safe(void);
 
 
 int main(void) {
@@ -86,6 +87,7 @@ int main(void) {
     RUN_TEST(test_mir_dump_lowers_union_tag_and_payload_access);
     RUN_TEST(test_mir_dump_valid_program_has_no_error);
     RUN_TEST(test_mir_dump_double_capture_closure);
+    RUN_TEST(test_mir_dump_error_api_format_null_is_safe);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

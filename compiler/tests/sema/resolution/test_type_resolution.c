@@ -62,6 +62,9 @@ void test_type_resolver_resolves_named_types(void);
 void test_type_resolver_resolves_arr_wildcard(void);
 void test_type_resolver_resolves_union_variant_payload(void);
 void test_type_resolver_rejects_void_array_element(void);
+void test_type_resolver_resolves_type_alias_and_threading_types(void);
+void test_type_resolver_rejects_circular_type_alias(void);
+void test_type_resolver_resolves_ptr_generic_type(void);
 
 
 int main(void) {
@@ -74,6 +77,9 @@ int main(void) {
     RUN_TEST(test_type_resolver_resolves_arr_wildcard);
     RUN_TEST(test_type_resolver_resolves_union_variant_payload);
     RUN_TEST(test_type_resolver_rejects_void_array_element);
+    RUN_TEST(test_type_resolver_resolves_type_alias_and_threading_types);
+    RUN_TEST(test_type_resolver_rejects_circular_type_alias);
+    RUN_TEST(test_type_resolver_resolves_ptr_generic_type);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

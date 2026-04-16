@@ -49,6 +49,7 @@ typedef enum {
     TOK_INTERNAL,
     TOK_STATIC,
     TOK_UNION,
+    TOK_TYPE,
     TOK_MANUAL,
     TOK_ARR,
     TOK_PTR,
@@ -65,6 +66,7 @@ typedef enum {
     TOK_LAYOUT,
     TOK_CHECKED,
     TOK_ASM,
+    TOK_SPAWN,
     TOK_ASM_BODY,
 
     /* Primitive type keywords */
