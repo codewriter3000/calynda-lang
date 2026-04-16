@@ -116,6 +116,9 @@ AstParameter make_parameter(AstPrimitiveType primitive, const char *name) {
 void test_program_structure(void);
 void test_expression_forms(void);
 void test_template_literal(void);
+void test_ast_source_spans(void);
+void test_ast_modifier_flags(void);
+void test_ast_union_node(void);
 
 
 int main(void) {
@@ -124,6 +127,9 @@ int main(void) {
     RUN_TEST(test_program_structure);
     RUN_TEST(test_expression_forms);
     RUN_TEST(test_template_literal);
+    RUN_TEST(test_ast_source_spans);
+    RUN_TEST(test_ast_modifier_flags);
+    RUN_TEST(test_ast_union_node);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

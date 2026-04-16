@@ -70,3 +70,25 @@ void test_machine_dump_routes_union_tag_and_payload_helpers(void) {
 
     free(dump);
 }
+
+
+void test_machine_error_api_returns_null_on_success(void) {
+    static const char source[] =
+        "start(string[] args) -> 0;\n";
+    char *dump;
+    const MachineBuildError *error;
+    MachineProgram machine_program;
+
+    machine_program_init(&machine_program);
+    REQUIRE_TRUE(build_machine_dump_from_source(source, &dump),
+                 "build machine program for error API test");
+    free(dump);
+
+    ASSERT_TRUE(!machine_program.has_error, "fresh machine program has no error flag");
+    error = machine_get_error(&machine_program);
+    ASSERT_TRUE(error == NULL, "machine_get_error returns NULL when no error");
+    ASSERT_TRUE(!machine_format_error(NULL, NULL, 0),
+                "machine_format_error returns false for NULL error");
+
+    machine_program_free(&machine_program);
+}

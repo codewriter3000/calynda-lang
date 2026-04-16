@@ -96,6 +96,11 @@ void test_parse_ptr_type_in_manual(void);
 void test_parse_deref_store_offset_addr_ops(void);
 void test_parse_stackalloc_op(void);
 void test_parse_layout_declaration(void);
+void test_parse_malformed_unclosed_brace(void);
+void test_parse_malformed_missing_semicolon(void);
+void test_parse_malformed_stray_token(void);
+void test_parse_manual_checked_block(void);
+void test_parse_union_multi_generic(void);
 
 
 int main(void) {
@@ -132,6 +137,11 @@ int main(void) {
     RUN_TEST(test_parse_deref_store_offset_addr_ops);
     RUN_TEST(test_parse_stackalloc_op);
     RUN_TEST(test_parse_layout_declaration);
+    RUN_TEST(test_parse_malformed_unclosed_brace);
+    RUN_TEST(test_parse_malformed_missing_semicolon);
+    RUN_TEST(test_parse_malformed_stray_token);
+    RUN_TEST(test_parse_manual_checked_block);
+    RUN_TEST(test_parse_union_multi_generic);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

@@ -62,6 +62,8 @@ void test_mir_dump_plain_manual_block_uses_plain_functions(void);
 void test_mir_dump_cleanup_runs_before_manual_return(void);
 void test_mir_dump_stackalloc_auto_registers_free(void);
 void test_mir_dump_lowers_union_tag_and_payload_access(void);
+void test_mir_dump_valid_program_has_no_error(void);
+void test_mir_dump_double_capture_closure(void);
 
 
 int main(void) {
@@ -82,6 +84,8 @@ int main(void) {
     RUN_TEST(test_mir_dump_cleanup_runs_before_manual_return);
     RUN_TEST(test_mir_dump_stackalloc_auto_registers_free);
     RUN_TEST(test_mir_dump_lowers_union_tag_and_payload_access);
+    RUN_TEST(test_mir_dump_valid_program_has_no_error);
+    RUN_TEST(test_mir_dump_double_capture_closure);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

@@ -65,6 +65,7 @@ void test_codegen_dump_defines_x86_64_sysv_target_and_direct_patterns(void);
 void test_codegen_dump_distinguishes_runtime_backed_operations(void);
 void test_codegen_dump_allocates_registers_then_spills(void);
 void test_codegen_dump_routes_throw_through_runtime_helper(void);
+void test_codegen_error_api_returns_null_on_success(void);
 
 
 int main(void) {
@@ -74,6 +75,7 @@ int main(void) {
     RUN_TEST(test_codegen_dump_distinguishes_runtime_backed_operations);
     RUN_TEST(test_codegen_dump_allocates_registers_then_spills);
     RUN_TEST(test_codegen_dump_routes_throw_through_runtime_helper);
+    RUN_TEST(test_codegen_error_api_returns_null_on_success);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

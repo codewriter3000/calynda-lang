@@ -10,7 +10,7 @@
 int tests_run = 0;
 int tests_passed = 0;
 int tests_failed = 0;
-static const char *test_binary_path = NULL;
+const char *test_binary_path = NULL;
 
 #define ASSERT_TRUE(condition, msg) do {                                    \
     tests_run++;                                                            \
@@ -207,6 +207,12 @@ void test_build_native_stackalloc_store_deref(void),
     test_build_native_compares_hetero_arrays_by_identity(void),
      test_build_native_formats_union_variants(void),
      test_build_native_layout_field_access(void);
+void test_build_native_double_capture_closure(void),
+     test_build_native_primitive_types(void),
+     test_build_native_varargs_passthrough(void),
+     test_build_native_template_literal(void);
+void test_build_native_manual_checked_abort(void),
+     test_build_native_car_multifile(void);
 int main(int argc, char **argv) {
     test_binary_path = argc > 0 ? argv[0] : NULL;
     printf("Running native build tests...\n\n");
@@ -225,6 +231,12 @@ int main(int argc, char **argv) {
     RUN_TEST(test_build_native_compares_hetero_arrays_by_identity);
     RUN_TEST(test_build_native_formats_union_variants);
     RUN_TEST(test_build_native_layout_field_access);
+    RUN_TEST(test_build_native_double_capture_closure);
+    RUN_TEST(test_build_native_primitive_types);
+    RUN_TEST(test_build_native_varargs_passthrough);
+    RUN_TEST(test_build_native_template_literal);
+    RUN_TEST(test_build_native_manual_checked_abort);
+    RUN_TEST(test_build_native_car_multifile);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

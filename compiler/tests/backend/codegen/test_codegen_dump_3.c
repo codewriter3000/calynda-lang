@@ -192,3 +192,53 @@ void test_codegen_dump_routes_throw_through_runtime_helper(void) {
     parser_free(&parser);
 }
 
+
+void test_codegen_error_api_returns_null_on_success(void) {
+    static const char source[] =
+        "start(string[] args) -> 0;\n";
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    LirProgram lir_program;
+    CodegenProgram codegen_program;
+    const CodegenBuildError *error;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    lir_program_init(&lir_program);
+    codegen_program_init(&codegen_program);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &ast_program), "parse codegen error API program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &ast_program), "build symbols for codegen error API");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &ast_program, &symbols),
+                 "type check codegen error API program");
+    REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
+                 "lower HIR for codegen error API program");
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
+                 "lower MIR for codegen error API program");
+    REQUIRE_TRUE(lir_build_program(&lir_program, &mir_program),
+                 "lower LIR for codegen error API program");
+    REQUIRE_TRUE(codegen_build_program(&codegen_program, &lir_program, target_get_default()),
+                 "codegen succeeds for valid program");
+
+    ASSERT_TRUE(!codegen_program.has_error, "successful codegen has no error flag");
+    error = codegen_get_error(&codegen_program);
+    ASSERT_TRUE(error == NULL, "codegen_get_error returns NULL on success");
+    ASSERT_TRUE(!codegen_format_error(NULL, NULL, 0),
+                "codegen_format_error returns false for NULL error");
+
+    codegen_program_free(&codegen_program);
+    lir_program_free(&lir_program);
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+}
+

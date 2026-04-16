@@ -1,5 +1,5 @@
+#include "bytecode.h"
 #include "hir.h"
-#include "lir.h"
 #include "mir.h"
 #include "parser.h"
 
@@ -7,9 +7,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-int tests_run = 0;
-int tests_passed = 0;
-int tests_failed = 0;
+static int tests_run = 0;
+static int tests_passed = 0;
+static int tests_failed = 0;
 
 #define ASSERT_TRUE(condition, msg) do {                                    \
     tests_run++;                                                            \
@@ -21,6 +21,7 @@ int tests_failed = 0;
                 __FILE__, __LINE__, (msg));                                 \
     }                                                                       \
 } while (0)
+
 #define REQUIRE_TRUE(condition, msg) do {                                   \
     tests_run++;                                                            \
     if (condition) {                                                        \
@@ -32,17 +33,7 @@ int tests_failed = 0;
         return;                                                             \
     }                                                                       \
 } while (0)
-#define ASSERT_EQ_STR(expected, actual, msg) do {                           \
-    tests_run++;                                                            \
-    if ((actual) != NULL && strcmp((expected), (actual)) == 0) {            \
-        tests_passed++;                                                     \
-    } else {                                                                \
-        tests_failed++;                                                     \
-        fprintf(stderr, "  FAIL [%s:%d] %s: expected \"%s\", got \"%s\"\n", \
-                __FILE__, __LINE__, (msg), (expected),                      \
-                (actual) ? (actual) : "(null)");                           \
-    }                                                                       \
-} while (0)
+
 #define ASSERT_CONTAINS(needle, haystack, msg) do {                         \
     tests_run++;                                                            \
     if ((haystack) != NULL && strstr((haystack), (needle)) != NULL) {       \
@@ -54,30 +45,88 @@ int tests_failed = 0;
                 (haystack) ? (haystack) : "(null)");                       \
     }                                                                       \
 } while (0)
+
 #define RUN_TEST(fn) do {                                                   \
     printf("  %s ...\n", #fn);                                            \
     fn();                                                                   \
 } while (0)
 
-void test_lir_dump_lowers_minimal_callable_slice(void);
-void test_lir_dump_covers_globals_branches_closures_and_runtime_like_ops(void);
-void test_lir_dump_lowers_hetero_array_literal(void);
-void test_lir_dump_lowers_union_descriptors(void);
-void test_lir_dump_lowers_throw_terminator(void);
-void test_lir_dump_lowers_union_tag_and_payload_access(void);
-void test_lir_error_api_returns_null_on_success(void);
+static bool build_bytecode_from_source(const char *source, char **dump_out) {
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    BytecodeProgram bytecode_program;
+    bool ok = false;
 
+    if (!source || !dump_out) {
+        return false;
+    }
+
+    *dump_out = NULL;
+    memset(&ast_program, 0, sizeof(ast_program));
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    bytecode_program_init(&bytecode_program);
+    parser_init(&parser, source);
+
+    if (!parser_parse_program(&parser, &ast_program) ||
+        !symbol_table_build(&symbols, &ast_program) ||
+        !type_checker_check_program(&checker, &ast_program, &symbols) ||
+        !hir_build_program(&hir_program, &ast_program, &symbols, &checker) ||
+        !mir_build_program(&mir_program, &hir_program, false) ||
+        !bytecode_build_program(&bytecode_program, &mir_program)) {
+        goto cleanup;
+    }
+
+    *dump_out = bytecode_dump_program_to_string(&bytecode_program);
+    ok = *dump_out != NULL;
+
+cleanup:
+    bytecode_program_free(&bytecode_program);
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+    return ok;
+}
+
+static void test_bytecode_dump_lowers_binary_unary_store_index_store_member(void) {
+    static const char source[] =
+        "import io.stdlib;\n"
+        "start(string[] args) -> {\n"
+        "    var x = 3 + 4;\n"
+        "    var y = -x;\n"
+        "    var nums = [1, 2, 3];\n"
+        "    nums[0] = 10;\n"
+        "    stdlib.x = 5;\n"
+        "    return y;\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump),
+                 "build binary/unary/store bytecode dump");
+    ASSERT_CONTAINS("BC_BINARY", dump,
+                    "binary addition lowers to BC_BINARY");
+    ASSERT_CONTAINS("BC_UNARY", dump,
+                    "unary negation lowers to BC_UNARY");
+    ASSERT_CONTAINS("BC_STORE_INDEX", dump,
+                    "array index assignment lowers to BC_STORE_INDEX");
+    ASSERT_CONTAINS("BC_STORE_MEMBER", dump,
+                    "package member assignment lowers to BC_STORE_MEMBER");
+    free(dump);
+}
 
 int main(void) {
-    printf("Running LIR dump tests...\n\n");
+    printf("Running bytecode dump tests (part 2)...\n\n");
 
-    RUN_TEST(test_lir_dump_lowers_minimal_callable_slice);
-    RUN_TEST(test_lir_dump_covers_globals_branches_closures_and_runtime_like_ops);
-    RUN_TEST(test_lir_dump_lowers_hetero_array_literal);
-    RUN_TEST(test_lir_dump_lowers_union_descriptors);
-    RUN_TEST(test_lir_dump_lowers_throw_terminator);
-    RUN_TEST(test_lir_dump_lowers_union_tag_and_payload_access);
-    RUN_TEST(test_lir_error_api_returns_null_on_success);
+    RUN_TEST(test_bytecode_dump_lowers_binary_unary_store_index_store_member);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

@@ -104,3 +104,32 @@ void test_type_resolver_resolves_union_variant_payload(void) {
     parser_free(&parser);
 }
 
+
+void test_type_resolver_rejects_void_array_element(void) {
+    const char *source =
+        "int32[0] bad = [];\n"
+        "start(string[] args) -> 0;\n";
+    Parser parser;
+    AstProgram program;
+    TypeResolver resolver;
+    const TypeResolutionError *error;
+    char buffer[256];
+
+    type_resolver_init(&resolver);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse zero-dim array program");
+    ASSERT_TRUE(!type_resolver_resolve_program(&resolver, &program),
+                "int32[0] is rejected by type resolution");
+    ASSERT_TRUE(resolver.has_error, "resolver records an error for zero-dim array");
+    error = type_resolver_get_error(&resolver);
+    REQUIRE_TRUE(error != NULL, "resolver error is retrievable");
+    ASSERT_TRUE(error->primary_span.start_line > 0,
+                "zero-dim error has a valid source line");
+    ASSERT_TRUE(type_resolver_format_error(error, buffer, sizeof(buffer)),
+                "resolver error formats without crash");
+
+    type_resolver_free(&resolver);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+

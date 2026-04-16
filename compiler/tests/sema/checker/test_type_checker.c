@@ -123,6 +123,8 @@ void test_type_checker_accepts_stackalloc_op(void);
 void test_type_checker_rejects_stackalloc_non_integral_arg(void);
 void test_type_checker_accepts_layout_declaration(void);
 void test_type_checker_rejects_non_primitive_layout_field(void);
+void test_type_checker_error_has_source_span(void);
+void test_type_checker_accepts_pre_increment(void);
 
 
 int main(void) {
@@ -184,6 +186,8 @@ int main(void) {
     RUN_TEST(test_type_checker_rejects_stackalloc_non_integral_arg);
     RUN_TEST(test_type_checker_accepts_layout_declaration);
     RUN_TEST(test_type_checker_rejects_non_primitive_layout_field);
+    RUN_TEST(test_type_checker_error_has_source_span);
+    RUN_TEST(test_type_checker_accepts_pre_increment);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

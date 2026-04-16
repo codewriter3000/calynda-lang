@@ -169,6 +169,8 @@ bool run_capture(const char *path,
 
 void test_calynda_cli_help_and_emitters(void);
 void test_calynda_cli_builds_native_executable(void);
+void test_calynda_cli_missing_source_file(void);
+void test_calynda_cli_malformed_source(void);
 
 
 int main(void) {
@@ -176,6 +178,8 @@ int main(void) {
 
     RUN_TEST(test_calynda_cli_help_and_emitters);
     RUN_TEST(test_calynda_cli_builds_native_executable);
+    RUN_TEST(test_calynda_cli_missing_source_file);
+    RUN_TEST(test_calynda_cli_malformed_source);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",
