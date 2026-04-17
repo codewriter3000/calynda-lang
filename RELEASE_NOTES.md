@@ -1,3 +1,27 @@
+# Calynda 1.0.0-alpha.4
+
+April 17, 2026
+
+## Highlights
+
+- Top-level lambda-style bindings can now call themselves recursively. Previously, any reference to a binding name from within its own lambda initializer was rejected with "Circular definition involving 'X'". The type checker now seeds the callable signature before checking the lambda body, so recursive self-calls observe the correct type without triggering the circular-definition guard. Non-lambda initializers still reject genuine cycles.
+
+---
+
+# Calynda 1.0.0-alpha.3
+
+April 16, 2026
+
+## Highlights
+
+- `calynda asm` now accepts `.car` archives in addition to `.cal` source files. `calynda build` and `calynda run` already supported archives; `asm` now matches that behavior so multi-file projects can inspect generated assembly without an intermediate step.
+- `manual(args) -> { ... }` is a new whole-function manual shorthand. It is syntactic sugar for a lambda whose entire body is wrapped in a `manual { ... }` block. The existing `manual { ... };` statement form is unchanged.
+- `car(arr)` and `cdr(arr)` are new built-in functions for arrays. `car` returns the first element of a non-empty array; `cdr` returns a new array containing every element except the first. Both abort at runtime on an empty array.
+- String indexing is now supported. `str[i]` returns the `char` byte at position `i`. Out-of-bounds access aborts at runtime. The index expression must be integral.
+- Returns inside `manual { ... }` sub-blocks now correctly propagate into the enclosing lambda or `start` return analysis. Previously, a `return` nested inside a manual block was not counted toward the whole-function return obligation, causing spurious type errors.
+
+---
+
 # Calynda 1.0.0-alpha.2
 
 April 16, 2026
