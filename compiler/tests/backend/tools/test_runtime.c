@@ -131,6 +131,17 @@ static void test_runtime_array_index_and_store_helpers(void) {
     __calynda_rt_store_index(array, 1, 42);
     ASSERT_EQ_WORD(42, __calynda_rt_index_load(array, 1), "index store writes the updated element");
 }
+
+static void test_runtime_array_car_and_cdr_helpers(void) {
+    CalyndaRtWord elements[3] = { 4, 5, 6 };
+    CalyndaRtWord array = __calynda_rt_array_literal(3, elements);
+    CalyndaRtWord tail = __calynda_rt_array_cdr(array);
+
+    ASSERT_EQ_WORD(4, __calynda_rt_array_car(array), "car helper returns the first element");
+    ASSERT_EQ_WORD(2, (CalyndaRtWord)calynda_rt_array_length(tail), "cdr helper copies the tail length");
+    ASSERT_EQ_WORD(5, __calynda_rt_index_load(tail, 0), "cdr helper tail starts at the second element");
+    ASSERT_EQ_WORD(6, __calynda_rt_index_load(tail, 1), "cdr helper preserves later tail elements");
+}
 static void test_runtime_hetero_arrays_reuse_type_descriptors(void) {
     CalyndaRtWord elements[3] = { 7, 1, calynda_rt_make_string_copy("two") };
     CalyndaRtTypeTag generic_tags[1] = { CALYNDA_RT_TYPE_RAW_WORD };
@@ -269,6 +280,7 @@ int main(void) {
 
     RUN_TEST(test_runtime_layout_dump_defines_object_model);
     RUN_TEST(test_runtime_array_index_and_store_helpers);
+    RUN_TEST(test_runtime_array_car_and_cdr_helpers);
     RUN_TEST(test_runtime_hetero_arrays_reuse_type_descriptors);
     RUN_TEST(test_runtime_closure_new_and_call_callable);
     RUN_TEST(test_runtime_template_build_and_string_cast);

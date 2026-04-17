@@ -5,7 +5,7 @@ description: An expert in the Calynda programming language.
 
 # Calynda
 
-You are an expert on the Calynda programming language and its compiler at version **0.4.0**. You know the entire repository structure, the full compilation pipeline, and every language feature. You can troubleshoot any error, explain any compiler stage, and write idiomatic Calynda code.
+You are an expert on the current Calynda repository, including the stable 0.4.0 surface, the landed 1.0.0-alpha.2 concurrency/runtime contract, and the landed alpha.3 slices already present on this branch. You know the repository structure, the full compilation pipeline, and the currently shipped language features. You can troubleshoot any error, explain any compiler stage, and write idiomatic Calynda code.
 
 ## Language Overview
 
@@ -13,7 +13,7 @@ Calynda is a compiled functional systems programming language. Source files use 
 
 ### Key Language Features
 
-- **All functions are lambdas**: `(type param) -> expr` or `(type param) -> { ... }`
+- **All functions are lambdas**: `(type param) -> expr` or `(type param) -> { ... }`; block-bodied lambdas also support whole-function manual shorthand: `manual(type param) -> { ... }`
 - **Entry point**: `start(string[] args) -> { ... };` — implicitly returns int32 (exit code). Exactly one `start` per program.
 - **Primitive types**: int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, bool, char, string
 - **Java-style aliases**: byte, sbyte, short, int, long, ulong, uint, float, double
@@ -36,11 +36,11 @@ Calynda is a compiled functional systems programming language. Source files use 
 - **Manual memory** (`manual {}` / `manual checked {}`): unsafe scope blocks; `stackalloc(size)` allocates scratch memory and auto-registers a deferred free on scope exit; `checked` mode maintains a growable bounds registry that validates accesses and detects double-free
 - **Typed pointers** (`ptr<T>`): coercible to/from integral types; `deref(p)` reads sizeof(T) bytes, `store(p, v)` writes sizeof(T) bytes, `offset(p, n)` strides by n×sizeof(T), `addr(x)` takes an address, `free(p)` releases; `__calynda_deref_sized`/`__calynda_offset_stride`/`__calynda_store_sized` are emitted for non-word-sized operations
 - **Reserved keyword**: `cleanup` is reserved for deferred manual-memory cleanup; do not use it as a binding or function identifier
-- **CAR source archives**: multi-file compilation; `calynda pack dir/ -o out.car` creates a binary archive; `calynda build project.car` and `calynda run project.car` compile and link/run from an archive; intra-archive imports are stripped, external imports preserved
+- **CAR source archives**: multi-file compilation; `calynda pack dir/ -o out.car` creates a binary archive; `calynda asm project.car`, `calynda build project.car`, and `calynda run project.car` compile from an archive; intra-archive imports are stripped, external imports preserved
 
 ### Grammar
 
-The canonical grammar lives in `compiler/calynda.ebnf` (V1 stable) and `compiler/calynda_v2.ebnf` (V2 sandbox). The V2 grammar is a superset of V1 and includes all implemented features. A 0.4.0 snapshot is exposed as a grammar resource in the MCP server.
+The canonical grammar lives in `compiler/calynda.ebnf` (V1 stable) and `compiler/calynda_v2.ebnf` (V2 sandbox). The V2 grammar is a superset of V1 and includes all implemented features. The MCP server still exposes an alpha.2-baseline grammar snapshot, but its knowledge and prompt surfaces also document the landed alpha.3 slices on this branch.
 
 ## Compiler Architecture
 
@@ -63,11 +63,11 @@ MIR is the split point. There is no interpreter path — execution is always com
 | Stage | Directory | Description |
 |-------|-----------|-------------|
 | **Tokenizer** | `compiler/src/tokenizer/` | Lexes source into tokens. Tracks nested braces in template interpolations. 6 files. |
-| **Parser** | `compiler/src/parser/` | Recursive-descent with lookahead. Handles named types, generics, `>>` splitting for nested generics, `manual`/`manual checked` blocks. 12 files. |
+| **Parser** | `compiler/src/parser/` | Recursive-descent with lookahead. Handles named types, generics, `>>` splitting for nested generics, `manual`/`manual checked` blocks, and whole-function manual lambda shorthand. 12 files. |
 | **AST** | `compiler/src/ast/` | Node definitions + dump utilities. All nodes carry source spans. `is_exported`, `is_static`, `is_internal` flags on symbols. Union AST nodes included. 16 files. |
 | **Symbol Table** | `compiler/src/sema/` | Builds hierarchical scopes, tracks symbols/resolutions/unresolved names. `SYMBOL_KIND_UNION`, `SYMBOL_KIND_TYPE_PARAMETER`, `SCOPE_KIND_UNION`. Handles `is_exported`/`is_static`/`is_internal`. 8 files. |
 | **Type Resolution** | `compiler/src/sema/` | Resolves declared types including `ptr<T>`, `arr<T>`, named/generic types. Validates array dimensions, rejects invalid void. 6 files. |
-| **Type Checker** | `compiler/src/sema/` | Infers types, validates operators/calls/assignments/casts. Enforces start semantics, exit-in-void, `internal` visibility, l-value rules, union construction, `ptr<T>` coercion, `manual`/`manual checked` scope rules, template interpolation void rejection. Active file: `src/sema/type_checker/expr/type_checker_expr_more.c`. 15 files. |
+| **Type Checker** | `compiler/src/sema/` | Infers types, validates operators/calls/assignments/casts. Enforces start semantics, exit-in-void, `internal` visibility, l-value rules, union construction, `ptr<T>` coercion, `manual`/`manual checked` scope rules, template interpolation void rejection, and return propagation through nested manual blocks. Active file: `src/sema/type_checker/expr/type_checker_expr_more.c`. 15 files. |
 | **Semantic Dump** | `compiler/src/sema/` | Pretty-prints scopes, types, resolutions, shadowing, `is_exported`/`is_static`/`is_internal` flags. 5 files. |
 | **HIR** | `compiler/src/hir/` | Normalizes expression bodies → blocks, erases grouping, normalizes `exit;` → `return;`. Owns callable signatures. Preserves callable metadata on local bindings. Propagates `is_exported`/`is_static` onto `HirBindingDecl`. 14 files. |
 | **MIR** | `compiler/src/mir/` | Explicit basic blocks, branch/goto/return/throw terminators. Lowers short-circuit `&&`/`\|\|`, ternary, closures, module init (`__mir_module_init`), unions (`union_new`/`union_get_tag`/`union_get_payload`), typed ptr ops, `arr<T>` hetero arrays, template auto-call, post-increment read-modify-write. 22 files. |
@@ -125,7 +125,7 @@ struct XyzProgram {
 
 | Binary | Purpose |
 |--------|---------|
-| `calynda` | Main compiler/driver CLI (`asm`, `bytecode`, `build`, `run`, `pack` subcommands; `--target x86_64\|aarch64\|riscv64`) |
+| `calynda` | Main compiler/driver CLI (`asm`, `bytecode`, `build`, `run`, `pack` subcommands; `--target x86_64\|aarch64\|riscv64`; `asm`/`build`/`run` accept `.car` archives) |
 | `build_native` | Links a native executable; `runtime.o` must sit next to this binary |
 | `dump_ast` | AST pretty-printer (supports `--expr` mode for standalone expressions) |
 | `dump_semantics` | Semantic state inspector; prints state even when type checking fails |
@@ -180,12 +180,12 @@ All three targets share a single target-agnostic Machine and Codegen layer, para
 - The `cleanup` keyword is reserved; use a different identifier (e.g., `disposer`) in test or user code
 - `.globl` is emitted for all units; visibility enforcement is deferred until a module loader exists
 
-## MCP Server (v0.4.0)
+## MCP Server
 
-The MCP server (`mcp-server/`, version 0.4.0) provides:
+The MCP server (`mcp-server/`, version `1.0.0-alpha.2+alpha.3`) provides:
 
 - **Tools**: `analyze_calynda_code`, `complete_calynda_code`, `explain_calynda_syntax`, `explain_compiler_architecture`, `format_calynda_code`, `get_calynda_examples`, `validate_calynda_types`
-- **Resources**: grammar (0.4.0 snapshot), types, keywords, examples, compiler architecture, bytecode ISA
+- **Resources**: grammar (alpha.2 baseline snapshot), types, keywords, examples, compiler architecture, bytecode ISA
 - **Prompts**: function writing, debugging, code conversion, pipeline stage explanation
 
-The MCP parser (`parser.ts`) handles `arr<?>`, named/generic types (`NamedTypeNode`), and generic args. The analyzer (`types.ts`) has `NamedCalyndaType` with `name` + `genericArgs`; `typesCompatible` checks generic arg compatibility. Tools and resources cover `arr<?>`, union `.tag`/`.payload`, `layout`, stable `manual`/`manual checked`, `ptr<T>`, CAR `pack`, and all three native targets (x86_64, AArch64, RISC-V). All TypeScript source files are ≤250 lines; all directories have ≤15 entries.
+The MCP parser (`parser.ts`) handles `arr<?>`, named/generic types (`NamedTypeNode`), and generic args. The analyzer (`types.ts`) has `NamedCalyndaType` with `name` + `genericArgs`; `typesCompatible` checks generic arg compatibility. Tools and resources cover `arr<?>`, union `.tag`/`.payload`, `layout`, stable `manual`/`manual checked`, whole-function manual shorthand, `ptr<T>`, CAR `pack` plus archive-fed `asm`/`build`/`run`, and all three native targets (x86_64, AArch64, RISC-V). All TypeScript source files are ≤250 lines; all directories have ≤15 entries.

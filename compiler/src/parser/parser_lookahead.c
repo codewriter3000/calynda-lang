@@ -111,6 +111,10 @@ bool scan_type_pattern(const Parser *parser, size_t *index) {
 bool looks_like_lambda_expression(const Parser *parser) {
     size_t index = parser ? parser->current : 0;
 
+    if (parser_token_at(parser, index)->type == TOK_MANUAL) {
+        index++;
+    }
+
     if (parser_token_at(parser, index)->type != TOK_LPAREN) {
         return false;
     }

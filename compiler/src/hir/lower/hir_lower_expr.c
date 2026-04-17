@@ -137,6 +137,40 @@ static HirExpression *hr_make_helper_call(HirBuildContext *context,
     return call_expr;
 }
 
+static bool hr_is_builtin_array_call(HirBuildContext *context,
+                                     const AstExpression *expression,
+                                     const char **helper_name_out) {
+    const AstExpression *callee;
+
+    if (!context || !expression || expression->kind != AST_EXPR_CALL ||
+        !expression->as.call.callee || expression->as.call.arguments.count != 1) {
+        return false;
+    }
+
+    callee = expression->as.call.callee;
+    if (callee->kind != AST_EXPR_IDENTIFIER ||
+        symbol_table_resolve_identifier(context->symbols, callee) != NULL ||
+        !callee->as.identifier) {
+        return false;
+    }
+
+    if (strcmp(callee->as.identifier, "car") == 0) {
+        if (helper_name_out) {
+            *helper_name_out = "__calynda_rt_array_car";
+        }
+        return true;
+    }
+
+    if (strcmp(callee->as.identifier, "cdr") == 0) {
+        if (helper_name_out) {
+            *helper_name_out = "__calynda_rt_array_cdr";
+        }
+        return true;
+    }
+
+    return false;
+}
+
 static bool hr_is_builtin_mutex_new_call(const AstExpression *expression) {
     return expression &&
            expression->kind == AST_EXPR_CALL &&
@@ -283,6 +317,101 @@ static bool hr_is_builtin_thread_or_mutex_call(HirBuildContext *context,
     return false;
 }
 
+static bool hr_program_has_boot_entry(const HirBuildContext *context) {
+    size_t i;
+
+    if (!context || !context->ast_program) {
+        return false;
+    }
+
+    for (i = 0; i < context->ast_program->top_level_count; i++) {
+        const AstTopLevelDecl *decl = context->ast_program->top_level_decls[i];
+
+        if (decl &&
+            decl->kind == AST_TOP_LEVEL_START &&
+            decl->as.start_decl.is_boot) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool hr_try_lower_freestanding_import_member_call(HirBuildContext *context,
+                                                         const AstExpression *expression,
+                                                         const TypeCheckInfo *info,
+                                                         HirExpression **lowered_out) {
+    const AstExpression *callee;
+    const AstExpression *target;
+    const Symbol *target_symbol;
+    const char *helper_name;
+    HirExpression *arguments[1];
+
+    if (lowered_out) {
+        *lowered_out = NULL;
+    }
+    if (!context || !expression || !info || !lowered_out ||
+        expression->kind != AST_EXPR_CALL ||
+        !hr_program_has_boot_entry(context)) {
+        return false;
+    }
+
+    callee = expression->as.call.callee;
+    if (!callee || callee->kind != AST_EXPR_MEMBER) {
+        return false;
+    }
+
+    target = callee->as.member.target;
+    if (!target || target->kind != AST_EXPR_IDENTIFIER) {
+        return false;
+    }
+
+    target_symbol = symbol_table_resolve_identifier(context->symbols, target);
+    if (!target_symbol ||
+        (target_symbol->kind != SYMBOL_KIND_IMPORT &&
+         target_symbol->kind != SYMBOL_KIND_PACKAGE) ||
+        !target_symbol->qualified_name ||
+        strcmp(target_symbol->qualified_name, "io.stdlib") != 0 ||
+        strcmp(callee->as.member.member, "print") != 0) {
+        return false;
+    }
+
+    if (expression->as.call.arguments.count > 1) {
+        hr_set_error(context,
+                     expression->source_span,
+                     &target_symbol->declaration_span,
+                     "Freestanding boot() code supports io.stdlib.print with 0 or 1 argument, but got %zu.",
+                     expression->as.call.arguments.count);
+        return true;
+    }
+
+    helper_name = expression->as.call.arguments.count == 0
+        ? "__calynda_rt_stdlib_print0"
+        : "__calynda_rt_stdlib_print1";
+    if (expression->as.call.arguments.count == 0) {
+        *lowered_out = hr_make_helper_call(context,
+                                           expression,
+                                           helper_name,
+                                           info->type,
+                                           NULL,
+                                           0);
+        return true;
+    }
+
+    arguments[0] = hr_lower_expression(context, expression->as.call.arguments.items[0]);
+    if (!arguments[0]) {
+        return true;
+    }
+
+    *lowered_out = hr_make_helper_call(context,
+                                       expression,
+                                       helper_name,
+                                       info->type,
+                                       arguments,
+                                       1);
+    return true;
+}
+
 HirExpression *hr_lower_expression(HirBuildContext *context,
                                    const AstExpression *expression) {
     const TypeCheckInfo *info;
@@ -307,6 +436,27 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
 
     if (expression->kind == AST_EXPR_MEMORY_OP) {
         return hr_lower_memory_expression(context, expression, info);
+    }
+
+    if (expression->kind == AST_EXPR_CALL) {
+        const char *helper_name = NULL;
+
+        if (hr_is_builtin_array_call(context, expression, &helper_name)) {
+            HirExpression *argument =
+                hr_lower_expression(context, expression->as.call.arguments.items[0]);
+            HirExpression *arguments[1];
+
+            if (!argument) {
+                return NULL;
+            }
+            arguments[0] = argument;
+            return hr_make_helper_call(context,
+                                       expression,
+                                       helper_name,
+                                       info->type,
+                                       arguments,
+                                       1);
+        }
     }
 
     if (expression->kind == AST_EXPR_SPAWN) {
@@ -353,8 +503,19 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
                                    expression,
                                    "__calynda_rt_atomic_new",
                                    info->type,
-                                   arguments,
-                                   1);
+                                    arguments,
+                                    1);
+    }
+
+    if (expression->kind == AST_EXPR_CALL) {
+        HirExpression *freestanding_import_call = NULL;
+
+        if (hr_try_lower_freestanding_import_member_call(context,
+                                                         expression,
+                                                         info,
+                                                         &freestanding_import_call)) {
+            return freestanding_import_call;
+        }
     }
 
     if (expression->kind == AST_EXPR_CALL && expression->as.call.callee &&

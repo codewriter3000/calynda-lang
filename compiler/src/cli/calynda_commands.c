@@ -52,7 +52,7 @@ void calynda_print_usage(FILE *out, const char *program_name) {
     fprintf(out, "  build [compiler options] <source> [-o output]   Build a native executable\n");
     fprintf(out, "  run [compiler options] <source> [args...]       Build a temp executable and run it\n");
     fprintf(out, "  pack <directory> [-o output.car]                Pack a directory into a .car archive\n");
-    fprintf(out, "  asm [compiler options] <source.cal>             Emit assembly to stdout\n");
+    fprintf(out, "  asm [compiler options] <source>                 Emit assembly to stdout\n");
     fprintf(out, "  bytecode <source.cal>                           Emit portable bytecode text to stdout\n");
     fprintf(out, "  help                                            Show this help\n");
     fprintf(out, "  version                                         Show version metadata\n");
@@ -63,7 +63,8 @@ void calynda_print_usage(FILE *out, const char *program_name) {
     fprintf(out, "  --strict-race-check                             Enable the reserved alpha.2 strict race mode\n");
     fprintf(out, "  --manual-bounds-check                           Force manual memory ops through checked helpers\n");
     fprintf(out, "  --target T                                      Target x86_64, aarch64, or riscv64\n");
-    fprintf(out, "\nSource files can be .cal (single file) or .car (multi-file archive).\n");
+    fprintf(out, "\nBuild, run, and asm accept .cal (single file) or .car (multi-file archive).\n");
+    fprintf(out, "bytecode currently accepts .cal only.\n");
 }
 
 int calynda_command_asm(const char *program_name, int argc, char **argv) {
@@ -280,10 +281,26 @@ static int emit_program_file(const char *path, CalyndaEmitMode mode,
     int exit_code;
 
     if (mode == CALYNDA_EMIT_MODE_ASM) {
+        CarArchive archive;
         MachineProgram machine_program;
 
-        exit_code = calynda_compile_to_machine_program(path, &machine_program,
-                                                       target);
+        if (has_car_extension(path)) {
+            car_archive_init(&archive);
+            if (!car_archive_read(&archive, path)) {
+                fprintf(stderr, "%s: %s\n", path,
+                        car_archive_get_error(&archive));
+                car_archive_free(&archive);
+                return 66;
+            }
+            exit_code = calynda_compile_car_to_machine_program(&archive,
+                                                               &machine_program,
+                                                               target);
+            car_archive_free(&archive);
+        } else {
+            exit_code = calynda_compile_to_machine_program(path,
+                                                           &machine_program,
+                                                           target);
+        }
         if (exit_code != 0) {
             return exit_code;
         }

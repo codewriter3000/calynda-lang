@@ -16,6 +16,7 @@ typedef enum {
 typedef struct {
     BlockContextKind kind;
     bool             has_expected_return_type;
+    bool             enforce_expected_return_type;
     CheckedType      expected_return_type;
     AstSourceSpan    owner_span;
     AstSourceSpan    related_span;
@@ -45,6 +46,7 @@ bool tc_checked_type_equals(CheckedType left, CheckedType right);
 bool tc_checked_type_is_scalar_value(CheckedType type);
 bool tc_checked_type_is_bool(CheckedType type);
 bool tc_checked_type_is_string(CheckedType type);
+bool tc_checked_type_has_length_member(CheckedType type);
 bool tc_checked_type_is_numeric(CheckedType type);
 bool tc_checked_type_is_integral(CheckedType type);
 bool tc_checked_type_is_reference_like(CheckedType type);

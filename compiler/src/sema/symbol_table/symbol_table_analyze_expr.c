@@ -40,7 +40,9 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
                 (strcmp(expression->as.identifier, "Mutex") == 0 ||
                  strcmp(expression->as.identifier, "Thread") == 0 ||
                  strcmp(expression->as.identifier, "Future") == 0 ||
-                 strcmp(expression->as.identifier, "Atomic") == 0)) {
+                 strcmp(expression->as.identifier, "Atomic") == 0 ||
+                 strcmp(expression->as.identifier, "car") == 0 ||
+                 strcmp(expression->as.identifier, "cdr") == 0)) {
                 return true;
             }
 

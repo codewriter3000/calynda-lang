@@ -109,7 +109,7 @@ const PIPELINE_STAGES_BACKEND = [
     {
         name: 'CLI',
         dir: 'compiler/src/cli/',
-        description: 'Command-line tools: the calynda compiler driver (supports --version, --strict-race-check, and --target for x86_64/aarch64/riscv64), AST dumper, semantic dumper, assembly emitter, bytecode emitter, native builder, and CAR archive commands (pack/build/run). The native builder resolves the runtime archive relative to the executable directory.',
+        description: 'Command-line tools: the calynda compiler driver (supports --version, --strict-race-check, and --target for x86_64/aarch64/riscv64), AST dumper, semantic dumper, assembly emitter, bytecode emitter, native builder, and CAR archive commands (pack/build/run). Build, run, and asm all accept .car archives, while bytecode remains .cal-only. The native builder resolves the runtime archive relative to the executable directory.',
         keyTypes: [],
         keyFunctions: [],
         files: [
@@ -154,7 +154,7 @@ exports.BACKEND_STRATEGY = `Calynda has two compiler backends and rejects any in
 
 Primary backend — native (x86_64 SysV ELF, AArch64 AAPCS64 ELF, and RISC-V 64 LP64D ELF):
   ${exports.NATIVE_PIPELINE}
-  Pass --target aarch64-linux or --target riscv64-linux for cross-target output (default: x86_64).
+  Pass --target aarch64 or --target riscv64 for cross-target output (default: x86_64).
 
 Secondary backend — portable-v1 bytecode:
   ${exports.BYTECODE_PIPELINE}

@@ -21,6 +21,51 @@ static const UnaryOperatorMapping unary_operators[] = {
     {TOK_PLUS, AST_UNARY_OP_PLUS}
 };
 
+static bool parse_manual_lambda_body(Parser *parser,
+                                     AstLambdaBody *body,
+                                     AstSourceSpan manual_span) {
+    AstBlock *manual_body;
+    AstBlock *wrapper_block;
+    AstStatement *manual_statement;
+
+    if (!parser_check(parser, TOK_LBRACE)) {
+        parser_set_error(parser,
+                         *parser_current_token(parser),
+                         "Manual lambda shorthand requires a block body.");
+        return false;
+    }
+
+    manual_body = parse_block(parser);
+    if (!manual_body) {
+        return false;
+    }
+
+    manual_statement = ast_statement_new(AST_STMT_MANUAL);
+    if (!manual_statement) {
+        parser_set_oom_error(parser);
+        ast_block_free(manual_body);
+        return false;
+    }
+    manual_statement->source_span = manual_span;
+    manual_statement->as.manual.body = manual_body;
+
+    wrapper_block = ast_block_new();
+    if (!wrapper_block) {
+        parser_set_oom_error(parser);
+        ast_statement_free(manual_statement);
+        return false;
+    }
+
+    if (!parser_add_statement(parser, wrapper_block, manual_statement)) {
+        ast_block_free(wrapper_block);
+        return false;
+    }
+
+    body->kind = AST_LAMBDA_BODY_BLOCK;
+    body->as.block = wrapper_block;
+    return true;
+}
+
 AstExpression *parse_expression_node(Parser *parser) {
     if (looks_like_lambda_expression(parser)) {
         return parse_lambda_expression(parser);
@@ -30,19 +75,36 @@ AstExpression *parse_expression_node(Parser *parser) {
 
 AstExpression *parse_lambda_expression(Parser *parser) {
     AstExpression *expression = ast_expression_new(AST_EXPR_LAMBDA);
+    const Token *start_token = parser_current_token(parser);
+    const Token *manual_token = NULL;
 
     if (!expression) {
         parser_set_oom_error(parser);
         return NULL;
     }
 
-    expression->source_span = parser_source_span(parser_current_token(parser));
+    expression->source_span = parser_source_span(start_token);
+
+    if (parser_match(parser, TOK_MANUAL)) {
+        manual_token = parser_previous_token(parser);
+    }
 
     if (!parser_consume(parser, TOK_LPAREN, "Expected '(' to start lambda parameters.") ||
         !parser_parse_parameter_list(parser, &expression->as.lambda.parameters, true) ||
         !parser_consume(parser, TOK_RPAREN, "Expected ')' after lambda parameters.") ||
-        !parser_consume(parser, TOK_ARROW, "Expected '->' after lambda parameters.") ||
-        !parser_parse_lambda_body(parser, &expression->as.lambda.body)) {
+        !parser_consume(parser, TOK_ARROW, "Expected '->' after lambda parameters.")) {
+        ast_expression_free(expression);
+        return NULL;
+    }
+
+    if (manual_token) {
+        if (!parse_manual_lambda_body(parser,
+                                      &expression->as.lambda.body,
+                                      parser_source_span(manual_token))) {
+            ast_expression_free(expression);
+            return NULL;
+        }
+    } else if (!parser_parse_lambda_body(parser, &expression->as.lambda.body)) {
         ast_expression_free(expression);
         return NULL;
     }

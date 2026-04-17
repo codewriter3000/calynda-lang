@@ -41,6 +41,7 @@ const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - CLI version metadata is available via calynda --version
 - Strict race-checker flag spelling: --strict-race-check
 - All functions are lambdas: (type param) -> expr or (type param) -> { ... }
+- Block-bodied lambdas also support whole-function manual shorthand: manual(type param) -> { ... }
 - Entry point: start(string[] args) -> { ... }; returns int32 (exit code)
 - Bare-metal entry point: boot() -> expr; bypasses runtime, emits freestanding _start, and cannot coexist with start
 - Inline assembly: int32 name = asm(int32 a) -> { ... }; passed through to assembler unchanged
@@ -64,7 +65,7 @@ const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Closures capture outer locals/parameters; ++ and -- prefix/postfix operators
 - Discard expression: _ = expr; to explicitly ignore values
 - Varargs: Type... name in parameter lists
-- CAR archives bundle .cal files: calynda pack src/ -o archive.car, then calynda build/run project.car`;
+- CAR archives bundle .cal files: calynda pack src/ -o archive.car, then calynda asm/build/run project.car`;
 function getPromptMessages(name, args) {
     switch (name) {
         case 'write-calynda-function':

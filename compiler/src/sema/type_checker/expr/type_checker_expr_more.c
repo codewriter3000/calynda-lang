@@ -30,6 +30,69 @@ static bool tc_checked_type_is_named_type(CheckedType type, const char *name) {
            strcmp(type.name, name) == 0;
 }
 
+static bool tc_program_has_boot_entry(const TypeChecker *checker) {
+    size_t i;
+
+    if (!checker || !checker->program) {
+        return false;
+    }
+
+    for (i = 0; i < checker->program->top_level_count; i++) {
+        const AstTopLevelDecl *decl = checker->program->top_level_decls[i];
+
+        if (decl &&
+            decl->kind == AST_TOP_LEVEL_START &&
+            decl->as.start_decl.is_boot) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool tc_is_supported_freestanding_import_member(const Symbol *symbol,
+                                                       const char *member) {
+    return symbol &&
+           (symbol->kind == SYMBOL_KIND_IMPORT ||
+            symbol->kind == SYMBOL_KIND_PACKAGE) &&
+           symbol->qualified_name &&
+           member &&
+           strcmp(symbol->qualified_name, "io.stdlib") == 0 &&
+           strcmp(member, "print") == 0;
+}
+
+static void tc_report_freestanding_import_member_error(TypeChecker *checker,
+                                                       const AstExpression *expression,
+                                                       const Symbol *target_symbol) {
+    const char *target_name = "<external>";
+    const AstSourceSpan *related_span = NULL;
+
+    if (!checker || !expression) {
+        return;
+    }
+
+    if (target_symbol) {
+        related_span = &target_symbol->declaration_span;
+        if (target_symbol->name) {
+            target_name = target_symbol->name;
+        }
+        tc_set_error_at(checker,
+                        expression->source_span,
+                        related_span,
+                        "Freestanding boot() code cannot lower imported member '%s.%s' from '%s' statically. Only io.stdlib.print is supported right now.",
+                        target_name,
+                        expression->as.member.member ? expression->as.member.member : "?",
+                        target_symbol->qualified_name ? target_symbol->qualified_name : "<unknown>");
+        return;
+    }
+
+    tc_set_error_at(checker,
+                    expression->source_span,
+                    NULL,
+                    "Freestanding boot() code cannot lower external member '%s' statically. Only io.stdlib.print is supported right now.",
+                    expression->as.member.member ? expression->as.member.member : "?");
+}
+
 typedef struct {
     const Symbol **items;
     size_t         count;
@@ -472,6 +535,11 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                 break;
             }
 
+            if (tc_checked_type_is_string(target_type)) {
+                info = tc_type_check_info_make(tc_checked_type_value(AST_PRIMITIVE_CHAR, 0));
+                break;
+            }
+
             if (tc_checked_type_is_hetero_array(target_type)) {
                 info = tc_type_check_info_make_external_value();
                 break;
@@ -498,13 +566,24 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                 checker, expression->as.member.target);
             CheckedType target_type;
             const Symbol *union_sym;
+            const Symbol *target_symbol = NULL;
             char target_text[64];
 
             if (!target_info) {
                 return NULL;
             }
 
+            if (expression->as.member.target->kind == AST_EXPR_IDENTIFIER) {
+                target_symbol = symbol_table_resolve_identifier(
+                    checker->symbols, expression->as.member.target);
+            }
+
             target_type = tc_type_check_source_type(target_info);
+            if (strcmp(expression->as.member.member, "length") == 0 &&
+                tc_checked_type_has_length_member(target_type)) {
+                info = tc_type_check_info_make(tc_checked_type_value(AST_PRIMITIVE_INT64, 0));
+                break;
+            }
             if (tc_checked_type_is_named_type(target_type, "Thread") &&
                 strcmp(expression->as.member.member, "join") == 0) {
                 info = tc_type_check_info_make_callable(tc_checked_type_void(),
@@ -601,6 +680,19 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
                 break;
             }
             if (target_type.kind == CHECKED_TYPE_EXTERNAL) {
+                if (tc_program_has_boot_entry(checker)) {
+                    if (tc_is_supported_freestanding_import_member(target_symbol,
+                                                                   expression->as.member.member)) {
+                        info = tc_type_check_info_make_external_callable();
+                        break;
+                    }
+
+                    tc_report_freestanding_import_member_error(checker,
+                                                               expression,
+                                                               target_symbol);
+                    return NULL;
+                }
+
                 info = tc_type_check_info_make_external_callable();
                 break;
             }

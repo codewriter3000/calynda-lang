@@ -104,6 +104,7 @@ void test_parse_malformed_unclosed_brace(void);
 void test_parse_malformed_missing_semicolon(void);
 void test_parse_malformed_stray_token(void);
 void test_parse_manual_checked_block(void);
+void test_parse_manual_lambda_shorthand(void);
 void test_parse_union_multi_generic(void);
 void test_parse_type_alias_and_spawn_threading(void);
 
@@ -150,6 +151,7 @@ int main(void) {
     RUN_TEST(test_parse_malformed_missing_semicolon);
     RUN_TEST(test_parse_malformed_stray_token);
     RUN_TEST(test_parse_manual_checked_block);
+    RUN_TEST(test_parse_manual_lambda_shorthand);
     RUN_TEST(test_parse_union_multi_generic);
     RUN_TEST(test_parse_type_alias_and_spawn_threading);
 

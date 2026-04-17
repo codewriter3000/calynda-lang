@@ -115,10 +115,15 @@ void test_type_checker_accepts_union_tag_and_payload_access(void);
 void test_type_checker_rejects_unknown_union_value_member(void);
 void test_type_checker_rejects_union_tag_assignment(void);
 void test_type_checker_accepts_manual_block_with_memory_ops(void);
+void test_type_checker_accepts_manual_lambda_shorthand(void);
 void test_type_checker_accepts_calloc_memory_op(void);
 void test_type_checker_accepts_manual_pointer_ops(void);
 void test_type_checker_accepts_typed_ptr_deref_offset_store(void);
 void test_type_checker_accepts_typed_ptr_int8_ops(void);
+void test_type_checker_accepts_string_index_as_char(void);
+void test_type_checker_accepts_string_and_array_length_members(void);
+void test_type_checker_rejects_assignment_to_string_index_target(void);
+void test_type_checker_rejects_assignment_to_length_member(void);
 void test_type_checker_accepts_stackalloc_op(void);
 void test_type_checker_rejects_stackalloc_non_integral_arg(void);
 void test_type_checker_accepts_layout_declaration(void);
@@ -132,6 +137,8 @@ void test_type_checker_warns_on_spawn_mutable_capture(void);
 void test_type_checker_rejects_spawn_mutable_capture_in_strict_mode(void);
 void test_type_checker_allows_spawn_atomic_capture(void);
 void test_type_checker_allows_spawn_thread_local_capture(void);
+void test_type_checker_accepts_array_car_cdr_builtins(void);
+void test_type_checker_rejects_car_on_non_array(void);
 
 
 int main(void) {
@@ -185,10 +192,15 @@ int main(void) {
     RUN_TEST(test_type_checker_rejects_unknown_union_value_member);
     RUN_TEST(test_type_checker_rejects_union_tag_assignment);
     RUN_TEST(test_type_checker_accepts_manual_block_with_memory_ops);
+    RUN_TEST(test_type_checker_accepts_manual_lambda_shorthand);
     RUN_TEST(test_type_checker_accepts_calloc_memory_op);
     RUN_TEST(test_type_checker_accepts_manual_pointer_ops);
     RUN_TEST(test_type_checker_accepts_typed_ptr_deref_offset_store);
     RUN_TEST(test_type_checker_accepts_typed_ptr_int8_ops);
+    RUN_TEST(test_type_checker_accepts_string_index_as_char);
+    RUN_TEST(test_type_checker_accepts_string_and_array_length_members);
+    RUN_TEST(test_type_checker_rejects_assignment_to_string_index_target);
+    RUN_TEST(test_type_checker_rejects_assignment_to_length_member);
     RUN_TEST(test_type_checker_accepts_stackalloc_op);
     RUN_TEST(test_type_checker_rejects_stackalloc_non_integral_arg);
     RUN_TEST(test_type_checker_accepts_layout_declaration);
@@ -202,6 +214,8 @@ int main(void) {
     RUN_TEST(test_type_checker_rejects_spawn_mutable_capture_in_strict_mode);
     RUN_TEST(test_type_checker_allows_spawn_atomic_capture);
     RUN_TEST(test_type_checker_allows_spawn_thread_local_capture);
+    RUN_TEST(test_type_checker_accepts_array_car_cdr_builtins);
+    RUN_TEST(test_type_checker_rejects_car_on_non_array);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

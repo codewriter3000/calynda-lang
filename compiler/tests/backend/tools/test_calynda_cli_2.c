@@ -66,6 +66,26 @@ bool run_capture(const char *path,
                         size_t buffer_size,
                         int *exit_code);
 
+static bool write_text_file(const char *path, const char *contents) {
+    FILE *file;
+
+    if (!path || !contents) {
+        return false;
+    }
+
+    file = fopen(path, "wb");
+    if (!file) {
+        return false;
+    }
+
+    if (fputs(contents, file) == EOF) {
+        fclose(file);
+        return false;
+    }
+
+    return fclose(file) == 0;
+}
+
 
 void test_calynda_cli_help_and_emitters(void) {
     static const char source[] =
@@ -158,4 +178,63 @@ void test_calynda_cli_builds_native_executable(void) {
 
     unlink(source_path);
     unlink(output_path);
+}
+
+
+void test_calynda_cli_asm_accepts_car_archive(void) {
+    static const char main_source[] =
+        "start(string[] args) -> add(40, 2);\n";
+    static const char math_source[] =
+        "int32 add = (int32 left, int32 right) -> left + right;\n";
+    char dir_path[] = "/tmp/calynda-cli-car-XXXXXX";
+    char main_path[128];
+    char math_path[128];
+    char car_path[128];
+    char output[4096];
+    const char *captured_output;
+    char *pack_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"pack",
+        dir_path,
+        (char *)"-o",
+        car_path,
+        NULL
+    };
+    char *asm_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        car_path,
+        NULL
+    };
+    int exit_code;
+
+    REQUIRE_TRUE(mkdtemp(dir_path) != NULL, "create temp CAR directory");
+    snprintf(main_path, sizeof(main_path), "%s/main.cal", dir_path);
+    snprintf(math_path, sizeof(math_path), "%s/math.cal", dir_path);
+    snprintf(car_path, sizeof(car_path), "%s/project.car", dir_path);
+
+    REQUIRE_TRUE(write_text_file(main_path, main_source),
+                 "write CAR main source file");
+    REQUIRE_TRUE(write_text_file(math_path, math_source),
+                 "write CAR math source file");
+
+    REQUIRE_TRUE(run_capture("./build/calynda", pack_argv, output, sizeof(output),
+                             &exit_code),
+                 "pack CAR archive for asm CLI test");
+    ASSERT_EQ_INT(0, exit_code, "calynda pack exits successfully for asm CAR test");
+
+    REQUIRE_TRUE(run_capture("./build/calynda", asm_argv, output, sizeof(output),
+                             &exit_code),
+                 "run calynda asm on CAR archive");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "calynda asm accepts CAR archives");
+    ASSERT_CONTAINS(".globl main", captured_output,
+                    "calynda asm emits executable assembly from CAR archive");
+    ASSERT_CONTAINS("calynda_unit_add", captured_output,
+                    "CAR asm output includes lowered helper unit from second file");
+
+    unlink(car_path);
+    unlink(main_path);
+    unlink(math_path);
+    rmdir(dir_path);
 }

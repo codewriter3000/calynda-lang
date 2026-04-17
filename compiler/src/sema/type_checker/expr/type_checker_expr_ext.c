@@ -7,6 +7,69 @@ static bool tc_checked_type_is_named_type(CheckedType type, const char *name) {
            strcmp(type.name, name) == 0;
 }
 
+static bool tc_check_builtin_array_call(TypeChecker *checker,
+                                        const AstExpression *expression,
+                                        TypeCheckInfo *info) {
+    const AstExpression *callee;
+    const AstExpression *argument;
+    const TypeCheckInfo *argument_info;
+    CheckedType argument_type;
+    const char *builtin_name;
+    char argument_text[64];
+
+    if (!checker || !expression || expression->kind != AST_EXPR_CALL ||
+        !expression->as.call.callee || !info) {
+        return false;
+    }
+
+    callee = expression->as.call.callee;
+    if (callee->kind != AST_EXPR_IDENTIFIER ||
+        symbol_table_resolve_identifier(checker->symbols, callee) != NULL ||
+        !callee->as.identifier) {
+        return false;
+    }
+
+    if (strcmp(callee->as.identifier, "car") != 0 &&
+        strcmp(callee->as.identifier, "cdr") != 0) {
+        return false;
+    }
+
+    builtin_name = callee->as.identifier;
+    if (expression->as.call.arguments.count != 1) {
+        tc_set_error_at(checker,
+                        expression->source_span,
+                        NULL,
+                        "%s expects exactly 1 argument but got %zu.",
+                        builtin_name,
+                        expression->as.call.arguments.count);
+        return true;
+    }
+
+    argument = expression->as.call.arguments.items[0];
+    argument_info = tc_check_expression(checker, argument);
+    if (!argument_info) {
+        return true;
+    }
+
+    argument_type = tc_type_check_source_type(argument_info);
+    if (argument_type.kind != CHECKED_TYPE_VALUE || argument_type.array_depth == 0) {
+        checked_type_to_string(argument_type, argument_text, sizeof(argument_text));
+        tc_set_error_at(checker,
+                        argument->source_span,
+                        NULL,
+                        "%s expects a homogeneous array (T[]) argument but got %s.",
+                        builtin_name,
+                        argument_text);
+        return true;
+    }
+
+    *info = tc_type_check_info_make(
+        strcmp(builtin_name, "car") == 0
+            ? tc_checked_type_value(argument_type.primitive, argument_type.array_depth - 1)
+            : argument_type);
+    return true;
+}
+
 static bool tc_check_builtin_concurrency_call(TypeChecker *checker,
                                               const AstExpression *expression,
                                               TypeCheckInfo *info) {
@@ -298,6 +361,13 @@ const TypeCheckInfo *tc_check_expression_ext(TypeChecker *checker,
 
     case AST_EXPR_CALL:
         {
+            if (tc_check_builtin_array_call(checker, expression, &info)) {
+                if (checker->has_error) {
+                    return NULL;
+                }
+                break;
+            }
+
             if (tc_check_builtin_concurrency_call(checker, expression, &info)) {
                 if (checker->has_error) {
                     return NULL;

@@ -114,6 +114,26 @@ void test_machine_dump_routes_union_tag_and_payload_helpers(void) {
     free(dump);
 }
 
+void test_machine_dump_routes_array_car_cdr_helpers(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    int32 head = car(values);\n"
+        "    int32[] tail = cdr(values);\n"
+        "    return head + int32(tail.length);\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_machine_dump_from_source(source, &dump),
+                 "emit array car/cdr machine program");
+    ASSERT_CONTAINS("call __calynda_rt_array_car", dump,
+                    "car lowers through the dedicated runtime helper");
+    ASSERT_CONTAINS("call __calynda_rt_array_cdr", dump,
+                    "cdr lowers through the dedicated runtime helper");
+
+    free(dump);
+}
+
 
 void test_machine_error_api_returns_null_on_success(void) {
     static const char source[] =

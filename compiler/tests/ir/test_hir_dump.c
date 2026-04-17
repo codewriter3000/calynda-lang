@@ -67,6 +67,7 @@ void test_hir_dump_shows_export_and_static_flags(void);
 void test_hir_dump_lowers_union_declarations(void);
 void test_hir_dump_lowers_manual_block_with_memory_ops(void);
 void test_hir_dump_lowers_threading_helpers(void);
+void test_hir_dump_lowers_array_car_cdr_helpers(void);
 
 
 int main(void) {
@@ -81,6 +82,7 @@ int main(void) {
     RUN_TEST(test_hir_dump_lowers_union_declarations);
     RUN_TEST(test_hir_dump_lowers_manual_block_with_memory_ops);
     RUN_TEST(test_hir_dump_lowers_threading_helpers);
+    RUN_TEST(test_hir_dump_lowers_array_car_cdr_helpers);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

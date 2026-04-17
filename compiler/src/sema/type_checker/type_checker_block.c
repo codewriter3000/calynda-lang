@@ -189,9 +189,59 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
 
         case AST_STMT_MANUAL:
             if (statement->as.manual.body) {
+                CheckedType statement_return_type;
+                AstSourceSpan statement_span;
+                BlockContext nested_context;
+                const BlockContext *manual_context = NULL;
+
+                statement_return_type = tc_checked_type_void();
+                memset(&statement_span, 0, sizeof(statement_span));
+                if (context) {
+                    nested_context = *context;
+                    nested_context.enforce_expected_return_type = false;
+                    manual_context = &nested_context;
+                }
+
                 if (!tc_check_block(checker, statement->as.manual.body,
-                                    NULL, NULL, NULL)) {
+                                    manual_context,
+                                    &statement_return_type,
+                                    &statement_span)) {
                     return false;
+                }
+
+                if (tc_source_span_is_valid(statement_span)) {
+                    if (!saw_return) {
+                        current_return_type = statement_return_type;
+                        first_return_span = statement_span;
+                        saw_return = true;
+                    } else {
+                        CheckedType merged_type;
+
+                        if (!tc_merge_return_types(current_return_type,
+                                                   statement_return_type,
+                                                   &merged_type)) {
+                            char first_text[64];
+                            char second_text[64];
+
+                            checked_type_to_string(current_return_type,
+                                                   first_text,
+                                                   sizeof(first_text));
+                            checked_type_to_string(statement_return_type,
+                                                   second_text,
+                                                   sizeof(second_text));
+                            tc_set_error_at(checker,
+                                            statement_span,
+                                            tc_source_span_is_valid(first_return_span)
+                                                ? &first_return_span
+                                                : NULL,
+                                            "Inconsistent return types in block: %s and %s.",
+                                            first_text,
+                                            second_text);
+                            return false;
+                        }
+
+                        current_return_type = merged_type;
+                    }
                 }
             }
             break;
@@ -199,6 +249,7 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
     }
 
     if (context && context->has_expected_return_type &&
+        context->enforce_expected_return_type &&
         !tc_checked_type_assignable(context->expected_return_type,
                                     current_return_type)) {
         AstSourceSpan primary_span = tc_source_span_is_valid(first_return_span)

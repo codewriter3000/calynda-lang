@@ -169,6 +169,7 @@ bool run_capture(const char *path,
 
 void test_calynda_cli_help_and_emitters(void);
 void test_calynda_cli_builds_native_executable(void);
+void test_calynda_cli_asm_accepts_car_archive(void);
 void test_calynda_cli_missing_source_file(void);
 void test_calynda_cli_malformed_source(void);
 void test_calynda_cli_unknown_option_reports_usage(void);
@@ -180,6 +181,7 @@ int main(void) {
 
     RUN_TEST(test_calynda_cli_help_and_emitters);
     RUN_TEST(test_calynda_cli_builds_native_executable);
+    RUN_TEST(test_calynda_cli_asm_accepts_car_archive);
     RUN_TEST(test_calynda_cli_missing_source_file);
     RUN_TEST(test_calynda_cli_malformed_source);
     RUN_TEST(test_calynda_cli_unknown_option_reports_usage);

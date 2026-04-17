@@ -195,6 +195,9 @@ bool tc_expression_is_assignment_target(TypeChecker *checker,
             if (tc_checked_type_is_hetero_array(target_type)) {
                 return false;
             }
+            if (tc_checked_type_is_string(target_type)) {
+                return false;
+            }
 
             if (target_type.kind == CHECKED_TYPE_EXTERNAL) {
                 return true;
@@ -226,6 +229,10 @@ bool tc_expression_is_assignment_target(TypeChecker *checker,
             if ((strcmp(expression->as.member.member, "tag") == 0 ||
                  strcmp(expression->as.member.member, "payload") == 0) &&
                 symbol && symbol->kind == SYMBOL_KIND_UNION) {
+                return false;
+            }
+            if (strcmp(expression->as.member.member, "length") == 0 &&
+                tc_checked_type_has_length_member(target_type)) {
                 return false;
             }
             if (target_type.kind == CHECKED_TYPE_EXTERNAL) {

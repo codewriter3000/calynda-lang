@@ -165,9 +165,12 @@ void test_asm_emit_asm_decl_emits_raw_body(void);
 void test_asm_emit_asm_decl_no_params(void);
 void test_asm_emit_boot_emits_start_label(void);
 void test_asm_emit_boot_aarch64_emits_start_label(void);
+void test_asm_emit_boot_rejects_unknown_imported_member(void);
+void test_asm_emit_boot_rejects_multi_arg_imported_print(void);
 void test_asm_emit_riscv64_minimal_program(void);
 void test_asm_emit_riscv64_runtime_backed_program(void);
 void test_asm_emit_boot_riscv64_emits_start_label(void);
+void test_asm_emit_boot_riscv64_statically_lowers_imported_print(void);
 void test_asm_emit_preserves_upstream_error_spans(void);
 void test_cross_asm_riscv64_assembles(void);
 void test_cross_asm_aarch64_assembles(void);
@@ -194,7 +197,10 @@ int main(void) {
     printf("\n  Boot entry tests...\n");
     RUN_TEST(test_asm_emit_boot_emits_start_label);
     RUN_TEST(test_asm_emit_boot_aarch64_emits_start_label);
+    RUN_TEST(test_asm_emit_boot_rejects_unknown_imported_member);
+    RUN_TEST(test_asm_emit_boot_rejects_multi_arg_imported_print);
     RUN_TEST(test_asm_emit_boot_riscv64_emits_start_label);
+    RUN_TEST(test_asm_emit_boot_riscv64_statically_lowers_imported_print);
     RUN_TEST(test_asm_emit_preserves_upstream_error_spans);
 
     printf("\n  RV64 tests...\n");

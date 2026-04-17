@@ -100,6 +100,11 @@ bool tc_checked_type_is_string(CheckedType type) {
     return tc_checked_type_is_scalar_value(type) && type.primitive == AST_PRIMITIVE_STRING;
 }
 
+bool tc_checked_type_has_length_member(CheckedType type) {
+    return tc_checked_type_is_string(type) ||
+           (type.kind == CHECKED_TYPE_VALUE && type.array_depth > 0);
+}
+
 bool tc_checked_type_is_numeric(CheckedType type) {
     return tc_checked_type_is_scalar_value(type) && tc_primitive_is_integral(type.primitive);
 }

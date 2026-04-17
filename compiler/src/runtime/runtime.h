@@ -168,6 +168,8 @@ typedef struct {
 #define CALYNDA_RT_ATOMIC_LOAD     "__calynda_rt_atomic_load"
 #define CALYNDA_RT_ATOMIC_STORE    "__calynda_rt_atomic_store"
 #define CALYNDA_RT_ATOMIC_EXCHANGE "__calynda_rt_atomic_exchange"
+#define CALYNDA_RT_ARRAY_CAR       "__calynda_rt_array_car"
+#define CALYNDA_RT_ARRAY_CDR       "__calynda_rt_array_cdr"
 
 extern CalyndaRtPackage __calynda_pkg_stdlib;
 
@@ -197,9 +199,13 @@ CalyndaRtWord __calynda_rt_call_callable(CalyndaRtWord callable,
                                          size_t argument_count,
                                          const CalyndaRtWord *arguments);
 CalyndaRtWord __calynda_rt_member_load(CalyndaRtWord target, const char *member);
+CalyndaRtWord __calynda_rt_stdlib_print0(void);
+CalyndaRtWord __calynda_rt_stdlib_print1(CalyndaRtWord value);
 CalyndaRtWord __calynda_rt_index_load(CalyndaRtWord target, CalyndaRtWord index);
 CalyndaRtWord __calynda_rt_array_literal(size_t element_count,
                                          const CalyndaRtWord *elements);
+CalyndaRtWord __calynda_rt_array_car(CalyndaRtWord target);
+CalyndaRtWord __calynda_rt_array_cdr(CalyndaRtWord target);
 CalyndaRtWord __calynda_rt_template_build(size_t part_count,
                                           const CalyndaRtTemplatePart *parts);
 void __calynda_rt_store_index(CalyndaRtWord target,

@@ -135,6 +135,61 @@ void test_parse_manual_checked_block(void) {
 }
 
 
+void test_parse_manual_lambda_shorthand(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32 adjust = manual(int32 value) -> {\n"
+        "        return value + 1;\n"
+        "    };\n"
+        "    return adjust(41);\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    const AstStartDecl *start_decl;
+    const AstStatement *binding_stmt;
+    const AstExpression *lambda;
+    const AstBlock *wrapper_block;
+    const AstStatement *manual_stmt;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse manual lambda shorthand");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL,
+                "no parse error for manual lambda shorthand");
+
+    start_decl = &program.top_level_decls[0]->as.start_decl;
+    binding_stmt = start_decl->body.as.block->statements[0];
+    ASSERT_EQ_INT(AST_STMT_LOCAL_BINDING, binding_stmt->kind,
+                  "manual lambda shorthand parses as binding");
+
+    lambda = binding_stmt->as.local_binding.initializer;
+    ASSERT_EQ_INT(AST_EXPR_LAMBDA, lambda->kind,
+                  "manual lambda shorthand initializer is lambda");
+    ASSERT_EQ_INT(AST_LAMBDA_BODY_BLOCK, lambda->as.lambda.body.kind,
+                  "manual lambda shorthand lowers to block body");
+
+    wrapper_block = lambda->as.lambda.body.as.block;
+    REQUIRE_TRUE(wrapper_block != NULL,
+                 "manual lambda wrapper block exists");
+    ASSERT_EQ_INT(1, (int) wrapper_block->statement_count,
+                  "manual lambda wrapper block contains one statement");
+
+    manual_stmt = wrapper_block->statements[0];
+    ASSERT_EQ_INT(AST_STMT_MANUAL, manual_stmt->kind,
+                  "manual lambda wrapper statement is manual");
+    REQUIRE_TRUE(manual_stmt->as.manual.body != NULL,
+                 "manual lambda nested body exists");
+    ASSERT_EQ_INT(1, (int) manual_stmt->as.manual.body->statement_count,
+                  "manual lambda nested body preserves original statements");
+    ASSERT_EQ_INT(AST_STMT_RETURN,
+                  manual_stmt->as.manual.body->statements[0]->kind,
+                  "manual lambda nested body keeps return statement");
+
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+
 /* ------------------------------------------------------------------ */
 /*  G-PAR-3: Union with multiple type params and variants             */
 /* ------------------------------------------------------------------ */

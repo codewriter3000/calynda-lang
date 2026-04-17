@@ -366,3 +366,63 @@ void test_type_checker_allows_spawn_thread_local_capture(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
+
+void test_type_checker_accepts_array_car_cdr_builtins(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    int32 head = car(values);\n"
+        "    int32[] tail = cdr(values);\n"
+        "    return head + int32(tail.length);\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse car/cdr source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols car/cdr");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "car/cdr builtins type check on homogeneous arrays");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_rejects_car_on_non_array(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    return int32(car(\"hello\"));\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *error;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse bad car source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols bad car");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
+                "car rejects non-array arguments");
+    error = type_checker_get_error(&checker);
+    REQUIRE_TRUE(error != NULL, "car type error exists");
+    REQUIRE_TRUE(type_checker_format_error(error, diagnostic, sizeof(diagnostic)),
+                 "format car type error");
+    ASSERT_CONTAINS("car expects a homogeneous array (T[]) argument but got string.",
+                    diagnostic,
+                    "car error mentions array-only contract");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}

@@ -72,6 +72,7 @@ const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
         memset(&context, 0, sizeof(context));
         context.kind = BLOCK_CONTEXT_LAMBDA;
         context.has_expected_return_type = (expected_return_type != NULL);
+        context.enforce_expected_return_type = (expected_return_type != NULL);
         if (expected_return_type) {
             context.expected_return_type = *expected_return_type;
         }
@@ -177,6 +178,7 @@ bool tc_check_start_decl(TypeChecker *checker, const AstStartDecl *start_decl) {
         memset(&context, 0, sizeof(context));
         context.kind = BLOCK_CONTEXT_START;
         context.has_expected_return_type = true;
+        context.enforce_expected_return_type = true;
         context.expected_return_type = expected_type;
         context.owner_span = start_decl->start_span;
         context.related_span = start_decl->start_span;

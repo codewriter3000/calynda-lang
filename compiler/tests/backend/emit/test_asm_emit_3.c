@@ -60,9 +60,75 @@ bool build_assembly_from_source_with_target(const char *source,
                                                    const TargetDescriptor *target);
 bool build_assembly_from_source(const char *source, char **assembly_out);
 bool build_assembly_from_source_with_target(const char *source,
-                                                   char **assembly_out,
-                                                   const TargetDescriptor *target);
+                                                    char **assembly_out,
+                                                    const TargetDescriptor *target);
 bool compile_assembly_text(const char *assembly);
+
+static bool type_check_source_fails(const char *source,
+                                    char *diagnostic,
+                                    size_t diagnostic_size) {
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    bool ok = false;
+
+    memset(&ast_program, 0, sizeof(ast_program));
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+
+    if (parser_parse_program(&parser, &ast_program) &&
+        symbol_table_build(&symbols, &ast_program) &&
+        !type_checker_check_program(&checker, &ast_program, &symbols) &&
+        type_checker_get_error(&checker) &&
+        type_checker_format_error(type_checker_get_error(&checker),
+                                  diagnostic,
+                                  diagnostic_size)) {
+        ok = true;
+    }
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+    return ok;
+}
+
+static bool hir_build_source_fails(const char *source,
+                                   char *diagnostic,
+                                   size_t diagnostic_size) {
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    bool ok = false;
+
+    memset(&ast_program, 0, sizeof(ast_program));
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    parser_init(&parser, source);
+
+    if (parser_parse_program(&parser, &ast_program) &&
+        symbol_table_build(&symbols, &ast_program) &&
+        type_checker_check_program(&checker, &ast_program, &symbols) &&
+        !hir_build_program(&hir_program, &ast_program, &symbols, &checker) &&
+        hir_get_error(&hir_program) &&
+        hir_format_error(hir_get_error(&hir_program),
+                         diagnostic,
+                         diagnostic_size)) {
+        ok = true;
+    }
+
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+    return ok;
+}
 
 
 void test_asm_emit_asm_decl_no_params(void) {
@@ -119,6 +185,38 @@ void test_asm_emit_boot_aarch64_emits_start_label(void) {
     ASSERT_TRUE(strstr(assembly, "calynda_program_start") == NULL,
                 "boot aarch64 does not emit calynda_program_start wrapper");
     free(assembly);
+}
+
+void test_asm_emit_boot_rejects_unknown_imported_member(void) {
+    static const char source[] =
+        "import io.stdlib;\n"
+        "boot() -> {\n"
+        "    stdlib.missing();\n"
+        "    return 0;\n"
+        "};\n";
+    char diagnostic[256];
+
+    REQUIRE_TRUE(type_check_source_fails(source, diagnostic, sizeof(diagnostic)),
+                 "type check invalid freestanding imported member");
+    ASSERT_CONTAINS("Freestanding boot() code cannot lower imported member 'stdlib.missing' from 'io.stdlib' statically.",
+                    diagnostic,
+                    "boot rejects unsupported imported members before hosted runtime lowering");
+}
+
+void test_asm_emit_boot_rejects_multi_arg_imported_print(void) {
+    static const char source[] =
+        "import io.stdlib;\n"
+        "boot() -> {\n"
+        "    stdlib.print(1, 2);\n"
+        "    return 0;\n"
+        "};\n";
+    char diagnostic[256];
+
+    REQUIRE_TRUE(hir_build_source_fails(source, diagnostic, sizeof(diagnostic)),
+                 "lower invalid freestanding imported print call");
+    ASSERT_CONTAINS("Freestanding boot() code supports io.stdlib.print with 0 or 1 argument, but got 2.",
+                    diagnostic,
+                    "boot rejects imported print arities that cannot be lowered statically");
 }
 
 
@@ -218,3 +316,24 @@ void test_asm_emit_boot_riscv64_emits_start_label(void) {
     free(assembly);
 }
 
+void test_asm_emit_boot_riscv64_statically_lowers_imported_print(void) {
+    static const char source[] =
+        "import io.stdlib;\n"
+        "boot() -> {\n"
+        "    stdlib.print();\n"
+        "    return 0;\n"
+        "};\n";
+    char *assembly;
+
+    REQUIRE_TRUE(build_riscv64_assembly(source, &assembly),
+                 "emit rv64 freestanding imported print assembly text");
+    ASSERT_CONTAINS("call __calynda_rt_stdlib_print0", assembly,
+                    "boot imported print lowers to a direct helper call");
+    ASSERT_TRUE(strstr(assembly, "__calynda_pkg_stdlib") == NULL,
+                "boot imported print no longer references hosted package objects");
+    ASSERT_TRUE(strstr(assembly, "__calynda_rt_member_load") == NULL,
+                "boot imported print no longer lowers through hosted member dispatch");
+    ASSERT_TRUE(strstr(assembly, "__calynda_rt_call_callable") == NULL,
+                "boot imported print no longer lowers through hosted callable dispatch");
+    free(assembly);
+}

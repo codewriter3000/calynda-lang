@@ -244,3 +244,19 @@ void test_build_native_typed_ptr_offset_stride(void) {
     unlink(output_path);
 }
 
+
+void test_build_native_supports_string_index_and_length(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    return int32(args.length) + int32(args[0].length) + int32(args[0][0]);\n"
+        "};\n";
+    char output_path[64];
+    char *run_argv[] = { output_path, (char *)"A", NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build string index/length executable");
+    exit_code = run_process(output_path, run_argv);
+    ASSERT_EQ_INT(67, exit_code, "native executable supports array length, string length, and string indexing");
+    unlink(output_path);
+}

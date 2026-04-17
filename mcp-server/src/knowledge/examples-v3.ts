@@ -60,14 +60,14 @@ export const EXAMPLES_V3: Example[] = [
     name: 'arm64-target',
     description: 'Compiling for AArch64 Linux target',
     tags: ['arm64', 'target', 'v3', 'backend'],
-    code: `// Compile with: calynda build --target aarch64-linux main.cal
+    code: `// Compile with: calynda build --target aarch64 main.cal
 start(string[] args) -> 0;`,
   },
   {
     name: 'riscv64-target',
     description: 'Compiling for RISC-V 64 Linux target',
     tags: ['riscv64', 'target', 'v3', 'backend'],
-    code: `// Compile with: calynda build --target riscv64-linux main.cal
+    code: `// Compile with: calynda build --target riscv64 main.cal
 start(string[] args) -> 0;`,
   },
   {
@@ -75,7 +75,19 @@ start(string[] args) -> 0;`,
     description: 'Working with CAR source archives',
     tags: ['car', 'archive', 'v3', 'cli'],
     code: `// Create archive: calynda pack src/ -o archive.car
+// Emit asm from archive: calynda asm project.car
 // Build from archive: calynda build project.car`,
+  },
+  {
+    name: 'manual-lambda-shorthand',
+    description: 'Whole-function manual shorthand for a block-bodied lambda',
+    tags: ['manual', 'lambda', 'alpha-3', 'syntax'],
+    code: `start(string[] args) -> {
+    int32 adjust = manual(int32 value) -> {
+        return value + 1;
+    };
+    return adjust(41);
+};`,
   },
   {
     name: 'layout-pointer',

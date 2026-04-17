@@ -1,6 +1,6 @@
 {
   "name": "calynda-mcp-server",
-  "version": "1.0.0-alpha.2",
+  "version": "1.0.0-alpha.2+alpha.3",
   "description": "MCP server for the Calynda programming language",
   "main": "dist/index.js",
   "bin": {

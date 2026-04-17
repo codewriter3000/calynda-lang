@@ -26,7 +26,7 @@ import { getBytecodeResource } from './resources/bytecode';
 import { PROMPTS, getPromptMessages } from './prompts/index';
 
 const server = new Server(
-  { name: 'calynda-mcp-server', version: '1.0.0-alpha.2' },
+  { name: 'calynda-mcp-server', version: '1.0.0-alpha.2+alpha.3' },
   { capabilities: { tools: {}, resources: {}, prompts: {} } }
 );
 
@@ -172,7 +172,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({
   resources: [
-    { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The full Calynda grammar snapshot (1.0.0-alpha.2)', mimeType: 'text/plain' },
+    { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The shipped Calynda grammar snapshot (1.0.0-alpha.2 baseline; knowledge surfaces include landed alpha.3 updates)', mimeType: 'text/plain' },
     { uri: 'calynda://types', name: 'Calynda Types', description: 'Documentation for all built-in types', mimeType: 'text/markdown' },
     { uri: 'calynda://keywords', name: 'Calynda Keywords', description: 'All keywords and reserved words', mimeType: 'text/markdown' },
     { uri: 'calynda://examples', name: 'Calynda Examples', description: 'Code examples for common patterns', mimeType: 'text/markdown' },

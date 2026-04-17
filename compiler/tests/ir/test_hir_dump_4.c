@@ -222,3 +222,42 @@ void test_hir_dump_lowers_threading_helpers(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
+
+void test_hir_dump_lowers_array_car_cdr_helpers(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    int32 head = car(values);\n"
+        "    int32[] tail = cdr(values);\n"
+        "    return head + int32(tail.length);\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse car/cdr HIR source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build car/cdr HIR symbols");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                 "type check car/cdr HIR source");
+    REQUIRE_TRUE(hir_build_program(&hir, &program, &symbols, &checker),
+                 "build car/cdr HIR");
+
+    dump = hir_dump_program_to_string(&hir);
+    REQUIRE_TRUE(dump != NULL, "car/cdr HIR dump string is not NULL");
+    ASSERT_CONTAINS("__calynda_rt_array_car", dump, "HIR lowers car to a direct helper");
+    ASSERT_CONTAINS("__calynda_rt_array_cdr", dump, "HIR lowers cdr to a direct helper");
+
+    free(dump);
+    hir_program_free(&hir);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}

@@ -199,7 +199,8 @@ void test_build_native_runs_simple_start_program(void),
 void test_build_native_runs_boot_program(void),
      test_build_native_runs_boot_program_with_block(void),
      test_build_native_runs_manual_malloc_free(void),
-     test_build_native_typed_ptr_offset_stride(void);
+     test_build_native_typed_ptr_offset_stride(void),
+     test_build_native_supports_string_index_and_length(void);
 void test_build_native_stackalloc_store_deref(void),
      test_build_native_stackalloc_typed_ptr(void),
      test_build_native_formats_hetero_arrays(void),
@@ -226,6 +227,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_build_native_runs_boot_program_with_block);
     RUN_TEST(test_build_native_runs_manual_malloc_free);
     RUN_TEST(test_build_native_typed_ptr_offset_stride);
+    RUN_TEST(test_build_native_supports_string_index_and_length);
     RUN_TEST(test_build_native_stackalloc_store_deref);
     RUN_TEST(test_build_native_stackalloc_typed_ptr);
     RUN_TEST(test_build_native_formats_hetero_arrays); RUN_TEST(test_build_native_indexes_hetero_arrays);
