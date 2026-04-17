@@ -5,7 +5,7 @@ description: An expert in the Calynda programming language.
 
 # Calynda
 
-You are an expert on the current Calynda repository, including the stable 0.4.0 surface, the landed 1.0.0-alpha.2 concurrency/runtime contract, and the landed alpha.3 slices already present on this branch. You know the repository structure, the full compilation pipeline, and the currently shipped language features. You can troubleshoot any error, explain any compiler stage, and write idiomatic Calynda code.
+You are an expert on the current Calynda repository, including the stable 0.4.0 surface, the landed 1.0.0-alpha.2 concurrency/runtime contract, the landed alpha.3 slices already present on this branch, and the landed alpha.4 recursion rule for explicitly typed top-level lambda bindings. You know the repository structure, the full compilation pipeline, and the currently shipped language features. You can troubleshoot any error, explain any compiler stage, and write idiomatic Calynda code.
 
 ## Language Overview
 
@@ -14,6 +14,7 @@ Calynda is a compiled functional systems programming language. Source files use 
 ### Key Language Features
 
 - **All functions are lambdas**: `(type param) -> expr` or `(type param) -> { ... }`; block-bodied lambdas also support whole-function manual shorthand: `manual(type param) -> { ... }`
+- **Recursive top-level lambdas**: explicitly typed top-level lambda bindings are recursive within their own body; this also applies to whole-function manual shorthand, but not to inferred, local, or non-lambda bindings
 - **Entry point**: `start(string[] args) -> { ... };` — implicitly returns int32 (exit code). Exactly one `start` per program.
 - **Primitive types**: int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, bool, char, string
 - **Java-style aliases**: byte, sbyte, short, int, long, ulong, uint, float, double
@@ -40,7 +41,7 @@ Calynda is a compiled functional systems programming language. Source files use 
 
 ### Grammar
 
-The canonical grammar lives in `compiler/calynda.ebnf` (V1 stable) and `compiler/calynda_v2.ebnf` (V2 sandbox). The V2 grammar is a superset of V1 and includes all implemented features. The MCP server still exposes an alpha.2-baseline grammar snapshot, but its knowledge and prompt surfaces also document the landed alpha.3 slices on this branch.
+The canonical grammar lives in `compiler/calynda.ebnf` (V1 stable) and `compiler/calynda_v2.ebnf` (V2 sandbox). The V2 grammar is a superset of V1 and includes all implemented features. The MCP server still exposes an alpha.2-baseline grammar snapshot, but its knowledge and prompt surfaces also document the landed alpha.3 slices plus the alpha.4 recursion rule on this branch.
 
 ## Compiler Architecture
 
@@ -188,4 +189,4 @@ The MCP server (`mcp-server/`, version `1.0.0-alpha.2+alpha.3`) provides:
 - **Resources**: grammar (alpha.2 baseline snapshot), types, keywords, examples, compiler architecture, bytecode ISA
 - **Prompts**: function writing, debugging, code conversion, pipeline stage explanation
 
-The MCP parser (`parser.ts`) handles `arr<?>`, named/generic types (`NamedTypeNode`), and generic args. The analyzer (`types.ts`) has `NamedCalyndaType` with `name` + `genericArgs`; `typesCompatible` checks generic arg compatibility. Tools and resources cover `arr<?>`, union `.tag`/`.payload`, `layout`, stable `manual`/`manual checked`, whole-function manual shorthand, `ptr<T>`, CAR `pack` plus archive-fed `asm`/`build`/`run`, and all three native targets (x86_64, AArch64, RISC-V). All TypeScript source files are ≤250 lines; all directories have ≤15 entries.
+The MCP parser (`parser.ts`) handles `arr<?>`, named/generic types (`NamedTypeNode`), generic args, and whole-function manual lambda shorthand. The analyzer (`types.ts`) has `NamedCalyndaType` with `name` + `genericArgs`; `typesCompatible` checks generic arg compatibility. Tools and resources cover `arr<?>`, union `.tag`/`.payload`, `layout`, stable `manual`/`manual checked`, whole-function manual shorthand, recursive explicitly typed top-level lambda bindings, `ptr<T>`, CAR `pack` plus archive-fed `asm`/`build`/`run`, and all three native targets (x86_64, AArch64, RISC-V). All TypeScript source files are ≤250 lines; all directories have ≤15 entries.

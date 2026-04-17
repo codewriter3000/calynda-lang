@@ -4,7 +4,7 @@
  * allocated size.  Bounds violations abort with a diagnostic message.
  */
 
-#include "runtime.h"
+#include "runtime_internal.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -24,14 +24,14 @@ static pthread_mutex_t bc_mutex = PTHREAD_MUTEX_INITIALIZER;
 static void bc_lock(void) {
     if (pthread_mutex_lock(&bc_mutex) != 0) {
         fprintf(stderr, "calynda bounds-check: mutex lock failed\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 }
 
 static void bc_unlock(void) {
     if (pthread_mutex_unlock(&bc_mutex) != 0) {
         fprintf(stderr, "calynda bounds-check: mutex unlock failed\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 }
 
@@ -49,7 +49,7 @@ static void bc_ensure_capacity(size_t needed) {
     grown_entries = realloc(bc_entries, new_capacity * sizeof(*bc_entries));
     if (!grown_entries) {
         fprintf(stderr, "calynda bounds-check: shadow registry resize failed\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
     bc_entries = grown_entries;
     bc_capacity = new_capacity;
@@ -103,14 +103,14 @@ static void bc_check_access(uintptr_t ptr) {
     fprintf(stderr,
             "calynda bounds-check: out-of-bounds access at %p\n",
             (void *)ptr);
-    abort();
+    rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
 }
 
 CalyndaRtWord __calynda_bc_malloc(CalyndaRtWord size) {
     void *p = malloc((size_t)size);
     if (!p) {
         fprintf(stderr, "calynda bounds-check: malloc failed\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
     bc_lock();
     bc_register((uintptr_t)p, (size_t)size);
@@ -122,7 +122,7 @@ CalyndaRtWord __calynda_bc_calloc(CalyndaRtWord n, CalyndaRtWord size) {
     void *p = calloc((size_t)n, (size_t)size);
     if (!p) {
         fprintf(stderr, "calynda bounds-check: calloc failed\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
     bc_lock();
     bc_register((uintptr_t)p, (size_t)(n * size));
@@ -140,7 +140,7 @@ CalyndaRtWord __calynda_bc_realloc(CalyndaRtWord ptr, CalyndaRtWord new_size) {
     if (!new_p) {
         bc_unlock();
         fprintf(stderr, "calynda bounds-check: realloc failed\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
     bc_register((uintptr_t)new_p, (size_t)new_size);
     bc_unlock();

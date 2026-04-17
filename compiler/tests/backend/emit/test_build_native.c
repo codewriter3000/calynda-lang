@@ -216,7 +216,8 @@ void test_build_native_double_capture_closure(void),
      test_build_native_threading_helpers(void);
 void test_build_native_manual_checked_abort(void),
      test_build_native_car_multifile(void),
-     test_build_native_malformed_source_reports_span(void);
+     test_build_native_malformed_source_reports_span(void),
+     test_build_native_runs_recursive_top_level_lambda_program(void);
 int main(int argc, char **argv) {
     test_binary_path = argc > 0 ? argv[0] : NULL;
     printf("Running native build tests...\n\n");
@@ -241,6 +242,7 @@ int main(int argc, char **argv) {
     RUN_TEST(test_build_native_manual_checked_abort);
     RUN_TEST(test_build_native_car_multifile);
     RUN_TEST(test_build_native_malformed_source_reports_span);
+    RUN_TEST(test_build_native_runs_recursive_top_level_lambda_program);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

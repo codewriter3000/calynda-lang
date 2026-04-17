@@ -172,7 +172,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({
   resources: [
-    { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The shipped Calynda grammar snapshot (1.0.0-alpha.2 baseline; knowledge surfaces include landed alpha.3 updates)', mimeType: 'text/plain' },
+    { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The shipped Calynda grammar snapshot (1.0.0-alpha.2 baseline; knowledge surfaces include landed alpha.3 updates plus alpha.4 recursion notes)', mimeType: 'text/plain' },
     { uri: 'calynda://types', name: 'Calynda Types', description: 'Documentation for all built-in types', mimeType: 'text/markdown' },
     { uri: 'calynda://keywords', name: 'Calynda Keywords', description: 'All keywords and reserved words', mimeType: 'text/markdown' },
     { uri: 'calynda://examples', name: 'Calynda Examples', description: 'Code examples for common patterns', mimeType: 'text/markdown' },

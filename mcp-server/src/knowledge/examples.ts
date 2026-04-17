@@ -28,8 +28,8 @@ start(string[] args) -> {
   },
   {
     name: 'block-lambda',
-    description: 'Lambda with block body',
-    tags: ['lambda', 'block'],
+    description: 'Recursive explicitly typed top-level lambda binding with a block body',
+    tags: ['lambda', 'block', 'recursion', 'recursive', 'top-level-binding'],
     code: `int32 factorial = (int32 n) -> {
     return n <= 1 ? 1 : n * factorial(n - 1);
 };`,

@@ -15,8 +15,22 @@ export function parseLambdaBody(state: ParserState): AST.Block | AST.Expression 
 }
 
 export function parseExpression(state: ParserState): AST.Expression {
+  if (isManualLambdaAhead(state)) return parseManualLambdaExpression(state);
   if (isLambdaAhead(state)) return parseLambdaExpression(state);
   return parseAssignmentExpression(state);
+}
+
+function isManualLambdaAhead(state: ParserState): boolean {
+  if (!state.check('keyword', 'manual') || state.peek(1).type !== 'lparen') return false;
+  let i = 2;
+  let depth = 1;
+  while (state.pos + i < state.tokens.length && depth > 0) {
+    const t = state.tokens[state.pos + i];
+    if (t.type === 'lparen') depth++;
+    else if (t.type === 'rparen') depth--;
+    i++;
+  }
+  return state.tokens[state.pos + i]?.type === 'arrow';
 }
 
 function isLambdaAhead(state: ParserState): boolean {
@@ -39,6 +53,21 @@ function parseLambdaExpression(state: ParserState): AST.LambdaExpression {
   state.eat('rparen');
   state.eat('arrow');
   const body = parseLambdaBody(state);
+  return { kind: 'LambdaExpression', params, body, start: startPos, end: state.position() };
+}
+
+function parseManualLambdaExpression(state: ParserState): AST.LambdaExpression {
+  const startPos = state.position();
+  state.eat('keyword', 'manual');
+  state.eat('lparen');
+  const params = parseParameterList(state);
+  state.eat('rparen');
+  state.eat('arrow');
+  if (!state.check('lbrace')) {
+    const tok = state.peek();
+    throw new ParseError('manual lambda shorthand requires a block body', tok.line, tok.column);
+  }
+  const body = parseBlock(state);
   return { kind: 'LambdaExpression', params, body, start: startPos, end: state.position() };
 }
 

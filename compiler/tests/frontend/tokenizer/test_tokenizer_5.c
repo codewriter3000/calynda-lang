@@ -55,6 +55,40 @@ void test_unterminated_string_error(void) {
     ASSERT_EQ_INT(TOK_ERROR, tok.type, "unterminated string after assignment");
 }
 
+void test_structured_tokenizer_error(void) {
+    Tokenizer t;
+    Token tok;
+    const TokenizerError *error;
+    char formatted[256];
+
+    tokenizer_init(&t, "\"hello world");
+    ASSERT_EQ_INT(0, tokenizer_get_error(&t) != NULL,
+                  "no structured tokenizer error before scanning");
+
+    tok = tokenizer_next(&t);
+    error = tokenizer_get_error(&t);
+
+    ASSERT_EQ_INT(TOK_ERROR, tok.type, "unterminated string still yields TOK_ERROR");
+    ASSERT_EQ_INT(1, error != NULL, "structured tokenizer error recorded");
+    if (!error) {
+        return;
+    }
+    ASSERT_EQ_INT(TOK_ERROR, error->token.type, "structured tokenizer error keeps token type");
+    ASSERT_EQ_INT(1, error->token.line, "structured tokenizer error line");
+    ASSERT_EQ_INT(1, error->token.column, "structured tokenizer error column");
+    ASSERT_EQ_STR("Unterminated string literal",
+                  error->message,
+                  strlen(error->message),
+                  "structured tokenizer error message");
+    ASSERT_EQ_INT(1,
+                  tokenizer_format_error(error, formatted, sizeof(formatted)),
+                  "structured tokenizer error formats");
+    ASSERT_EQ_STR("1:1: Unterminated string literal",
+                  formatted,
+                  strlen(formatted),
+                  "formatted tokenizer error");
+}
+
 
 /* ------------------------------------------------------------------ */
 /*  G-TOK-1: ~& and ~^ operator tokens                               */

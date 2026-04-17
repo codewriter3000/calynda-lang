@@ -23,7 +23,7 @@ static const CalyndaRtArray *rt_require_builtin_array(const char *builtin_name,
         fprintf(stderr,
                 "runtime: %s() expects an array argument\n",
                 builtin_name ? builtin_name : "array builtin");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     return (const CalyndaRtArray *)(const void *)header;
@@ -36,7 +36,7 @@ CalyndaRtWord __calynda_rt_closure_new(CalyndaRtClosureEntry code_ptr,
 
     if (!closure) {
         fprintf(stderr, "runtime: out of memory while creating closure\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
 
     return rt_make_object_word(closure);
@@ -49,7 +49,7 @@ CalyndaRtWord __calynda_rt_call_callable(CalyndaRtWord callable,
 
     if (!header) {
         fprintf(stderr, "runtime: attempted to call a non-callable raw word (%" PRIu64 ")\n", callable);
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     switch ((CalyndaRtObjectKind)header->kind) {
@@ -69,7 +69,7 @@ CalyndaRtWord __calynda_rt_call_callable(CalyndaRtWord callable,
         fprintf(stderr,
                 "runtime: object of kind %s is not callable\n",
                 calynda_rt_object_kind_name((CalyndaRtObjectKind)header->kind));
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 }
 
@@ -92,11 +92,11 @@ CalyndaRtWord __calynda_rt_member_load(CalyndaRtWord target, const char *member)
 
     if (!header) {
         fprintf(stderr, "runtime: attempted member access on non-object value\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
     if (!member) {
         fprintf(stderr, "runtime: attempted member access with a null member symbol\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     if (header == &__calynda_pkg_stdlib.header && strcmp(member, "print") == 0) {
@@ -117,7 +117,7 @@ CalyndaRtWord __calynda_rt_member_load(CalyndaRtWord target, const char *member)
             "runtime: unsupported member load %s.%s\n",
             header == &__calynda_pkg_stdlib.header ? __calynda_pkg_stdlib.name : calynda_rt_object_kind_name((CalyndaRtObjectKind)header->kind),
             member);
-    abort();
+    rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
 }
 
 CalyndaRtWord __calynda_rt_index_load(CalyndaRtWord target, CalyndaRtWord index) {
@@ -131,7 +131,7 @@ CalyndaRtWord __calynda_rt_index_load(CalyndaRtWord target, CalyndaRtWord index)
          header->kind != CALYNDA_RT_OBJECT_HETERO_ARRAY &&
          header->kind != CALYNDA_RT_OBJECT_STRING)) {
         fprintf(stderr, "runtime: attempted index load on non-indexable value\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     offset = (size_t)rt_signed_from_word(index);
@@ -141,7 +141,7 @@ CalyndaRtWord __calynda_rt_index_load(CalyndaRtWord target, CalyndaRtWord index)
 
         if (offset >= string->length) {
             fprintf(stderr, "runtime: string index out of bounds (%zu)\n", offset);
-            abort();
+            rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
         }
         return rt_word_from_signed((long long)(unsigned char)string->bytes[offset]);
     }
@@ -160,7 +160,7 @@ CalyndaRtWord __calynda_rt_index_load(CalyndaRtWord target, CalyndaRtWord index)
 
     if (offset >= count) {
         fprintf(stderr, "runtime: array index out of bounds (%zu)\n", offset);
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     return elements[offset];
@@ -172,7 +172,7 @@ CalyndaRtWord __calynda_rt_array_literal(size_t element_count,
 
     if (!array) {
         fprintf(stderr, "runtime: out of memory while creating array\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
 
     return rt_make_object_word(array);
@@ -183,7 +183,7 @@ CalyndaRtWord __calynda_rt_array_car(CalyndaRtWord target) {
 
     if (array->count == 0) {
         fprintf(stderr, "runtime: car() requires a non-empty array\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     return array->elements[0];
@@ -195,14 +195,14 @@ CalyndaRtWord __calynda_rt_array_cdr(CalyndaRtWord target) {
 
     if (array->count == 0) {
         fprintf(stderr, "runtime: cdr() requires a non-empty array\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     tail = rt_new_array_object(array->count - 1,
                                array->count > 1 ? array->elements + 1 : NULL);
     if (!tail) {
         fprintf(stderr, "runtime: out of memory while creating array tail\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
 
     return rt_make_object_word(tail);
@@ -216,13 +216,13 @@ void __calynda_rt_store_index(CalyndaRtWord target,
 
     if (!header || header->kind != CALYNDA_RT_OBJECT_ARRAY) {
         fprintf(stderr, "runtime: attempted index store on non-array value\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     offset = (size_t)rt_signed_from_word(index);
     if (offset >= ((const CalyndaRtArray *)(const void *)header)->count) {
         fprintf(stderr, "runtime: array index out of bounds (%zu)\n", offset);
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     ((CalyndaRtArray *)(void *)header)->elements[offset] = value;
@@ -235,7 +235,7 @@ void __calynda_rt_store_member(CalyndaRtWord target,
     (void)member;
     (void)value;
     fprintf(stderr, "runtime: member stores are not implemented for this first runtime surface\n");
-    abort();
+    rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
 }
 
 void __calynda_rt_throw(CalyndaRtWord value) {
@@ -244,8 +244,7 @@ void __calynda_rt_throw(CalyndaRtWord value) {
     if (!rt_format_word_internal(value, buffer, sizeof(buffer))) {
         strcpy(buffer, "<unformattable>");
     }
-    fprintf(stderr, "Unhandled throw: %s\n", buffer);
-    abort();
+    rt_fatalf(CALYNDA_RT_EXIT_RUNTIME_ERROR, "Unhandled throw: %s\n", buffer);
 }
 
 CalyndaRtWord __calynda_rt_cast_value(CalyndaRtWord source,
@@ -274,7 +273,7 @@ CalyndaRtWord __calynda_rt_cast_value(CalyndaRtWord source,
         }
         if (!rt_format_word_internal(source, buffer, sizeof(buffer))) {
             fprintf(stderr, "runtime: failed to stringify cast source\n");
-            abort();
+            rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
         }
         return calynda_rt_make_string_copy(buffer);
     }
@@ -293,33 +292,57 @@ CalyndaRtWord __calynda_rt_cast_value(CalyndaRtWord source,
 }
 
 int calynda_rt_start_process(CalyndaRtProgramStartEntry entry, int argc, char **argv) {
-    CalyndaRtWord *elements = NULL;
-    CalyndaRtWord arguments;
+    CalyndaRtWord *volatile elements = NULL;
+    CalyndaRtWord arguments = 0;
     size_t argument_count = 0;
     size_t i;
-    CalyndaRtWord result;
+    CalyndaRtWord result = 0;
+    RtFailureContext failure;
+    int exit_code = 0;
+    int process_failure;
 
     if (!entry) {
         fprintf(stderr, "runtime: missing native start entry\n");
-        return 70;
+        return CALYNDA_RT_EXIT_RUNTIME_ERROR;
     }
 
-    if (argc > 1) {
-        argument_count = (size_t)(argc - 1);
-        elements = calloc(argument_count, sizeof(*elements));
-        if (!elements) {
-            fprintf(stderr, "runtime: out of memory while boxing process arguments\n");
-            return 71;
+    rt_reset_process_failure();
+    rt_failure_context_push(&failure);
+    if (setjmp(failure.jump) == 0) {
+        if (argc > 1) {
+            argument_count = (size_t)(argc - 1);
+            elements = calloc(argument_count, sizeof(*elements));
+            if (!elements) {
+                fprintf(stderr, "runtime: out of memory while boxing process arguments\n");
+                exit_code = CALYNDA_RT_EXIT_RUNTIME_OOM;
+                goto cleanup;
+            }
+            for (i = 0; i < argument_count; i++) {
+                ((CalyndaRtWord *)elements)[i] = calynda_rt_make_string_copy(argv[i + 1]);
+            }
         }
-        for (i = 0; i < argument_count; i++) {
-            elements[i] = calynda_rt_make_string_copy(argv[i + 1]);
-        }
+
+        arguments = __calynda_rt_array_literal(argument_count, (const CalyndaRtWord *)elements);
+        free((void *)elements);
+        elements = NULL;
+
+        result = entry(arguments);
+        exit_code = (int)(int32_t)result;
+    } else {
+        exit_code = failure.exit_code != 0
+            ? failure.exit_code
+            : CALYNDA_RT_EXIT_RUNTIME_ERROR;
     }
 
-    arguments = __calynda_rt_array_literal(argument_count, elements);
-    free(elements);
-
-    result = entry(arguments);
+cleanup:
+    free((void *)elements);
     rt_cleanup_registered_objects();
-    return (int)(int32_t)result;
+    rt_failure_context_pop(&failure);
+
+    process_failure = rt_process_failure_code();
+    rt_reset_process_failure();
+    if (exit_code == 0 && process_failure != 0) {
+        return process_failure;
+    }
+    return exit_code;
 }

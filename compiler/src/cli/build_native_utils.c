@@ -1,12 +1,31 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <errno.h>
+#include <spawn.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+extern char **environ;
+
+static int build_native_wait_for_child_exit(pid_t child) {
+    int status;
+
+    if (waitpid(child, &status, 0) < 0) {
+        return -1;
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+    }
+
+    return -1;
+}
 
 char *build_native_read_entire_file(const char *path) {
     FILE *file;
@@ -114,51 +133,41 @@ int build_native_run_linker(const char *assembly_path,
                             const char *runtime_object_path,
                             const char *output_path,
                             bool is_boot) {
+    char *boot_argv[] = {
+        (char *)"gcc",
+        (char *)"-nostdlib",
+        (char *)"-static",
+        (char *)"-no-pie",
+        (char *)"-x",
+        (char *)"assembler",
+        (char *)assembly_path,
+        (char *)"-o",
+        (char *)output_path,
+        NULL
+    };
+    char *link_argv[] = {
+        (char *)"gcc",
+        (char *)"-pthread",
+        (char *)"-no-pie",
+        (char *)"-x",
+        (char *)"assembler",
+        (char *)assembly_path,
+        (char *)"-x",
+        (char *)"none",
+        (char *)runtime_object_path,
+        (char *)"-o",
+        (char *)output_path,
+        NULL
+    };
+    char **argv = is_boot ? boot_argv : link_argv;
     pid_t child;
-    int status;
+    int spawn_error;
 
-    child = fork();
-    if (child < 0) {
+    spawn_error = posix_spawnp(&child, argv[0], NULL, NULL, argv, environ);
+    if (spawn_error != 0) {
+        fprintf(stderr, "%s: %s\n", argv[0], strerror(spawn_error));
         return -1;
     }
 
-    if (child == 0) {
-        if (is_boot) {
-            execlp("gcc",
-                   "gcc",
-                   "-nostdlib",
-                   "-static",
-                   "-no-pie",
-                   "-x",
-                   "assembler",
-                   assembly_path,
-                   "-o",
-                   output_path,
-                   (char *)NULL);
-        } else {
-            execlp("gcc",
-                   "gcc",
-                   "-pthread",
-                   "-no-pie",
-                   "-x",
-                   "assembler",
-                   assembly_path,
-                   "-x",
-                   "none",
-                   runtime_object_path,
-                   "-o",
-                   output_path,
-                   (char *)NULL);
-        }
-        _exit(127);
-    }
-
-    if (waitpid(child, &status, 0) < 0) {
-        return -1;
-    }
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-
-    return -1;
+    return build_native_wait_for_child_exit(child);
 }

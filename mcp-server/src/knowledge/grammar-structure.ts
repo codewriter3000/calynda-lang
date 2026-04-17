@@ -77,6 +77,10 @@ AsmBody
 (*   public int8 add = (int32 a, int32 b) -> a + b;                *)
 (*   private final float64 PI = 3.14159;                            *)
 (*   var y = 42;                                                    *)
+(* Semantic note: explicitly typed top-level bindings whose         *)
+(* initializer is a lambda are recursive within that lambda body.   *)
+(* This also applies to whole-function manual shorthand; inferred,  *)
+(* local, and non-lambda bindings do not gain this rule.            *)
 BindingDecl
     = { Modifier } ( Type | "var" ) Identifier "=" Expression ";"
     ;

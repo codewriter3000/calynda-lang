@@ -1,5 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include "runtime.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,6 +77,8 @@ static bool run_capture_combined(const char *path, char *const argv[],
     return true;
 }
 
+extern bool write_temp_source(const char *source, char *path_buffer, size_t buffer_size);
+
 void test_calynda_cli_malformed_source_reports_span(void) {
     static const char source[] = "start(string[] args) -> {\n    @\n};\n";
     char source_path[128];
@@ -93,5 +97,37 @@ void test_calynda_cli_malformed_source_reports_span(void) {
     ASSERT_CONTAINS(source_path, output, "CLI diagnostic includes source path");
     ASSERT_CONTAINS(":2:5: parse error:", output, "CLI diagnostic includes line and column");
     ASSERT_CONTAINS("Unexpected character", output, "CLI diagnostic includes parse message");
+    unlink(source_path);
+}
+
+void test_calynda_cli_run_propagates_runtime_error_exit(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual checked {\n"
+        "        ptr<int32> p = stackalloc(4);\n"
+        "        store(p, 42);\n"
+        "        ptr<int32> bad = offset(p, 100);\n"
+        "        return deref(bad);\n"
+        "    };\n"
+        "};\n";
+    char source_path[128];
+    char output[4096];
+    int exit_code = 0;
+    char *argv[] = {
+        (char *)"./build/calynda",
+        (char *)"run",
+        source_path,
+        NULL
+    };
+
+    REQUIRE_TRUE(write_temp_source(source, source_path, sizeof(source_path)),
+                 "write runtime failure CLI source");
+    REQUIRE_TRUE(run_capture_combined("./build/calynda", argv, output, sizeof(output), &exit_code),
+                 "run calynda with runtime failure program");
+    ASSERT_TRUE(exit_code == CALYNDA_RT_EXIT_RUNTIME_ERROR,
+                "runtime failure propagates as a normal runtime error exit code");
+    ASSERT_CONTAINS("calynda bounds-check: out-of-bounds access",
+                    output,
+                    "runtime failure is reported to the CLI user");
     unlink(source_path);
 }

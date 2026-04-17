@@ -58,6 +58,9 @@ class SemanticAnalyzer {
             case 'NamedType': return { kind: 'named', name: ann.name, genericArgs: ann.genericArgs.map(a => this.typeFromAnnotation(a)) };
         }
     }
+    isRecursiveTopLevelLambdaBinding(decl) {
+        return decl.typeAnnotation !== 'var' && decl.value.kind === 'LambdaExpression';
+    }
     analyzeTopLevelDecl(decl) {
         if (decl.kind === 'StartDecl') {
             this.pushScope();
@@ -75,8 +78,15 @@ class SemanticAnalyzer {
         }
         else if (decl.kind === 'BindingDecl') {
             const type = this.typeFromAnnotation(decl.typeAnnotation);
+            const isRecursiveLambdaBinding = this.isRecursiveTopLevelLambdaBinding(decl);
+            if (isRecursiveLambdaBinding) {
+                this.defineSymbol(decl.name, type, decl);
+                this.globalSymbols.set(decl.name, type);
+            }
             this.analyzeExpression(decl.value);
-            this.defineSymbol(decl.name, type, decl);
+            if (!isRecursiveLambdaBinding) {
+                this.defineSymbol(decl.name, type, decl);
+            }
             this.globalSymbols.set(decl.name, type);
         }
         else if (decl.kind === 'TypeAliasDecl') {

@@ -139,6 +139,9 @@ void test_type_checker_allows_spawn_atomic_capture(void);
 void test_type_checker_allows_spawn_thread_local_capture(void);
 void test_type_checker_accepts_array_car_cdr_builtins(void);
 void test_type_checker_rejects_car_on_non_array(void);
+void test_type_checker_accepts_recursive_top_level_lambda_binding(void);
+void test_type_checker_accepts_recursive_top_level_manual_lambda_binding(void);
+void test_type_checker_rejects_recursive_non_lambda_top_level_binding(void);
 
 
 int main(void) {
@@ -216,6 +219,9 @@ int main(void) {
     RUN_TEST(test_type_checker_allows_spawn_thread_local_capture);
     RUN_TEST(test_type_checker_accepts_array_car_cdr_builtins);
     RUN_TEST(test_type_checker_rejects_car_on_non_array);
+    RUN_TEST(test_type_checker_accepts_recursive_top_level_lambda_binding);
+    RUN_TEST(test_type_checker_accepts_recursive_top_level_manual_lambda_binding);
+    RUN_TEST(test_type_checker_rejects_recursive_non_lambda_top_level_binding);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

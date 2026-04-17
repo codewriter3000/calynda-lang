@@ -2,6 +2,7 @@
 #define CALYNDA_TOKENIZER_H
 
 #include <stddef.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define TOKENIZER_MAX_TEMPLATE_DEPTH 32
@@ -175,6 +176,11 @@ typedef struct {
     int         column;
 } Token;
 
+typedef struct {
+    Token token;
+    char  message[256];
+} TokenizerError;
+
 /* ------------------------------------------------------------------ */
 /*  Tokenizer state                                                   */
 /* ------------------------------------------------------------------ */
@@ -187,6 +193,8 @@ typedef struct {
     int         template_depth;   /* nesting depth of template literals */
     int         interpolation_brace_depth[TOKENIZER_MAX_TEMPLATE_DEPTH];
     int         asm_body_pending;  /* true after TOK_ASM; next '{' triggers raw scan */
+    TokenizerError error;
+    bool           has_error;
 } Tokenizer;
 
 /* ------------------------------------------------------------------ */
@@ -195,6 +203,10 @@ typedef struct {
 
 void  tokenizer_init(Tokenizer *t, const char *source);
 Token tokenizer_next(Tokenizer *t);
+const TokenizerError *tokenizer_get_error(const Tokenizer *t);
+bool tokenizer_format_error(const TokenizerError *error,
+                            char *buffer,
+                            size_t buffer_size);
 
 /* Returns a human-readable name for a token type. */
 const char *token_type_name(TokenType type);

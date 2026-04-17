@@ -4,6 +4,7 @@
 #include "runtime.h"
 
 #include <inttypes.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +17,19 @@ bool rt_reserve_items(void **items, size_t *capacity, size_t needed, size_t item
 bool rt_register_object_pointer(void *pointer);
 bool rt_register_static_object_pointer(void *pointer);
 void rt_cleanup_registered_objects(void);
+typedef struct RtFailureContext {
+    jmp_buf jump;
+    int exit_code;
+    struct RtFailureContext *previous;
+} RtFailureContext;
+void rt_failure_context_push(RtFailureContext *context);
+void rt_failure_context_pop(RtFailureContext *context);
+void rt_record_process_failure(int exit_code);
+int rt_process_failure_code(void);
+void rt_reset_process_failure(void);
+_Noreturn void rt_fatal_now(int exit_code);
+_Noreturn void rt_fatalf(int exit_code, const char *format, ...)
+    __attribute__((format(printf, 2, 3)));
 CalyndaRtWord rt_make_object_word(void *pointer);
 CalyndaRtString *rt_new_string_object(const char *bytes, size_t length);
 CalyndaRtArray *rt_new_array_object(size_t element_count, const CalyndaRtWord *elements);

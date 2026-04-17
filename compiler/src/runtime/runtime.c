@@ -1,5 +1,7 @@
 #include "runtime_internal.h"
 
+#include <stdarg.h>
+
 typedef struct {
     void *pointer;
     bool  owned;
@@ -11,6 +13,8 @@ typedef struct {
     size_t              capacity;
 } RuntimeObjectRegistry;
 static RuntimeObjectRegistry OBJECT_REGISTRY;
+static _Thread_local RtFailureContext *ACTIVE_FAILURE_CONTEXT = NULL;
+static atomic_int PROCESS_FAILURE_CODE = 0;
 CalyndaRtExternCallable STDOUT_PRINT_CALLABLE = {
     { CALYNDA_RT_OBJECT_MAGIC, CALYNDA_RT_OBJECT_EXTERN_CALLABLE },
     CALYNDA_RT_EXTERN_CALL_STDOUT_PRINT,
@@ -137,6 +141,61 @@ void rt_cleanup_registered_objects(void) {
     memset(&OBJECT_REGISTRY, 0, sizeof(OBJECT_REGISTRY));
 }
 CalyndaRtWord rt_make_object_word(void *pointer) { return (CalyndaRtWord)(uintptr_t)pointer; }
+
+void rt_failure_context_push(RtFailureContext *context) {
+    if (!context) {
+        return;
+    }
+
+    context->exit_code = 0;
+    context->previous = ACTIVE_FAILURE_CONTEXT;
+    ACTIVE_FAILURE_CONTEXT = context;
+}
+
+void rt_failure_context_pop(RtFailureContext *context) {
+    if (!context) {
+        return;
+    }
+
+    ACTIVE_FAILURE_CONTEXT = context->previous;
+}
+
+void rt_record_process_failure(int exit_code) {
+    int expected = 0;
+    int code = exit_code != 0 ? exit_code : CALYNDA_RT_EXIT_RUNTIME_ERROR;
+
+    (void)atomic_compare_exchange_strong(&PROCESS_FAILURE_CODE, &expected, code);
+}
+
+int rt_process_failure_code(void) {
+    return atomic_load(&PROCESS_FAILURE_CODE);
+}
+
+void rt_reset_process_failure(void) {
+    atomic_store(&PROCESS_FAILURE_CODE, 0);
+}
+
+_Noreturn void rt_fatal_now(int exit_code) {
+    int code = exit_code != 0 ? exit_code : CALYNDA_RT_EXIT_RUNTIME_ERROR;
+
+    rt_record_process_failure(code);
+    if (ACTIVE_FAILURE_CONTEXT) {
+        ACTIVE_FAILURE_CONTEXT->exit_code = code;
+        longjmp(ACTIVE_FAILURE_CONTEXT->jump, 1);
+    }
+
+    fprintf(stderr, "runtime: fatal error escaped runtime entrypoint\n");
+    pthread_exit(NULL);
+}
+
+_Noreturn void rt_fatalf(int exit_code, const char *format, ...) {
+    va_list args;
+
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    rt_fatal_now(exit_code);
+}
 
 static char *copy_text_n(const char *text, size_t length) {
     char *copy = malloc(length + 1);
@@ -318,8 +377,8 @@ CalyndaRtWord calynda_rt_make_string_copy(const char *bytes) {
     }
     string_object = rt_new_string_object(bytes, strlen(bytes));
     if (!string_object) {
-        fprintf(stderr, "runtime: out of memory while creating string\n");
-        abort();
+        rt_fatalf(CALYNDA_RT_EXIT_RUNTIME_OOM,
+                  "runtime: out of memory while creating string\n");
     }
     return rt_make_object_word(string_object);
 }

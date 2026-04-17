@@ -1,5 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include "runtime.h"
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,6 +64,60 @@ extern bool run_process_capture_stdout(const char *path,
                                        char *buffer,
                                        size_t buffer_size,
                                        int *exit_code);
+
+static bool run_capture_combined(const char *path,
+                                 char *const argv[],
+                                 char *buffer,
+                                 size_t buffer_size,
+                                 int *exit_code) {
+    int pipe_fds[2];
+    pid_t child;
+    int status;
+    size_t length = 0;
+
+    if (!path || !argv || !buffer || buffer_size == 0 || !exit_code) {
+        return false;
+    }
+
+    buffer[0] = '\0';
+    if (pipe(pipe_fds) != 0) {
+        return false;
+    }
+
+    child = fork();
+    if (child < 0) {
+        close(pipe_fds[0]);
+        close(pipe_fds[1]);
+        return false;
+    }
+
+    if (child == 0) {
+        close(pipe_fds[0]);
+        dup2(pipe_fds[1], STDOUT_FILENO);
+        dup2(pipe_fds[1], STDERR_FILENO);
+        close(pipe_fds[1]);
+        execv(path, argv);
+        _exit(127);
+    }
+
+    close(pipe_fds[1]);
+    while (length + 1 < buffer_size) {
+        ssize_t read_size = read(pipe_fds[0], buffer + length, buffer_size - length - 1);
+
+        if (read_size <= 0) {
+            break;
+        }
+        length += (size_t)read_size;
+    }
+    buffer[length] = '\0';
+    close(pipe_fds[0]);
+
+    if (waitpid(child, &status, 0) < 0 || !WIFEXITED(status)) {
+        return false;
+    }
+    *exit_code = WEXITSTATUS(status);
+    return true;
+}
 
 
 /* ------------------------------------------------------------------ */
@@ -164,7 +220,7 @@ void test_build_native_template_literal(void) {
 
 
 /* ------------------------------------------------------------------ */
-/*  B5: manual checked out-of-bounds triggers abort (non-zero exit)   */
+/*  B5: manual checked out-of-bounds reports a runtime error exit      */
 /* ------------------------------------------------------------------ */
 
 void test_build_native_manual_checked_abort(void) {
@@ -180,13 +236,20 @@ void test_build_native_manual_checked_abort(void) {
         "    return 0;\n"
         "};\n";
     char output_path[64];
-    int exit_code;
+    char output[1024];
+    int exit_code = 0;
 
     REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
-                 "build manual checked abort program");
+                 "build manual checked runtime failure program");
     char *argv[] = { output_path, NULL };
-    exit_code = run_process(output_path, argv);
-    ASSERT_TRUE(exit_code != 0, "manual checked out-of-bounds triggers non-zero exit");
+    REQUIRE_TRUE(run_capture_combined(output_path, argv, output, sizeof(output), &exit_code),
+                 "run manual checked runtime failure program");
+    ASSERT_EQ_INT(CALYNDA_RT_EXIT_RUNTIME_ERROR,
+                  exit_code,
+                  "manual checked out-of-bounds returns a normal runtime error exit code");
+    ASSERT_CONTAINS("calynda bounds-check: out-of-bounds access",
+                    output,
+                    "manual checked runtime failure reports the bounds-check diagnostic");
     unlink(output_path);
 }
 

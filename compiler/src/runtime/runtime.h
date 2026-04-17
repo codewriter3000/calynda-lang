@@ -10,6 +10,9 @@
 
 typedef uint64_t CalyndaRtWord;
 
+#define CALYNDA_RT_EXIT_RUNTIME_ERROR 70
+#define CALYNDA_RT_EXIT_RUNTIME_OOM   71
+
 typedef CalyndaRtWord (*CalyndaRtProgramStartEntry)(CalyndaRtWord arguments);
 
 #define CALYNDA_RT_OBJECT_MAGIC 0x434C5944u

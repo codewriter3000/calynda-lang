@@ -65,7 +65,7 @@ CalyndaRtWord __calynda_rt_union_new(const CalyndaRtTypeDescriptor *type_desc,
     union_object = calloc(1, sizeof(*union_object));
     if (!union_object) {
         fprintf(stderr, "runtime: out of memory while creating union value\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
 
     union_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
@@ -76,7 +76,7 @@ CalyndaRtWord __calynda_rt_union_new(const CalyndaRtTypeDescriptor *type_desc,
     if (!rt_register_object_pointer(union_object)) {
         free(union_object);
         fprintf(stderr, "runtime: out of memory while registering union object\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
 
     return rt_make_object_word(union_object);
@@ -87,7 +87,7 @@ uint32_t __calynda_rt_union_get_tag(CalyndaRtWord value) {
 
     if (!header || header->kind != CALYNDA_RT_OBJECT_UNION) {
         fprintf(stderr, "runtime: attempted tag access on non-union value\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     return ((const CalyndaRtUnion *)(const void *)header)->tag;
@@ -98,7 +98,7 @@ CalyndaRtWord __calynda_rt_union_get_payload(CalyndaRtWord value) {
 
     if (!header || header->kind != CALYNDA_RT_OBJECT_UNION) {
         fprintf(stderr, "runtime: attempted payload access on non-union value\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     return ((const CalyndaRtUnion *)(const void *)header)->payload;
@@ -122,7 +122,7 @@ CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_
     array_object = calloc(1, sizeof(*array_object));
     if (!array_object) {
         fprintf(stderr, "runtime: out of memory while creating hetero array\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
 
     array_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
@@ -131,7 +131,7 @@ CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_
     if (!array_object->type_desc) {
         free(array_object);
         fprintf(stderr, "runtime: out of memory while creating hetero array metadata\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
     array_object->count = element_count;
     if (element_count > 0) {
@@ -141,7 +141,7 @@ CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_
             rt_free_hetero_array_descriptor(array_object->type_desc);
             free(array_object);
             fprintf(stderr, "runtime: out of memory while creating hetero array elements\n");
-            abort();
+            rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
         }
         if (elements) {
             memcpy(array_object->elements, elements, element_count * sizeof(*elements));
@@ -152,7 +152,7 @@ CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_
         rt_free_hetero_array_descriptor(array_object->type_desc);
         free(array_object);
         fprintf(stderr, "runtime: out of memory while registering hetero array\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
 
     return rt_make_object_word(array_object);
@@ -165,20 +165,20 @@ CalyndaRtTypeTag __calynda_rt_hetero_array_get_tag(CalyndaRtWord target, Calynda
 
     if (!header || header->kind != CALYNDA_RT_OBJECT_HETERO_ARRAY) {
         fprintf(stderr, "runtime: attempted hetero-array tag access on non-hetero-array value\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     arr = (const CalyndaRtHeteroArray *)(const void *)header;
     offset = (size_t)(int64_t)index;
     if (offset >= arr->count) {
         fprintf(stderr, "runtime: hetero-array tag index out of bounds (%zu)\n", offset);
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     if (!arr->type_desc || !arr->type_desc->variant_payload_tags ||
         offset >= arr->type_desc->variant_count) {
         fprintf(stderr, "runtime: hetero-array metadata was missing for tag lookup\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     return arr->type_desc->variant_payload_tags[offset];

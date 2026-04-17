@@ -45,6 +45,10 @@ extern const char *test_binary_path;
     }                                                                       \
 } while (0)
 
+extern bool build_native_executable(const char *source, char *output_path,
+                                    size_t output_path_size);
+extern int run_process(const char *path, char *const argv[]);
+
 static bool run_capture_combined(const char *path, char *const argv[],
                                  char *buffer, size_t buffer_size,
                                  int *exit_code) {
@@ -96,6 +100,7 @@ void test_build_native_malformed_source_reports_span(void) {
     char source_path[128];
     char output_path[128];
     char output[4096];
+    const char *captured_output = NULL;
     FILE *file;
     int exit_code = 0;
     char *argv[] = { build_native_path, source_path, output_path, NULL };
@@ -110,9 +115,28 @@ void test_build_native_malformed_source_reports_span(void) {
     REQUIRE_TRUE(run_capture_combined(build_native_path, argv, output, sizeof(output), &exit_code),
                  "run build_native with malformed source span capture");
     ASSERT_TRUE(exit_code != 0, "malformed native-build source exits non-zero");
-    ASSERT_CONTAINS(source_path, output, "native-build diagnostic includes source path");
-    ASSERT_CONTAINS(":2:5: parse error:", output, "native-build diagnostic includes line and column");
-    ASSERT_CONTAINS("Unexpected character", output, "native-build diagnostic includes parse message");
+    captured_output = output;
+    ASSERT_CONTAINS(source_path, captured_output, "native-build diagnostic includes source path");
+    ASSERT_CONTAINS(":2:5: parse error:", captured_output, "native-build diagnostic includes line and column");
+    ASSERT_CONTAINS("Unexpected character", captured_output, "native-build diagnostic includes parse message");
     unlink(source_path);
+    unlink(output_path);
+}
+
+void test_build_native_runs_recursive_top_level_lambda_program(void) {
+    static const char source[] =
+        "int32 sum_down = (int32 value) -> value <= 0 ? 0 : value + sum_down(value - 1);\n"
+        "start(string[] args) -> {\n"
+        "    return sum_down(4);\n"
+        "};\n";
+    char output_path[64];
+    char *argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build recursive top-level lambda executable");
+    exit_code = run_process(output_path, argv);
+    ASSERT_TRUE(exit_code == 10,
+                "recursive top-level lambda program builds and returns the recursive result");
     unlink(output_path);
 }

@@ -149,7 +149,7 @@ CalyndaRtWord rt_dispatch_extern_callable(const CalyndaRtExternCallable *callabl
 
     if (!callable) {
         fprintf(stderr, "runtime: missing extern callable dispatch target\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     switch (callable->kind) {
@@ -168,7 +168,7 @@ CalyndaRtWord rt_dispatch_extern_callable(const CalyndaRtExternCallable *callabl
     fprintf(stderr,
             "runtime: unsupported extern callable %s\n",
             extern_callable_name(callable->kind));
-    abort();
+    rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
 }
 
 CalyndaRtWord __calynda_rt_template_build(size_t part_count,
@@ -180,7 +180,7 @@ CalyndaRtWord __calynda_rt_template_build(size_t part_count,
 
     if (part_count > 0 && !parts) {
         fprintf(stderr, "runtime: template parts were missing\n");
-        abort();
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
 
     for (i = 0; i < part_count; i++) {
@@ -188,18 +188,18 @@ CalyndaRtWord __calynda_rt_template_build(size_t part_count,
             if (!append_text(&buffer, &length, &capacity, (const char *)(uintptr_t)parts[i].payload)) {
                 fprintf(stderr, "runtime: out of memory while building template text\n");
                 free(buffer);
-                abort();
+                rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
             }
         } else if (parts[i].tag == CALYNDA_RT_TEMPLATE_TAG_VALUE) {
             if (!append_word_text(&buffer, &length, &capacity, parts[i].payload)) {
                 fprintf(stderr, "runtime: out of memory while formatting template value\n");
                 free(buffer);
-                abort();
+                rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
             }
         } else {
             fprintf(stderr, "runtime: unknown template tag (%" PRIu64 ")\n", parts[i].tag);
             free(buffer);
-            abort();
+            rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
         }
     }
 
@@ -213,7 +213,7 @@ CalyndaRtWord __calynda_rt_template_build(size_t part_count,
         free(buffer);
         if (!string_object) {
             fprintf(stderr, "runtime: out of memory while boxing template result\n");
-            abort();
+            rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
         }
         return rt_make_object_word(string_object);
     }

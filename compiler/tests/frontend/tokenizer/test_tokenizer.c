@@ -55,6 +55,7 @@ void test_realistic_snippet(void);
 void test_errors(void);
 void test_asm_tokens(void);
 void test_unterminated_string_error(void);
+void test_structured_tokenizer_error(void);
 void test_tilde_operators(void);
 void test_increment_decrement_tokens(void);
 void test_compound_assignment_tokens(void);
@@ -86,6 +87,7 @@ int main(void) {
     RUN_TEST(test_errors);
     RUN_TEST(test_asm_tokens);
     RUN_TEST(test_unterminated_string_error);
+    RUN_TEST(test_structured_tokenizer_error);
     RUN_TEST(test_tilde_operators);
     RUN_TEST(test_increment_decrement_tokens);
     RUN_TEST(test_compound_assignment_tokens);

@@ -81,13 +81,14 @@ start(string[] args) -> 0;`,
     },
     {
         name: 'manual-lambda-shorthand',
-        description: 'Whole-function manual shorthand for a block-bodied lambda',
-        tags: ['manual', 'lambda', 'alpha-3', 'syntax'],
-        code: `start(string[] args) -> {
-    int32 adjust = manual(int32 value) -> {
-        return value + 1;
-    };
-    return adjust(41);
+        description: 'Recursive explicitly typed top-level manual lambda binding',
+        tags: ['manual', 'lambda', 'alpha-3', 'alpha-4', 'syntax', 'recursion', 'recursive', 'top-level-binding'],
+        code: `int32 factorial = manual(int32 value) -> {
+    return value <= 1 ? 1 : value * factorial(value - 1);
+};
+
+start(string[] args) -> {
+    return factorial(5);
 };`,
     },
     {

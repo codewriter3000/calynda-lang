@@ -42,6 +42,7 @@ const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Strict race-checker flag spelling: --strict-race-check
 - All functions are lambdas: (type param) -> expr or (type param) -> { ... }
 - Block-bodied lambdas also support whole-function manual shorthand: manual(type param) -> { ... }
+- Explicitly typed top-level lambda bindings are recursive within their own body; this also applies to whole-function manual shorthand, but not to inferred, local, or non-lambda bindings
 - Entry point: start(string[] args) -> { ... }; returns int32 (exit code)
 - Bare-metal entry point: boot() -> expr; bypasses runtime, emits freestanding _start, and cannot coexist with start
 - Inline assembly: int32 name = asm(int32 a) -> { ... }; passed through to assembler unchanged

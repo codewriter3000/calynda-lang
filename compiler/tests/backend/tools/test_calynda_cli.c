@@ -174,6 +174,7 @@ void test_calynda_cli_missing_source_file(void);
 void test_calynda_cli_malformed_source(void);
 void test_calynda_cli_unknown_option_reports_usage(void);
 void test_calynda_cli_malformed_source_reports_span(void);
+void test_calynda_cli_run_propagates_runtime_error_exit(void);
 
 
 int main(void) {
@@ -186,6 +187,7 @@ int main(void) {
     RUN_TEST(test_calynda_cli_malformed_source);
     RUN_TEST(test_calynda_cli_unknown_option_reports_usage);
     RUN_TEST(test_calynda_cli_malformed_source_reports_span);
+    RUN_TEST(test_calynda_cli_run_propagates_runtime_error_exit);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

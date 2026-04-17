@@ -65,14 +65,65 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
         break;
 
     case SYMBOL_KIND_TOP_LEVEL_BINDING:
+        {
+            const AstBindingDecl *binding_decl =
+                (const AstBindingDecl *)symbol->declaration;
+            bool seeded_provisional_callable = false;
+
+            if (!binding_decl->is_inferred_type &&
+                binding_decl->initializer &&
+                binding_decl->initializer->kind == AST_EXPR_LAMBDA) {
+                CheckedType provisional_return_type = tc_checked_type_from_ast_type(
+                    checker, &binding_decl->declared_type);
+
+                if (checker->has_error) {
+                    entry->is_resolving = false;
+                    return NULL;
+                }
+
+                entry->info = tc_type_check_info_make_callable(
+                    provisional_return_type,
+                    &binding_decl->initializer->as.lambda.parameters);
+                {
+                    CheckedType generic_arg_type;
+
+                    if (tc_type_check_info_first_generic_arg(checker,
+                                                             NULL,
+                                                             &binding_decl->declared_type,
+                                                             &generic_arg_type)) {
+                        tc_type_check_info_set_first_generic_arg(&entry->info,
+                                                                 generic_arg_type);
+                    }
+                    if (checker->has_error) {
+                        entry->info = tc_type_check_info_make(tc_checked_type_invalid());
+                        entry->is_resolving = false;
+                        return NULL;
+                    }
+                }
+
+                /*
+                 * Allow recursive references from within the lambda body to observe
+                 * the callable signature while the initializer is still being
+                 * checked. Non-lambda initializers still take the normal circular
+                 * definition path.
+                 */
+                entry->is_resolved = true;
+                seeded_provisional_callable = true;
+            }
+
         if (!tc_resolve_binding_symbol(checker,
                                        symbol,
-                                       &((const AstBindingDecl *)symbol->declaration)->declared_type,
-                                       ((const AstBindingDecl *)symbol->declaration)->is_inferred_type,
-                                       ((const AstBindingDecl *)symbol->declaration)->initializer,
+                                       &binding_decl->declared_type,
+                                       binding_decl->is_inferred_type,
+                                       binding_decl->initializer,
                                        &resolved_info)) {
+            if (seeded_provisional_callable) {
+                entry->info = tc_type_check_info_make(tc_checked_type_invalid());
+                entry->is_resolved = false;
+            }
             entry->is_resolving = false;
             return NULL;
+        }
         }
         break;
 

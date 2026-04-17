@@ -1,5 +1,7 @@
 #include "tokenizer_internal.h"
 
+#include <stdio.h>
+
 /* ------------------------------------------------------------------ */
 /*  Skip whitespace and comments                                      */
 /* ------------------------------------------------------------------ */
@@ -126,13 +128,47 @@ Token tokenizer_next(Tokenizer *t) {
 /* ------------------------------------------------------------------ */
 
 void tokenizer_init(Tokenizer *t, const char *source) {
-    t->source         = source;
-    t->current        = source;
+    const char *safe_source;
+
+    if (!t) {
+        return;
+    }
+
+    safe_source = source ? source : "";
+    memset(t, 0, sizeof(*t));
+    t->source         = safe_source;
+    t->current        = safe_source;
     t->line           = 1;
     t->column         = 1;
-    t->template_depth = 0;
-    t->asm_body_pending = 0;
-    memset(t->interpolation_brace_depth, 0,
-           sizeof(t->interpolation_brace_depth));
 }
 
+const TokenizerError *tokenizer_get_error(const Tokenizer *t) {
+    if (!t || !t->has_error) {
+        return NULL;
+    }
+
+    return &t->error;
+}
+
+bool tokenizer_format_error(const TokenizerError *error,
+                            char *buffer,
+                            size_t buffer_size) {
+    int written;
+
+    if (!error || !buffer || buffer_size == 0) {
+        return false;
+    }
+
+    if (error->token.line > 0 && error->token.column > 0) {
+        written = snprintf(buffer,
+                           buffer_size,
+                           "%d:%d: %s",
+                           error->token.line,
+                           error->token.column,
+                           error->message);
+    } else {
+        written = snprintf(buffer, buffer_size, "%s", error->message);
+    }
+
+    return written >= 0 && (size_t)written < buffer_size;
+}

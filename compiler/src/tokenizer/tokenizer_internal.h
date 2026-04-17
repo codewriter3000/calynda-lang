@@ -50,15 +50,36 @@ static inline Token make_token(const Tokenizer *t, TokenType type,
     return tok;
 }
 
-static inline Token error_token(const Tokenizer *t, const char *msg,
-                                int line, int col) {
+static inline void tokenizer_set_error(Tokenizer *t,
+                                       const Token *token,
+                                       const char *msg) {
+    size_t length;
+
+    if (!t || !token || !msg) {
+        return;
+    }
+
+    length = strlen(msg);
+    if (length >= sizeof(t->error.message)) {
+        length = sizeof(t->error.message) - 1;
+    }
+
+    t->has_error = true;
+    t->error.token = *token;
+    memcpy(t->error.message, msg, length);
+    t->error.message[length] = '\0';
+}
+
+static inline Token error_token(Tokenizer *t, const char *msg,
+                                 int line, int col) {
     Token tok;
-    (void)t;
+
     tok.type   = TOK_ERROR;
     tok.start  = msg;
     tok.length = strlen(msg);
     tok.line   = line;
     tok.column = col;
+    tokenizer_set_error(t, &tok, msg);
     return tok;
 }
 
