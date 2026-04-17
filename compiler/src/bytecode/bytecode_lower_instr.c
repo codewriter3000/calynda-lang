@@ -4,6 +4,94 @@
 #include <stdlib.h>
 #include <string.h>
 
+static BytecodeInstructionKind bc_builtin_type_query_kind_for_helper(const char *name) {
+    if (!name) {
+        return BYTECODE_INSTR_CALL;
+    }
+    if (strcmp(name, CALYNDA_TYPEOF) == 0) {
+        return BYTECODE_INSTR_TYPEOF;
+    }
+    if (strcmp(name, CALYNDA_ISINT) == 0) {
+        return BYTECODE_INSTR_ISINT;
+    }
+    if (strcmp(name, CALYNDA_ISFLOAT) == 0) {
+        return BYTECODE_INSTR_ISFLOAT;
+    }
+    if (strcmp(name, CALYNDA_ISBOOL) == 0) {
+        return BYTECODE_INSTR_ISBOOL;
+    }
+    if (strcmp(name, CALYNDA_ISSTRING) == 0) {
+        return BYTECODE_INSTR_ISSTRING;
+    }
+    if (strcmp(name, CALYNDA_ISARRAY) == 0) {
+        return BYTECODE_INSTR_ISARRAY;
+    }
+    if (strcmp(name, CALYNDA_ISSAMETYPE) == 0) {
+        return BYTECODE_INSTR_ISSAMETYPE;
+    }
+    return BYTECODE_INSTR_CALL;
+}
+
+static bool bc_try_lower_builtin_type_query(BytecodeBuildContext *context,
+                                            const MirInstruction *instruction,
+                                            BytecodeInstruction *lowered) {
+    BytecodeInstructionKind builtin_kind;
+
+    if (!context || !instruction || !lowered ||
+        instruction->kind != MIR_INSTR_CALL ||
+        instruction->as.call.callee.kind != MIR_VALUE_GLOBAL ||
+        !instruction->as.call.has_result) {
+        return false;
+    }
+
+    builtin_kind = bc_builtin_type_query_kind_for_helper(
+        instruction->as.call.callee.as.global_name);
+    if (builtin_kind == BYTECODE_INSTR_CALL) {
+        return false;
+    }
+
+    lowered->kind = builtin_kind;
+    if (builtin_kind == BYTECODE_INSTR_ISSAMETYPE) {
+        if (instruction->as.call.argument_count != 4) {
+            bc_set_error(context,
+                         (AstSourceSpan){0},
+                         NULL,
+                         "Bytecode lowering expected issametype helper to have 4 arguments.");
+            return true;
+        }
+
+        lowered->as.same_type_query.dest_temp = instruction->as.call.dest_temp;
+        return bc_value_from_mir_value(context,
+                                       instruction->as.call.arguments[0],
+                                       &lowered->as.same_type_query.left) &&
+               bc_value_from_mir_value(context,
+                                       instruction->as.call.arguments[1],
+                                       &lowered->as.same_type_query.left_type_text) &&
+               bc_value_from_mir_value(context,
+                                       instruction->as.call.arguments[2],
+                                       &lowered->as.same_type_query.right) &&
+               bc_value_from_mir_value(context,
+                                       instruction->as.call.arguments[3],
+                                       &lowered->as.same_type_query.right_type_text);
+    }
+
+    if (instruction->as.call.argument_count != 2) {
+        bc_set_error(context,
+                     (AstSourceSpan){0},
+                     NULL,
+                     "Bytecode lowering expected builtin type helper to have 2 arguments.");
+        return true;
+    }
+
+    lowered->as.builtin_type_query.dest_temp = instruction->as.call.dest_temp;
+    return bc_value_from_mir_value(context,
+                                   instruction->as.call.arguments[0],
+                                   &lowered->as.builtin_type_query.operand) &&
+           bc_value_from_mir_value(context,
+                                   instruction->as.call.arguments[1],
+                                   &lowered->as.builtin_type_query.type_text);
+}
+
 bool bc_lower_instruction(BytecodeBuildContext *context,
                           const MirInstruction *instruction,
                           BytecodeInstruction *lowered) {
@@ -64,6 +152,10 @@ bool bc_lower_instruction(BytecodeBuildContext *context,
         return true;
 
     case MIR_INSTR_CALL:
+        if (bc_try_lower_builtin_type_query(context, instruction, lowered)) {
+            return !context->program->has_error;
+        }
+
         lowered->as.call.has_result = instruction->as.call.has_result;
         lowered->as.call.dest_temp = instruction->as.call.dest_temp;
         lowered->as.call.argument_count = instruction->as.call.argument_count;

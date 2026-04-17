@@ -175,6 +175,8 @@ void test_calynda_cli_malformed_source(void);
 void test_calynda_cli_unknown_option_reports_usage(void);
 void test_calynda_cli_malformed_source_reports_span(void);
 void test_calynda_cli_run_propagates_runtime_error_exit(void);
+void test_calynda_cli_run_resolves_dep_archive_import(void);
+void test_calynda_cli_run_resolves_dep_archive_wildcard_import(void);
 
 
 int main(void) {
@@ -188,6 +190,8 @@ int main(void) {
     RUN_TEST(test_calynda_cli_unknown_option_reports_usage);
     RUN_TEST(test_calynda_cli_malformed_source_reports_span);
     RUN_TEST(test_calynda_cli_run_propagates_runtime_error_exit);
+    RUN_TEST(test_calynda_cli_run_resolves_dep_archive_import);
+    RUN_TEST(test_calynda_cli_run_resolves_dep_archive_wildcard_import);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

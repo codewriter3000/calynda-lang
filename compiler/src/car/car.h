@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "ast.h"
+
 /*
  * CAR (Calynda ARchive) source archive format.
  *
@@ -38,6 +40,23 @@ typedef struct {
     bool     has_error;
 } CarArchive;
 
+typedef enum {
+    CAR_EXPORTED_SYMBOL_VALUE = 0,
+    CAR_EXPORTED_SYMBOL_CALLABLE,
+    CAR_EXPORTED_SYMBOL_UNION,
+    CAR_EXPORTED_SYMBOL_TYPE_ALIAS
+} CarExportedSymbolKind;
+
+typedef struct {
+    char                  *package_name;
+    char                  *name;
+    CarExportedSymbolKind  kind;
+    AstType                declared_type;
+    AstType                return_type;
+    AstParameterList       parameters;
+    size_t                 generic_param_count;
+} CarExportedSymbol;
+
 /* Lifecycle */
 void car_archive_init(CarArchive *archive);
 void car_archive_free(CarArchive *archive);
@@ -65,5 +84,12 @@ bool car_archive_add_directory(CarArchive *archive, const char *dir_path);
 const CarFile *car_archive_find_file(const CarArchive *archive,
                                      const char *path);
 const char *car_archive_get_error(const CarArchive *archive);
+bool car_archive_collect_exported_symbols(const CarArchive *archive,
+                                          const char *package_name,
+                                          CarExportedSymbol **symbols_out,
+                                          size_t *symbol_count_out);
+void car_exported_symbol_free(CarExportedSymbol *symbol);
+void car_exported_symbol_list_free(CarExportedSymbol *symbols,
+                                   size_t symbol_count);
 
 #endif /* CALYNDA_CAR_H */

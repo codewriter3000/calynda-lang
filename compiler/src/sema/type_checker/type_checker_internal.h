@@ -128,6 +128,8 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
 bool tc_resolve_parameters_in_scope(TypeChecker *checker,
                                     const AstParameterList *parameters,
                                     const Scope *scope);
+bool tc_check_parameter_defaults(TypeChecker *checker,
+                                 const AstParameterList *parameters);
 const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
                                                 const AstExpression *expression,
                                                 const CheckedType *expected_return_type,

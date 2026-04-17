@@ -181,20 +181,46 @@ AstStatement *parse_statement(Parser *parser) {
     }
 
     {
-        AstStatement *statement = ast_statement_new(AST_STMT_EXPRESSION);
+        AstExpression *left = parse_expression_node(parser);
+        AstStatement *statement;
 
+        if (!left) {
+            return NULL;
+        }
+
+        if (parser_match(parser, TOK_SWAP)) {
+            statement = ast_statement_new(AST_STMT_SWAP);
+            if (!statement) {
+                parser_set_oom_error(parser);
+                ast_expression_free(left);
+                return NULL;
+            }
+
+            statement->source_span = left->source_span;
+            statement->as.swap.left = left;
+            statement->as.swap.right = parse_expression_node(parser);
+            if (!statement->as.swap.right) {
+                ast_statement_free(statement);
+                return NULL;
+            }
+
+            if (!parser_consume(parser, TOK_SEMICOLON, "Expected ';' after swap statement.")) {
+                ast_statement_free(statement);
+                return NULL;
+            }
+
+            return statement;
+        }
+
+        statement = ast_statement_new(AST_STMT_EXPRESSION);
         if (!statement) {
             parser_set_oom_error(parser);
+            ast_expression_free(left);
             return NULL;
         }
 
-        statement->as.expression = parse_expression_node(parser);
-        if (!statement->as.expression) {
-            ast_statement_free(statement);
-            return NULL;
-        }
-
-        statement->source_span = statement->as.expression->source_span;
+        statement->as.expression = left;
+        statement->source_span = left->source_span;
 
         if (!parser_consume(parser, TOK_SEMICOLON, "Expected ';' after expression statement.")) {
             ast_statement_free(statement);

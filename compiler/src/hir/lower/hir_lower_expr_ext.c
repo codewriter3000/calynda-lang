@@ -3,6 +3,132 @@
 #include <stdlib.h>
 #include <string.h>
 
+static const AstExpression *hr_strip_grouping_expression(const AstExpression *expression) {
+    while (expression && expression->kind == AST_EXPR_GROUPING) {
+        expression = expression->as.grouping.inner;
+    }
+    return expression;
+}
+
+static const Scope *hr_find_inline_parameter_scope(HirBuildContext *context,
+                                                   const AstExpression *callee) {
+    const AstExpression *stripped = hr_strip_grouping_expression(callee);
+
+    if (!context || !stripped) {
+        return NULL;
+    }
+
+    if (stripped->kind == AST_EXPR_LAMBDA) {
+        return symbol_table_find_scope(context->symbols, stripped, SCOPE_KIND_LAMBDA);
+    }
+
+    if (stripped->kind == AST_EXPR_IDENTIFIER) {
+        const Symbol *symbol = symbol_table_resolve_identifier(context->symbols, stripped);
+
+        if (!symbol || !symbol->declaration) {
+            return NULL;
+        }
+
+        if (symbol->kind == SYMBOL_KIND_TOP_LEVEL_BINDING) {
+            const AstBindingDecl *binding = (const AstBindingDecl *)symbol->declaration;
+
+            if (binding->initializer && binding->initializer->kind == AST_EXPR_LAMBDA) {
+                return symbol_table_find_scope(context->symbols,
+                                               binding->initializer,
+                                               SCOPE_KIND_LAMBDA);
+            }
+        } else if (symbol->kind == SYMBOL_KIND_LOCAL) {
+            const AstLocalBindingStatement *binding =
+                (const AstLocalBindingStatement *)symbol->declaration;
+
+            if (binding->initializer && binding->initializer->kind == AST_EXPR_LAMBDA) {
+                return symbol_table_find_scope(context->symbols,
+                                               binding->initializer,
+                                               SCOPE_KIND_LAMBDA);
+            }
+        }
+    }
+
+    return NULL;
+}
+
+static const Symbol **hr_build_inline_parameter_symbols(HirBuildContext *context,
+                                                        const AstExpression *callee,
+                                                        const AstParameterList *parameters) {
+    const Scope *scope;
+    const Symbol **symbols;
+    size_t i;
+
+    if (!parameters || parameters->count == 0) {
+        return NULL;
+    }
+
+    symbols = calloc(parameters->count, sizeof(*symbols));
+    if (!symbols) {
+        hr_set_error(context,
+                     callee ? callee->source_span : (AstSourceSpan){0},
+                     NULL,
+                     "Out of memory while lowering optional call arguments.");
+        return NULL;
+    }
+
+    scope = hr_find_inline_parameter_scope(context, callee);
+    if (!scope) {
+        return symbols;
+    }
+
+    for (i = 0; i < parameters->count; i++) {
+        symbols[i] = scope_lookup_local(scope, parameters->items[i].name);
+    }
+
+    return symbols;
+}
+
+static bool hr_find_inline_parameter_index(const HirBuildContext *context,
+                                           const Symbol *symbol,
+                                           size_t *out_index) {
+    size_t i;
+
+    if (!context || !symbol || !out_index || !context->inline_parameter_symbols) {
+        return false;
+    }
+
+    for (i = 0; i < context->inline_resolved_count; i++) {
+        if (context->inline_parameter_symbols[i] == symbol &&
+            context->inline_argument_sources &&
+            context->inline_argument_sources[i] != NULL) {
+            *out_index = i;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static HirExpression *hr_lower_optional_argument(HirBuildContext *context,
+                                                 const AstExpression *expression,
+                                                 const AstParameterList *parameters,
+                                                 const Symbol **parameter_symbols,
+                                                 const AstExpression *const *argument_sources,
+                                                 size_t resolved_count) {
+    const AstParameterList *saved_parameters = context->inline_parameters;
+    const Symbol **saved_symbols = context->inline_parameter_symbols;
+    const AstExpression *const *saved_sources = context->inline_argument_sources;
+    size_t saved_count = context->inline_resolved_count;
+    HirExpression *result;
+
+    context->inline_parameters = parameters;
+    context->inline_parameter_symbols = parameter_symbols;
+    context->inline_argument_sources = argument_sources;
+    context->inline_resolved_count = resolved_count;
+    result = hr_lower_expression(context, expression);
+    context->inline_parameters = saved_parameters;
+    context->inline_parameter_symbols = saved_symbols;
+    context->inline_argument_sources = saved_sources;
+    context->inline_resolved_count = saved_count;
+    return result;
+}
+
 HirExpression *hr_lower_expr_complex(HirBuildContext *context,
                                      const AstExpression *expression,
                                      HirExpression *hir_expression,
@@ -76,6 +202,20 @@ HirExpression *hr_lower_expr_complex(HirBuildContext *context,
     case AST_EXPR_IDENTIFIER:
         {
             const Symbol *symbol = symbol_table_resolve_identifier(context->symbols, expression);
+            size_t inline_parameter_index;
+
+            if (symbol &&
+                hr_find_inline_parameter_index(context,
+                                               symbol,
+                                               &inline_parameter_index)) {
+                hir_expression_free(hir_expression);
+                return hr_lower_optional_argument(context,
+                                                  context->inline_argument_sources[inline_parameter_index],
+                                                  context->inline_parameters,
+                                                  context->inline_parameter_symbols,
+                                                  context->inline_argument_sources,
+                                                  inline_parameter_index);
+            }
 
             if (!symbol) {
                 hir_expression_free(hir_expression);
@@ -135,28 +275,93 @@ HirExpression *hr_lower_expr_complex(HirBuildContext *context,
         return hir_expression;
 
     case AST_EXPR_CALL:
-        hir_expression->as.call.callee = hr_lower_expression(context, expression->as.call.callee);
-        if (!hir_expression->as.call.callee) {
-            hir_expression_free(hir_expression);
-            return NULL;
-        }
-        for (i = 0; i < expression->as.call.arguments.count; i++) {
-            HirExpression *argument = hr_lower_expression(context,
-                                                          expression->as.call.arguments.items[i]);
+        {
+            const TypeCheckInfo *callee_info =
+                type_checker_get_expression_info(context->checker, expression->as.call.callee);
+            const AstParameterList *parameters =
+                callee_info ? callee_info->parameters : NULL;
+            const Symbol **parameter_symbols = NULL;
+            const AstExpression **argument_sources = NULL;
+            size_t supplied_count = expression->as.call.arguments.count;
+            size_t fixed_parameter_count = 0;
+            size_t total_argument_count = supplied_count;
 
-            if (!argument) {
+            hir_expression->as.call.callee = hr_lower_expression(context,
+                                                                 expression->as.call.callee);
+            if (!hir_expression->as.call.callee) {
                 hir_expression_free(hir_expression);
                 return NULL;
             }
-            if (!hr_append_argument(&hir_expression->as.call, argument)) {
-                hir_expression_free(argument);
-                hir_expression_free(hir_expression);
-                hr_set_error(context,
-                             expression->source_span,
-                             NULL,
-                             "Out of memory while lowering HIR calls.");
-                return NULL;
+
+            if (parameters) {
+                fixed_parameter_count = parameters->count;
+                if (fixed_parameter_count > 0 &&
+                    parameters->items[fixed_parameter_count - 1].is_varargs) {
+                    fixed_parameter_count--;
+                }
+                if (supplied_count < fixed_parameter_count) {
+                    total_argument_count = fixed_parameter_count;
+                    parameter_symbols = hr_build_inline_parameter_symbols(context,
+                                                                         expression->as.call.callee,
+                                                                         parameters);
+                    if (parameters->count > 0 && !parameter_symbols) {
+                        hir_expression_free(hir_expression);
+                        return NULL;
+                    }
+                    argument_sources = calloc(fixed_parameter_count,
+                                              sizeof(*argument_sources));
+                    if (!argument_sources) {
+                        free((void *)parameter_symbols);
+                        hir_expression_free(hir_expression);
+                        hr_set_error(context,
+                                     expression->source_span,
+                                     NULL,
+                                     "Out of memory while lowering optional call arguments.");
+                        return NULL;
+                    }
+                    for (i = 0; i < supplied_count; i++) {
+                        argument_sources[i] = expression->as.call.arguments.items[i];
+                    }
+                    for (i = supplied_count; i < fixed_parameter_count; i++) {
+                        argument_sources[i] = parameters->items[i].default_expr;
+                    }
+                }
             }
+
+            for (i = 0; i < total_argument_count; i++) {
+                const AstExpression *argument_source =
+                    argument_sources ? argument_sources[i]
+                                     : expression->as.call.arguments.items[i];
+                HirExpression *argument = argument_sources
+                    ? hr_lower_optional_argument(context,
+                                                 argument_source,
+                                                 parameters,
+                                                 parameter_symbols,
+                                                 argument_sources,
+                                                 i)
+                    : hr_lower_expression(context, argument_source);
+
+                if (!argument) {
+                    free((void *)argument_sources);
+                    free((void *)parameter_symbols);
+                    hir_expression_free(hir_expression);
+                    return NULL;
+                }
+                if (!hr_append_argument(&hir_expression->as.call, argument)) {
+                    free((void *)argument_sources);
+                    free((void *)parameter_symbols);
+                    hir_expression_free(argument);
+                    hir_expression_free(hir_expression);
+                    hr_set_error(context,
+                                 expression->source_span,
+                                 NULL,
+                                 "Out of memory while lowering HIR calls.");
+                    return NULL;
+                }
+            }
+
+            free((void *)argument_sources);
+            free((void *)parameter_symbols);
         }
         return hir_expression;
 

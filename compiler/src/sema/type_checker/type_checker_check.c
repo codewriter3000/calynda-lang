@@ -76,7 +76,9 @@ bool type_checker_check_program(TypeChecker *checker,
         const AstTopLevelDecl *decl = program->top_level_decls[i];
 
         if (decl->kind == AST_TOP_LEVEL_BINDING) {
-            const Symbol *symbol = scope_lookup_local(root_scope, decl->as.binding_decl.name);
+            const Symbol *symbol = symbol_table_find_symbol_for_declaration(
+                symbols,
+                &decl->as.binding_decl);
 
             if (!symbol) {
                 tc_set_error_at(checker,
@@ -95,7 +97,9 @@ bool type_checker_check_program(TypeChecker *checker,
                 return false;
             }
         } else if (decl->kind == AST_TOP_LEVEL_TYPE_ALIAS) {
-            const Symbol *symbol = scope_lookup_local(root_scope, decl->as.type_alias_decl.name);
+            const Symbol *symbol = symbol_table_find_symbol_for_declaration(
+                symbols,
+                &decl->as.type_alias_decl);
 
             if (!symbol) {
                 tc_set_error_at(checker,
@@ -110,7 +114,9 @@ bool type_checker_check_program(TypeChecker *checker,
                 return false;
             }
         } else if (decl->kind == AST_TOP_LEVEL_UNION) {
-            const Symbol *symbol = scope_lookup_local(root_scope, decl->as.union_decl.name);
+            const Symbol *symbol = symbol_table_find_symbol_for_declaration(
+                symbols,
+                &decl->as.union_decl);
 
             if (!symbol) {
                 tc_set_error_at(checker,
@@ -125,7 +131,9 @@ bool type_checker_check_program(TypeChecker *checker,
                 return false;
             }
         } else if (decl->kind == AST_TOP_LEVEL_ASM) {
-            const Symbol *symbol = scope_lookup_local(root_scope, decl->as.asm_decl.name);
+            const Symbol *symbol = symbol_table_find_symbol_for_declaration(
+                symbols,
+                &decl->as.asm_decl);
 
             if (!symbol) {
                 tc_set_error_at(checker,
@@ -137,6 +145,9 @@ bool type_checker_check_program(TypeChecker *checker,
             }
 
             if (!tc_resolve_symbol_info(checker, symbol)) {
+                return false;
+            }
+            if (!tc_check_parameter_defaults(checker, &decl->as.asm_decl.parameters)) {
                 return false;
             }
         } else if (decl->kind == AST_TOP_LEVEL_LAYOUT) {

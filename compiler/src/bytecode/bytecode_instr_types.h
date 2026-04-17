@@ -110,7 +110,14 @@ typedef enum {
     BYTECODE_INSTR_UNION_GET_TAG,
     BYTECODE_INSTR_UNION_GET_PAYLOAD,
     BYTECODE_INSTR_HETERO_ARRAY_NEW,
-    BYTECODE_INSTR_HETERO_ARRAY_GET_TAG
+    BYTECODE_INSTR_HETERO_ARRAY_GET_TAG,
+    BYTECODE_INSTR_TYPEOF,
+    BYTECODE_INSTR_ISINT,
+    BYTECODE_INSTR_ISFLOAT,
+    BYTECODE_INSTR_ISBOOL,
+    BYTECODE_INSTR_ISSTRING,
+    BYTECODE_INSTR_ISARRAY,
+    BYTECODE_INSTR_ISSAMETYPE
 } BytecodeInstructionKind;
 
 struct BytecodeInstruction {
@@ -208,6 +215,18 @@ struct BytecodeInstruction {
             BytecodeValue target;
             BytecodeValue index;
         } hetero_array_get_tag;
+        struct {
+            size_t        dest_temp;
+            BytecodeValue operand;
+            BytecodeValue type_text;
+        } builtin_type_query;
+        struct {
+            size_t        dest_temp;
+            BytecodeValue left;
+            BytecodeValue left_type_text;
+            BytecodeValue right;
+            BytecodeValue right_type_text;
+        } same_type_query;
     } as;
 };
 

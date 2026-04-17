@@ -363,3 +363,28 @@ void test_build_native_threading_helpers(void) {
     ASSERT_EQ_INT(0, exit_code, "threading helper program returns 0");
     unlink(output_path);
 }
+
+void test_build_native_type_query_builtins(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    arr<?> mixed = [1, true];\n"
+        "    string homogeneousType = typeof(values);\n"
+        "    string heteroType = typeof(mixed);\n"
+        "    bool ok = isint(1) && isfloat(float64(1)) && isbool(true) &&\n"
+        "              isstring(homogeneousType) && isarray(values) && isarray(mixed) &&\n"
+        "              issametype(values, cdr(values)) && !issametype(values, mixed);\n"
+        "    return ok ? int32(homogeneousType.length + heteroType.length) : 1;\n"
+        "};\n";
+    char output_path[64];
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build type-query builtin program");
+    {
+        char *argv[] = { output_path, NULL };
+        exit_code = run_process(output_path, argv);
+    }
+    ASSERT_EQ_INT(8, exit_code, "type-query builtin program returns combined type-name lengths");
+    unlink(output_path);
+}

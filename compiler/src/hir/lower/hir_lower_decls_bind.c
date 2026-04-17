@@ -8,11 +8,11 @@ bool hr_lower_binding_or_start_decl(HirBuildContext *context,
     HirTopLevelDecl *hir_decl;
 
     if (ast_decl->kind == AST_TOP_LEVEL_BINDING) {
-        const Scope *root_scope = symbol_table_root_scope(context->symbols);
         const Symbol *symbol;
         const TypeCheckInfo *info;
 
-        symbol = scope_lookup_local(root_scope, ast_decl->as.binding_decl.name);
+        symbol = symbol_table_find_symbol_for_declaration(context->symbols,
+                                                          &ast_decl->as.binding_decl);
         if (!symbol) {
             hr_set_error(context,
                          ast_decl->as.binding_decl.name_span,
@@ -103,8 +103,8 @@ bool hr_lower_binding_or_start_decl(HirBuildContext *context,
             free(hir_decl);
             return false;
         }
-        hir_decl->as.start.body = hr_lower_body_to_block(context,
-                                                         &ast_decl->as.start_decl.body);
+        hir_decl->as.start.body = hr_lower_start_body_to_block(context,
+                                                               &ast_decl->as.start_decl.body);
         if (!hir_decl->as.start.body) {
             hr_free_parameter_list(&hir_decl->as.start.parameters);
             free(hir_decl);

@@ -257,6 +257,15 @@ static bool tc_scan_spawn_statement_for_races(TypeChecker *checker,
             }
         }
         return true;
+    case AST_STMT_SWAP:
+        return tc_scan_spawn_expression_for_races(checker,
+                                                  statement->as.swap.left,
+                                                  spawn_scope,
+                                                  visited) &&
+               tc_scan_spawn_expression_for_races(checker,
+                                                  statement->as.swap.right,
+                                                  spawn_scope,
+                                                  visited);
     case AST_STMT_EXIT:
         return true;
     }

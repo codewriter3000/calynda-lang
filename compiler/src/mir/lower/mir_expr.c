@@ -57,7 +57,7 @@ bool mr_lower_expression(MirUnitBuildContext *context,
         }
 
         return mr_value_from_global(context->build,
-                                     expression->as.symbol.name,
+                                     mr_hir_symbol_global_name(&expression->as.symbol),
                                      expression->type,
                                      value);
 

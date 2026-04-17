@@ -5,6 +5,7 @@
 
 /* symbol_table_core.c */
 void st_symbol_free(Symbol *symbol);
+void st_overload_set_free(OverloadSet *overload_set);
 void st_scope_free(Scope *scope);
 Scope *st_scope_new(SymbolTable *table, ScopeKind kind,
                     const void *owner, Scope *parent);
@@ -19,14 +20,25 @@ Symbol *st_symbol_new(SymbolTable *table, SymbolKind kind,
                       bool is_internal, bool is_thread_local,
                       AstSourceSpan declaration_span,
                       const void *declaration, Scope *scope);
+OverloadSet *st_overload_set_new(SymbolTable *table,
+                                 const char *name,
+                                 Scope *scope,
+                                 AstSourceSpan declaration_span);
 bool st_scope_append_symbol(SymbolTable *table, Scope *scope, Symbol *symbol);
+bool st_scope_append_overload_set(SymbolTable *table,
+                                  Scope *scope,
+                                  OverloadSet *overload_set);
+bool st_overload_set_append_symbol(SymbolTable *table,
+                                   OverloadSet *overload_set,
+                                   Symbol *symbol);
 
 /* symbol_table_registry.c */
 bool st_imports_append(SymbolTable *table, Symbol *symbol);
 bool st_resolutions_append(SymbolTable *table,
                            const AstExpression *identifier,
                            const Scope *scope,
-                           const Symbol *symbol);
+                           const Symbol *symbol,
+                           const OverloadSet *overload_set);
 bool st_unresolved_append(SymbolTable *table,
                           const AstExpression *identifier,
                           const Scope *scope);
@@ -37,14 +49,22 @@ void st_set_error_at(SymbolTable *table,
                      const char *format, ...);
 bool st_source_span_is_valid(AstSourceSpan span);
 const Symbol *st_lookup_in_scopes(const Scope *scope, const char *name);
+const OverloadSet *st_lookup_overload_set_in_scopes(const Scope *scope,
+                                                    const char *name);
 bool st_top_level_binding_is_final(const AstBindingDecl *binding_decl);
 const Scope *st_find_scope_recursive(const Scope *scope,
                                      const void *owner,
                                      ScopeKind kind);
+const Symbol *st_find_symbol_by_declaration_recursive(const Scope *scope,
+                                                      const void *declaration);
 
 /* symbol_table_imports.c */
 bool st_add_package_symbol(SymbolTable *table, const AstProgram *program);
 bool st_add_import_symbols(SymbolTable *table, const AstProgram *program);
+bool st_symbol_table_load_archive_deps(SymbolTable *table,
+                                       const AstProgram *program,
+                                       const CarArchive *archive_deps,
+                                       size_t archive_dep_count);
 
 /* symbol_table_predecl.c */
 bool st_predeclare_top_level_bindings(SymbolTable *table, const AstProgram *program);

@@ -221,6 +221,30 @@ static void test_bytecode_dump_lowers_union_tag_and_payload_access(void) {
     free(dump);
 }
 
+static void test_bytecode_dump_lowers_type_query_builtins(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    arr<?> mixed = [1, true];\n"
+        "    string typeName = typeof(values);\n"
+        "    bool same = issametype(values, cdr(values));\n"
+        "    return (isarray(mixed) && same) ? int32(typeName.length) : 0;\n"
+        "};\n";
+    char *dump;
+
+    REQUIRE_TRUE(build_bytecode_from_source(source, &dump),
+                 "build type-query bytecode dump text");
+    ASSERT_CONTAINS("BC_TYPEOF", dump,
+                    "typeof lowers to a dedicated bytecode opcode");
+    ASSERT_CONTAINS("BC_ISARRAY", dump,
+                    "isarray lowers to a dedicated bytecode opcode");
+    ASSERT_CONTAINS("BC_ISSAMETYPE", dump,
+                    "issametype lowers to a dedicated bytecode opcode");
+    ASSERT_CONTAINS("literal kind=string text=\"int32[]\"", dump,
+                    "type query helpers intern canonical static type metadata");
+    free(dump);
+}
+
 int main(void) {
     printf("Running bytecode dump tests...\n\n");
 
@@ -230,6 +254,7 @@ int main(void) {
     RUN_TEST(test_bytecode_dump_lowers_hetero_array_literals);
     RUN_TEST(test_bytecode_dump_lowers_hetero_array_index_reads);
     RUN_TEST(test_bytecode_dump_lowers_union_tag_and_payload_access);
+    RUN_TEST(test_bytecode_dump_lowers_type_query_builtins);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

@@ -18,7 +18,7 @@
  *   merged AstProgram.
  * - Imports to packages defined within the archive are stripped.
  * - External imports (e.g. io.stdlib) are preserved and deduplicated.
- * - Exactly one file may contain a start() or boot() declaration.
+ * - Exactly one file may contain a start or boot declaration.
  */
 
 /* ----------------------------------------------------------------
@@ -160,4 +160,3 @@ bool copy_import_decl(AstImportDecl *dst, const AstImportDecl *src) {
 
     return true;
 }
-

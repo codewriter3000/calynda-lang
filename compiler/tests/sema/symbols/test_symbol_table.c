@@ -80,9 +80,12 @@ void test_symbol_table_export_static_flags(void);
 void test_symbol_table_thread_local_flag(void);
 void test_symbol_table_allows_future_atomic_builtin_identifiers(void);
 void test_symbol_table_allows_car_cdr_builtin_identifiers(void);
+void test_symbol_table_allows_type_query_builtin_identifiers(void);
 void test_symbol_table_internal_flag(void);
 void test_symbol_table_union_and_type_params(void);
 void test_symbol_table_union_no_generics(void);
+void test_symbol_table_injects_wildcard_dep_archive_imports(void);
+void test_symbol_table_stores_top_level_overload_sets(void);
 
 
 int main(void) {
@@ -102,9 +105,12 @@ int main(void) {
     RUN_TEST(test_symbol_table_thread_local_flag);
     RUN_TEST(test_symbol_table_allows_future_atomic_builtin_identifiers);
     RUN_TEST(test_symbol_table_allows_car_cdr_builtin_identifiers);
+    RUN_TEST(test_symbol_table_allows_type_query_builtin_identifiers);
     RUN_TEST(test_symbol_table_internal_flag);
     RUN_TEST(test_symbol_table_union_and_type_params);
     RUN_TEST(test_symbol_table_union_no_generics);
+    RUN_TEST(test_symbol_table_injects_wildcard_dep_archive_imports);
+    RUN_TEST(test_symbol_table_stores_top_level_overload_sets);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

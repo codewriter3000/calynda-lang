@@ -74,6 +74,33 @@ typedef struct {
     size_t         capacity;
 } MirBoundSymbolSet;
 
+static inline const char *mr_hir_symbol_global_name(const HirSymbolRef *symbol) {
+    if (!symbol) {
+        return NULL;
+    }
+
+    if (symbol->symbol &&
+        (symbol->symbol->kind == SYMBOL_KIND_TOP_LEVEL_BINDING ||
+         symbol->symbol->kind == SYMBOL_KIND_ASM_BINDING) &&
+        symbol->symbol->qualified_name) {
+        return symbol->symbol->qualified_name;
+    }
+
+    return symbol->name;
+}
+
+static inline const char *mr_named_symbol_global_name(const char *fallback_name,
+                                                      const Symbol *symbol) {
+    if (symbol &&
+        (symbol->kind == SYMBOL_KIND_TOP_LEVEL_BINDING ||
+         symbol->kind == SYMBOL_KIND_ASM_BINDING) &&
+        symbol->qualified_name) {
+        return symbol->qualified_name;
+    }
+
+    return fallback_name;
+}
+
 extern const char *MIR_MODULE_INIT_NAME;
 
 /* mir_union.c */

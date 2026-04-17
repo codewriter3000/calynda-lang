@@ -31,7 +31,8 @@ bool st_imports_append(SymbolTable *table, Symbol *symbol) {
 bool st_resolutions_append(SymbolTable *table,
                            const AstExpression *identifier,
                            const Scope *scope,
-                           const Symbol *symbol) {
+                           const Symbol *symbol,
+                           const OverloadSet *overload_set) {
     SymbolResolution *resized;
     size_t new_capacity;
 
@@ -40,6 +41,7 @@ bool st_resolutions_append(SymbolTable *table,
         table->resolutions[table->resolution_count].scope = scope;
         table->resolutions[table->resolution_count].source_span = identifier->source_span;
         table->resolutions[table->resolution_count].symbol = symbol;
+        table->resolutions[table->resolution_count].overload_set = overload_set;
         table->resolution_count++;
         return true;
     }
@@ -57,6 +59,7 @@ bool st_resolutions_append(SymbolTable *table,
     table->resolutions[table->resolution_count].scope = scope;
     table->resolutions[table->resolution_count].source_span = identifier->source_span;
     table->resolutions[table->resolution_count].symbol = symbol;
+    table->resolutions[table->resolution_count].overload_set = overload_set;
     table->resolution_count++;
     return true;
 }
@@ -148,6 +151,20 @@ const Symbol *st_lookup_in_scopes(const Scope *scope, const char *name) {
     return NULL;
 }
 
+const OverloadSet *st_lookup_overload_set_in_scopes(const Scope *scope, const char *name) {
+    const Scope *current = scope;
+
+    while (current) {
+        const OverloadSet *overload_set = scope_lookup_local_overload_set(current, name);
+        if (overload_set) {
+            return overload_set;
+        }
+        current = current->parent;
+    }
+
+    return NULL;
+}
+
 bool st_top_level_binding_is_final(const AstBindingDecl *binding_decl) {
     size_t i;
 
@@ -175,6 +192,31 @@ const Scope *st_find_scope_recursive(const Scope *scope,
 
     for (i = 0; i < scope->child_count; i++) {
         const Scope *found = st_find_scope_recursive(scope->children[i], owner, kind);
+        if (found) {
+            return found;
+        }
+    }
+
+    return NULL;
+}
+
+const Symbol *st_find_symbol_by_declaration_recursive(const Scope *scope,
+                                                      const void *declaration) {
+    size_t i;
+
+    if (!scope || !declaration) {
+        return NULL;
+    }
+
+    for (i = 0; i < scope->symbol_count; i++) {
+        if (scope->symbols[i] && scope->symbols[i]->declaration == declaration) {
+            return scope->symbols[i];
+        }
+    }
+
+    for (i = 0; i < scope->child_count; i++) {
+        const Symbol *found =
+            st_find_symbol_by_declaration_recursive(scope->children[i], declaration);
         if (found) {
             return found;
         }

@@ -70,8 +70,8 @@ extern int tests_failed;
 
 void test_type_checker_rejects_duplicate_boot_entry_points(void) {
     const char *source =
-        "boot() -> 0;\n"
-        "boot() -> 1;\n";
+        "boot -> 0;\n"
+        "boot -> 1;\n";
     Parser parser;
     AstProgram program;
     SymbolTable symbols;
@@ -155,8 +155,8 @@ void test_type_checker_rejects_bare_return_in_non_void_lambda(void) {
 }
 
 
-void test_type_checker_rejects_exit_in_start_block(void) {
-    const char *source = "start(string[] args) -> { exit; };\n";
+void test_type_checker_allows_exit_in_start_block(void) {
+    const char *source = "start -> { exit; };\n";
     Parser parser;
     AstProgram program;
     SymbolTable symbols;
@@ -177,7 +177,7 @@ void test_type_checker_rejects_exit_in_start_block(void) {
     REQUIRE_TRUE(error != NULL, "start exit error exists");
     REQUIRE_TRUE(type_checker_format_error(error, diagnostic, sizeof(diagnostic_buffer)),
                  "format start exit error");
-    ASSERT_EQ_STR("1:27: exit is only permitted in void-typed lambda blocks. Related location at 1:1.",
+    ASSERT_EQ_STR("1:12: exit is only permitted in void-typed lambda blocks. Related location at 1:1.",
                   diagnostic,
                   "formatted start exit diagnostic");
 
@@ -188,31 +188,20 @@ void test_type_checker_rejects_exit_in_start_block(void) {
 }
 
 
-void test_type_checker_rejects_bare_return_in_start_block(void) {
-    const char *source = "start(string[] args) -> { return; };\n";
+void test_type_checker_allows_bare_return_in_start_block(void) {
+    const char *source = "start -> { return; };\n";
     Parser parser;
     AstProgram program;
     SymbolTable symbols;
     TypeChecker checker;
-    const TypeCheckError *error;
-    char diagnostic_buffer[256];
-    char *diagnostic = diagnostic_buffer;
 
     symbol_table_init(&symbols);
     type_checker_init(&checker);
     parser_init(&parser, source);
     REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse bare start return program");
     REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for bare start return");
-    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
-                "bare return in start fails type checking");
-
-    error = type_checker_get_error(&checker);
-    REQUIRE_TRUE(error != NULL, "bare start return error exists");
-    REQUIRE_TRUE(type_checker_format_error(error, diagnostic, sizeof(diagnostic_buffer)),
-                 "format bare start return error");
-    ASSERT_EQ_STR("1:27: Return statement in start must produce int32. Related location at 1:1.",
-                  diagnostic,
-                  "formatted bare start return diagnostic");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "bare return in start passes type checking");
 
     type_checker_free(&checker);
     symbol_table_free(&symbols);
@@ -246,4 +235,3 @@ void test_type_checker_allows_assignment_to_local_array_element(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
-

@@ -90,11 +90,16 @@ CheckedType tc_checked_type_from_ast_type(TypeChecker *checker, const AstType *t
 
     resolved_type = type_resolver_get_type(&checker->resolver, type);
     if (!resolved_type) {
-        tc_set_error(checker, "Internal error: missing resolved source type.");
-        return tc_checked_type_invalid();
+        /*
+         * Archive-import metadata carries standalone AstType nodes for exported
+         * callable/value signatures. Those nodes are not part of the program AST
+         * walked by the resolver, so they legitimately have no resolver entry.
+         * Fall back to structural conversion in that case.
+         */
+        result = tc_checked_type_from_generic_ast(type);
+    } else {
+        result = tc_checked_type_from_resolved_type(*resolved_type);
     }
-
-    result = tc_checked_type_from_resolved_type(*resolved_type);
 
     /* Detect ptr<T, checked> — the "checked" second arg is a bounds-check qualifier. */
     if (type->kind == AST_TYPE_PTR &&

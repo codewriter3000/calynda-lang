@@ -267,6 +267,7 @@ void ast_parameter_list_free(AstParameterList *list) {
     for (i = 0; i < list->count; i++) {
         ast_type_free(&list->items[i].type);
         free(list->items[i].name);
+        ast_expression_free(list->items[i].default_expr);
     }
 
     free(list->items);

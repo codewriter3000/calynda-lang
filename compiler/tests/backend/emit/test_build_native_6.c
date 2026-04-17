@@ -140,3 +140,44 @@ void test_build_native_runs_recursive_top_level_lambda_program(void) {
                 "recursive top-level lambda program builds and returns the recursive result");
     unlink(output_path);
 }
+
+void test_build_native_swaps_array_elements(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    values[0] >< values[2];\n"
+        "    return values[0] == 3\n"
+        "        ? (values[1] == 2\n"
+        "            ? (values[2] == 1 ? 0 : 3)\n"
+        "            : 2)\n"
+        "        : 1;\n"
+        "};\n";
+    char output_path[64];
+    char *argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build array swap executable");
+    exit_code = run_process(output_path, argv);
+    ASSERT_TRUE(exit_code == 0,
+                "array element swap builds and exchanges both elements");
+    unlink(output_path);
+}
+
+void test_build_native_runs_default_argument_program(void) {
+    static const char source[] =
+        "int32 add = (int32 left, int32 right = left + 1) -> left + right;\n"
+        "start -> {\n"
+        "    return add(4) == 9 ? (add(4, 6) == 10 ? 0 : 2) : 1;\n"
+        "};\n";
+    char output_path[64];
+    char *argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build default-argument executable");
+    exit_code = run_process(output_path, argv);
+    ASSERT_TRUE(exit_code == 0,
+                "default arguments build natively and evaluate omitted trailing values");
+    unlink(output_path);
+}

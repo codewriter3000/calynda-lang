@@ -74,6 +74,7 @@ void test_parse_prefix_increment_decrement(void);
 void test_parse_postfix_increment_decrement(void);
 void test_parse_discard_expression(void);
 void test_parse_varargs_parameter(void);
+void test_parse_default_parameter(void);
 void test_parse_v2_modifiers(void);
 void test_parse_thread_local_binding_modifier(void);
 void test_parse_import_alias(void);
@@ -92,6 +93,7 @@ void test_parse_nested_generic_rshift(void);
 void test_parse_named_type_in_parameter(void);
 void test_parse_asm_decl(void);
 void test_parse_asm_decl_with_modifiers(void);
+void test_parse_bare_start_decl(void);
 void test_parse_boot_decl(void);
 void test_parse_boot_decl_expression_body(void);
 void test_parse_manual_statement_with_memory_ops(void);
@@ -107,6 +109,7 @@ void test_parse_manual_checked_block(void);
 void test_parse_manual_lambda_shorthand(void);
 void test_parse_union_multi_generic(void);
 void test_parse_type_alias_and_spawn_threading(void);
+void test_parse_swap_statement(void);
 
 
 int main(void) {
@@ -121,6 +124,7 @@ int main(void) {
     RUN_TEST(test_parse_postfix_increment_decrement);
     RUN_TEST(test_parse_discard_expression);
     RUN_TEST(test_parse_varargs_parameter);
+    RUN_TEST(test_parse_default_parameter);
     RUN_TEST(test_parse_v2_modifiers);
     RUN_TEST(test_parse_thread_local_binding_modifier);
     RUN_TEST(test_parse_import_alias);
@@ -139,6 +143,7 @@ int main(void) {
     RUN_TEST(test_parse_named_type_in_parameter);
     RUN_TEST(test_parse_asm_decl);
     RUN_TEST(test_parse_asm_decl_with_modifiers);
+    RUN_TEST(test_parse_bare_start_decl);
     RUN_TEST(test_parse_boot_decl);
     RUN_TEST(test_parse_boot_decl_expression_body);
     RUN_TEST(test_parse_manual_statement_with_memory_ops);
@@ -154,6 +159,7 @@ int main(void) {
     RUN_TEST(test_parse_manual_lambda_shorthand);
     RUN_TEST(test_parse_union_multi_generic);
     RUN_TEST(test_parse_type_alias_and_spawn_threading);
+    RUN_TEST(test_parse_swap_statement);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

@@ -66,6 +66,7 @@ void test_mir_dump_valid_program_has_no_error(void);
 void test_mir_dump_double_capture_closure(void);
 void test_mir_dump_error_api_format_null_is_safe(void);
 void test_mir_build_rejects_programs_with_hir_errors(void);
+void test_mir_dump_rewrites_self_tail_recursion_into_loop(void);
 
 
 int main(void) {
@@ -90,6 +91,7 @@ int main(void) {
     RUN_TEST(test_mir_dump_double_capture_closure);
     RUN_TEST(test_mir_dump_error_api_format_null_is_safe);
     RUN_TEST(test_mir_build_rejects_programs_with_hir_errors);
+    RUN_TEST(test_mir_dump_rewrites_self_tail_recursion_into_loop);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

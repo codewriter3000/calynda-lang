@@ -73,7 +73,8 @@ bool mr_lower_assignment_target(MirUnitBuildContext *context,
         }
 
         lvalue->kind = MIR_LVALUE_GLOBAL;
-        lvalue->as.global_name = ast_copy_text(expression->as.symbol.name);
+        lvalue->as.global_name = ast_copy_text(
+            mr_hir_symbol_global_name(&expression->as.symbol));
         if (!lvalue->as.global_name) {
             mr_set_error(context->build,
                           expression->source_span,

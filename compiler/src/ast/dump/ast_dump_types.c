@@ -153,6 +153,13 @@ bool ast_dump_parameter_list(AstDumpBuilder *builder,
               ast_dump_builder_finish_line(builder))) {
             return false;
         }
+        if (parameters->items[i].default_expr &&
+            !ast_dump_expression_label(builder,
+                                       indent + 2,
+                                       "Default:",
+                                       parameters->items[i].default_expr)) {
+            return false;
+        }
     }
 
     return true;

@@ -110,3 +110,54 @@ void test_car_build_reports_parse_span(void) {
     unlink(car_path);
     unlink(output_path);
 }
+
+void test_car_collects_exported_symbols_by_package(void) {
+    static const char source[] =
+        "package lib.math;\n"
+        "export int32 square = (int32 x) -> x * x;\n"
+        "export type Count = int32;\n"
+        "export union Maybe<T> { Some(T), None };\n"
+        "start(string[] args) -> 0;\n";
+    CarArchive archive;
+    CarExportedSymbol *symbols = NULL;
+    size_t symbol_count = 0;
+    bool found_square = false;
+    bool found_count = false;
+    bool found_maybe = false;
+    size_t i;
+
+    car_archive_init(&archive);
+    REQUIRE_TRUE(car_archive_add_file(&archive, "lib/math.cal",
+                                      source, strlen(source)),
+                 "build export enumeration archive");
+    REQUIRE_TRUE(car_archive_collect_exported_symbols(&archive, "lib.math",
+                                                      &symbols, &symbol_count),
+                 "collect exported symbols from package");
+    ASSERT_TRUE(symbol_count == 3, "collects 3 exported symbols from package");
+
+    for (i = 0; i < symbol_count; i++) {
+        if (strcmp(symbols[i].name, "square") == 0) {
+            found_square = true;
+            ASSERT_TRUE(symbols[i].kind == CAR_EXPORTED_SYMBOL_CALLABLE,
+                        "square exported as callable");
+            ASSERT_TRUE(symbols[i].parameters.count == 1,
+                        "square exposes one parameter");
+        } else if (strcmp(symbols[i].name, "Count") == 0) {
+            found_count = true;
+            ASSERT_TRUE(symbols[i].kind == CAR_EXPORTED_SYMBOL_TYPE_ALIAS,
+                        "Count exported as type alias");
+        } else if (strcmp(symbols[i].name, "Maybe") == 0) {
+            found_maybe = true;
+            ASSERT_TRUE(symbols[i].kind == CAR_EXPORTED_SYMBOL_UNION,
+                        "Maybe exported as union");
+            ASSERT_TRUE(symbols[i].generic_param_count == 1,
+                        "Maybe preserves generic parameter count");
+        }
+    }
+
+    ASSERT_TRUE(found_square, "square export found");
+    ASSERT_TRUE(found_count, "Count export found");
+    ASSERT_TRUE(found_maybe, "Maybe export found");
+    car_exported_symbol_list_free(symbols, symbol_count);
+    car_archive_free(&archive);
+}

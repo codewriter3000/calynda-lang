@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include "runtime.h"
+#include "car.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -77,6 +78,24 @@ static bool run_capture_combined(const char *path, char *const argv[],
     return true;
 }
 
+static bool write_test_archive(const char *archive_path, const char *member_path,
+                               const char *source) {
+    CarArchive archive;
+    FILE *file = NULL;
+    bool ok = false;
+
+    car_archive_init(&archive);
+    if (car_archive_add_file(&archive, member_path, source, strlen(source))) {
+        file = fopen(archive_path, "wb");
+        ok = file != NULL && car_archive_write_to_stream(&archive, file);
+    }
+    if (file) {
+        fclose(file);
+    }
+    car_archive_free(&archive);
+    return ok;
+}
+
 extern bool write_temp_source(const char *source, char *path_buffer, size_t buffer_size);
 
 void test_calynda_cli_malformed_source_reports_span(void) {
@@ -129,5 +148,79 @@ void test_calynda_cli_run_propagates_runtime_error_exit(void) {
     ASSERT_CONTAINS("calynda bounds-check: out-of-bounds access",
                     output,
                     "runtime failure is reported to the CLI user");
+    unlink(source_path);
+}
+
+void test_calynda_cli_run_resolves_dep_archive_import(void) {
+    static const char lib_source[] =
+        "package lib.math;\n"
+        "export int32 squarePower = (int32 value) -> value * value;\n";
+    static const char main_source[] =
+        "import lib.math.{squarePower};\n"
+        "start(string[] args) -> {\n"
+        "    return squarePower(5) == 25 ? 0 : 1;\n"
+        "};\n";
+    char archive_path[128];
+    char source_path[128];
+    char output[4096];
+    int exit_code = 0;
+    char *argv[] = {
+        (char *)"./build/calynda",
+        (char *)"run",
+        source_path,
+        (char *)"--archive",
+        archive_path,
+        NULL
+    };
+
+    snprintf(archive_path, sizeof(archive_path), "build/test-dep-lib-%ld.car",
+             (long)getpid());
+    REQUIRE_TRUE(write_test_archive(archive_path, "lib/math.cal", lib_source),
+                 "write dependency archive");
+    REQUIRE_TRUE(write_temp_source(main_source, source_path, sizeof(source_path)),
+                 "write dep archive consumer");
+    REQUIRE_TRUE(run_capture_combined("./build/calynda", argv, output,
+                                      sizeof(output), &exit_code),
+                 "run calynda with dependency archive");
+    ASSERT_TRUE(exit_code == 0,
+                "dependency archive import runs successfully");
+    unlink(archive_path);
+    unlink(source_path);
+}
+
+void test_calynda_cli_run_resolves_dep_archive_wildcard_import(void) {
+    static const char lib_source[] =
+        "package lib.math;\n"
+        "export int32 squarePower = (int32 value) -> value * value;\n";
+    static const char main_source[] =
+        "import lib.math.*;\n"
+        "start(string[] args) -> {\n"
+        "    return squarePower(5) == 25 ? 0 : 1;\n"
+        "};\n";
+    char archive_path[128];
+    char source_path[128];
+    char output[4096];
+    int exit_code = 0;
+    char *argv[] = {
+        (char *)"./build/calynda",
+        (char *)"run",
+        source_path,
+        (char *)"--archive",
+        archive_path,
+        NULL
+    };
+
+    snprintf(archive_path, sizeof(archive_path), "build/test-dep-lib-wildcard-%ld.car",
+             (long)getpid());
+    REQUIRE_TRUE(write_test_archive(archive_path, "lib/math.cal", lib_source),
+                 "write wildcard dependency archive");
+    REQUIRE_TRUE(write_temp_source(main_source, source_path, sizeof(source_path)),
+                 "write wildcard dep archive consumer");
+    REQUIRE_TRUE(run_capture_combined("./build/calynda", argv, output,
+                                      sizeof(output), &exit_code),
+                 "run calynda with wildcard dependency archive");
+    ASSERT_TRUE(exit_code == 0,
+                "wildcard dependency archive import runs successfully");
+    unlink(archive_path);
     unlink(source_path);
 }

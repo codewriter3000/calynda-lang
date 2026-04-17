@@ -111,6 +111,7 @@ const char *token_type_name(TokenType type) {
     case TOK_GT:             return "GT";
     case TOK_LTE:            return "LTE";
     case TOK_GTE:            return "GTE";
+    case TOK_SWAP:           return "SWAP";
     case TOK_LOGIC_OR:       return "LOGIC_OR";
     case TOK_LOGIC_AND:      return "LOGIC_AND";
     case TOK_PIPE:           return "PIPE";

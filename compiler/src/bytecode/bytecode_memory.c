@@ -108,6 +108,13 @@ void bc_instruction_free(BytecodeInstruction *instruction) {
     case BYTECODE_INSTR_UNION_GET_TAG:
     case BYTECODE_INSTR_UNION_GET_PAYLOAD:
     case BYTECODE_INSTR_HETERO_ARRAY_GET_TAG:
+    case BYTECODE_INSTR_TYPEOF:
+    case BYTECODE_INSTR_ISINT:
+    case BYTECODE_INSTR_ISFLOAT:
+    case BYTECODE_INSTR_ISBOOL:
+    case BYTECODE_INSTR_ISSTRING:
+    case BYTECODE_INSTR_ISARRAY:
+    case BYTECODE_INSTR_ISSAMETYPE:
         break;
     }
 

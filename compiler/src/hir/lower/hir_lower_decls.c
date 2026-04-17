@@ -17,11 +17,10 @@ bool hr_lower_top_level_decls(HirBuildContext *context) {
         /* Lower union declarations into HIR type metadata */
         if (ast_decl->kind == AST_TOP_LEVEL_UNION) {
             const AstUnionDecl *udecl = &ast_decl->as.union_decl;
-            const Scope *root_scope = symbol_table_root_scope(context->symbols);
             const Symbol *symbol;
             size_t v;
 
-            symbol = scope_lookup_local(root_scope, udecl->name);
+            symbol = symbol_table_find_symbol_for_declaration(context->symbols, udecl);
 
             hir_decl = hr_top_level_decl_new(HIR_TOP_LEVEL_UNION);
             if (!hir_decl) {
@@ -126,8 +125,8 @@ bool hr_lower_top_level_decls(HirBuildContext *context) {
         /* Lower asm declarations into HIR opaque units */
         if (ast_decl->kind == AST_TOP_LEVEL_ASM) {
             const AstAsmDecl *adecl = &ast_decl->as.asm_decl;
-            const Scope *root_scope = symbol_table_root_scope(context->symbols);
-            const Symbol *symbol = scope_lookup_local(root_scope, adecl->name);
+            const Symbol *symbol = symbol_table_find_symbol_for_declaration(context->symbols,
+                                                                            adecl);
             const TypeCheckInfo *tc_info = symbol ? type_checker_get_symbol_info(context->checker, symbol) : NULL;
             size_t p;
 

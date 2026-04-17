@@ -82,8 +82,10 @@ Token tokenizer_scan_punctuation(Tokenizer *t, char c,
         if (match_char(t, '=')) return make_token(t, TOK_LTE, start, line, col);
         return make_token(t, TOK_LT, start, line, col);
 
-    /* > >= >> >>= */
+    /* > >= ><
+       >> >>= */
     case '>':
+        if (match_char(t, '<')) return make_token(t, TOK_SWAP, start, line, col);
         if (match_char(t, '>')) {
             if (match_char(t, '=')) return make_token(t, TOK_RSHIFT_ASSIGN, start, line, col);
             return make_token(t, TOK_RSHIFT, start, line, col);

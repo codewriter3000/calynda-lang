@@ -30,8 +30,20 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
 
     switch (symbol->kind) {
     case SYMBOL_KIND_PACKAGE:
-    case SYMBOL_KIND_IMPORT:
         resolved_info = tc_type_check_info_make_external_value();
+        break;
+
+    case SYMBOL_KIND_IMPORT:
+        if (symbol->declared_type) {
+            resolved_info = tc_type_check_info_make(
+                tc_checked_type_from_ast_type(checker, symbol->declared_type));
+            if (checker->has_error) {
+                entry->is_resolving = false;
+                return NULL;
+            }
+        } else {
+            resolved_info = tc_type_check_info_make_external_value();
+        }
         break;
 
     case SYMBOL_KIND_PARAMETER:
@@ -129,14 +141,31 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
 
     case SYMBOL_KIND_ASM_BINDING: {
         const AstAsmDecl *asm_decl = (const AstAsmDecl *)symbol->declaration;
-        CheckedType return_type = tc_checked_type_from_ast_type(checker,
-                                                                &asm_decl->return_type);
+        const AstType *return_type_ast = NULL;
+        const AstParameterList *parameters = NULL;
+        CheckedType return_type;
+
+        if (symbol->has_external_return_type) {
+            return_type_ast = &symbol->external_return_type;
+            parameters = &symbol->external_parameters;
+        } else if (asm_decl) {
+            return_type_ast = &asm_decl->return_type;
+            parameters = &asm_decl->parameters;
+        }
+        if (!return_type_ast || !parameters) {
+            tc_set_error_at(checker, symbol->declaration_span, NULL,
+                            "Missing callable metadata for asm binding '%s'.",
+                            symbol->name ? symbol->name : "<anonymous>");
+            entry->is_resolving = false;
+            return NULL;
+        }
+        return_type = tc_checked_type_from_ast_type(checker, return_type_ast);
         if (checker->has_error) {
             entry->is_resolving = false;
             return NULL;
         }
         resolved_info = tc_type_check_info_make_callable(return_type,
-                                                         &asm_decl->parameters);
+                                                         parameters);
         break;
     }
 

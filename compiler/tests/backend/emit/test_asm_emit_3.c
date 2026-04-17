@@ -153,7 +153,7 @@ void test_asm_emit_asm_decl_no_params(void) {
 /* ------------------------------------------------------------------ */
 
 void test_asm_emit_boot_emits_start_label(void) {
-    static const char source[] = "boot() -> 42;\n";
+    static const char source[] = "boot -> 42;\n";
     char *assembly;
 
     REQUIRE_TRUE(build_assembly_from_source(source, &assembly), "emit boot assembly text");
@@ -171,7 +171,7 @@ void test_asm_emit_boot_emits_start_label(void) {
 
 
 void test_asm_emit_boot_aarch64_emits_start_label(void) {
-    static const char source[] = "boot() -> 42;\n";
+    static const char source[] = "boot -> 42;\n";
     char *assembly;
 
     REQUIRE_TRUE(build_assembly_from_source_with_target(
@@ -190,7 +190,7 @@ void test_asm_emit_boot_aarch64_emits_start_label(void) {
 void test_asm_emit_boot_rejects_unknown_imported_member(void) {
     static const char source[] =
         "import io.stdlib;\n"
-        "boot() -> {\n"
+        "boot -> {\n"
         "    stdlib.missing();\n"
         "    return 0;\n"
         "};\n";
@@ -206,7 +206,7 @@ void test_asm_emit_boot_rejects_unknown_imported_member(void) {
 void test_asm_emit_boot_rejects_multi_arg_imported_print(void) {
     static const char source[] =
         "import io.stdlib;\n"
-        "boot() -> {\n"
+        "boot -> {\n"
         "    stdlib.print(1, 2);\n"
         "    return 0;\n"
         "};\n";
@@ -295,7 +295,7 @@ void test_asm_emit_riscv64_runtime_backed_program(void) {
 }
 
 void test_asm_emit_boot_riscv64_emits_start_label(void) {
-    static const char source[] = "boot() -> 42;\n";
+    static const char source[] = "boot -> 42;\n";
     char *assembly;
 
     REQUIRE_TRUE(build_riscv64_assembly(source, &assembly),
@@ -319,7 +319,7 @@ void test_asm_emit_boot_riscv64_emits_start_label(void) {
 void test_asm_emit_boot_riscv64_statically_lowers_imported_print(void) {
     static const char source[] =
         "import io.stdlib;\n"
-        "boot() -> {\n"
+        "boot -> {\n"
         "    stdlib.print();\n"
         "    return 0;\n"
         "};\n";

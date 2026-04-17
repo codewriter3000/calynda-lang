@@ -2,6 +2,7 @@
 #define CALYNDA_SYMBOL_TABLE_H
 
 #include "ast.h"
+#include "car.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -30,6 +31,7 @@ typedef enum {
 
 typedef struct Scope Scope;
 typedef struct Symbol Symbol;
+typedef struct OverloadSet OverloadSet;
 
 struct Symbol {
     SymbolKind      kind;
@@ -46,10 +48,24 @@ struct Symbol {
     AstSourceSpan   declaration_span;
     const void     *declaration;
     Scope          *scope;
+    AstType         external_declared_type;
+    bool            has_external_declared_type;
+    AstType         external_return_type;
+    bool            has_external_return_type;
+    AstParameterList external_parameters;
     /* SYMBOL_KIND_VARIANT fields */
     size_t          variant_index;
     bool            variant_has_payload;
     const AstType  *variant_payload_type;
+};
+
+struct OverloadSet {
+    char         *name;
+    Scope        *scope;
+    Symbol      **symbols;
+    size_t        symbol_count;
+    size_t        symbol_capacity;
+    AstSourceSpan declaration_span;
 };
 
 struct Scope {
@@ -62,6 +78,9 @@ struct Scope {
     Symbol    **symbols;
     size_t      symbol_count;
     size_t      symbol_capacity;
+    OverloadSet **overload_sets;
+    size_t       overload_set_count;
+    size_t       overload_set_capacity;
 };
 
 typedef struct {
@@ -69,6 +88,7 @@ typedef struct {
     const Scope         *scope;
     AstSourceSpan        source_span;
     const Symbol        *symbol;
+    const OverloadSet   *overload_set;
 } SymbolResolution;
 
 typedef struct {
@@ -104,6 +124,10 @@ typedef struct {
 void symbol_table_init(SymbolTable *table);
 void symbol_table_free(SymbolTable *table);
 bool symbol_table_build(SymbolTable *table, const AstProgram *program);
+bool symbol_table_build_with_archive_deps(SymbolTable *table,
+                                          const AstProgram *program,
+                                          const CarArchive *archive_deps,
+                                          size_t archive_dep_count);
 
 const SymbolTableError *symbol_table_get_error(const SymbolTable *table);
 const UnresolvedIdentifier *symbol_table_get_unresolved_identifier(const SymbolTable *table,
@@ -126,12 +150,23 @@ const Scope *symbol_table_find_scope(const SymbolTable *table,
                                      const void *owner,
                                      ScopeKind kind);
 const Symbol *scope_lookup_local(const Scope *scope, const char *name);
+const OverloadSet *scope_lookup_local_overload_set(const Scope *scope, const char *name);
 const Symbol *symbol_table_lookup(const SymbolTable *table,
                                   const Scope *scope,
                                   const char *name);
+const OverloadSet *symbol_table_lookup_overload_set(const SymbolTable *table,
+                                                    const Scope *scope,
+                                                    const char *name);
 const Symbol *symbol_table_resolve_identifier(const SymbolTable *table,
                                               const AstExpression *identifier);
+const OverloadSet *symbol_table_resolve_overload_set(const SymbolTable *table,
+                                                     const AstExpression *identifier);
 const SymbolResolution *symbol_table_find_resolution(const SymbolTable *table,
                                                      const AstExpression *identifier);
+bool symbol_table_select_resolution(SymbolTable *table,
+                                    const AstExpression *identifier,
+                                    const Symbol *symbol);
+const Symbol *symbol_table_find_symbol_for_declaration(const SymbolTable *table,
+                                                       const void *declaration);
 
 #endif /* CALYNDA_SYMBOL_TABLE_H */

@@ -109,6 +109,23 @@ const Symbol *scope_lookup_local(const Scope *scope, const char *name) {
     return NULL;
 }
 
+const OverloadSet *scope_lookup_local_overload_set(const Scope *scope, const char *name) {
+    size_t i;
+
+    if (!scope || !name) {
+        return NULL;
+    }
+
+    for (i = 0; i < scope->overload_set_count; i++) {
+        if (scope->overload_sets[i] && scope->overload_sets[i]->name &&
+            strcmp(scope->overload_sets[i]->name, name) == 0) {
+            return scope->overload_sets[i];
+        }
+    }
+
+    return NULL;
+}
+
 const Symbol *symbol_table_lookup(const SymbolTable *table,
                                   const Scope *scope,
                                   const char *name) {
@@ -126,6 +143,25 @@ const Symbol *symbol_table_lookup(const SymbolTable *table,
     return symbol_table_find_import(table, name);
 }
 
+const OverloadSet *symbol_table_lookup_overload_set(const SymbolTable *table,
+                                                    const Scope *scope,
+                                                    const char *name) {
+    const OverloadSet *overload_set;
+
+    (void)table;
+
+    if (!table || !name) {
+        return NULL;
+    }
+
+    overload_set = st_lookup_overload_set_in_scopes(scope, name);
+    if (overload_set) {
+        return overload_set;
+    }
+
+    return NULL;
+}
+
 const Symbol *symbol_table_resolve_identifier(const SymbolTable *table,
                                               const AstExpression *identifier) {
     size_t i;
@@ -137,6 +173,23 @@ const Symbol *symbol_table_resolve_identifier(const SymbolTable *table,
     for (i = 0; i < table->resolution_count; i++) {
         if (table->resolutions[i].identifier == identifier) {
             return table->resolutions[i].symbol;
+        }
+    }
+
+    return NULL;
+}
+
+const OverloadSet *symbol_table_resolve_overload_set(const SymbolTable *table,
+                                                     const AstExpression *identifier) {
+    size_t i;
+
+    if (!table || !identifier) {
+        return NULL;
+    }
+
+    for (i = 0; i < table->resolution_count; i++) {
+        if (table->resolutions[i].identifier == identifier) {
+            return table->resolutions[i].overload_set;
         }
     }
 
@@ -158,4 +211,32 @@ const SymbolResolution *symbol_table_find_resolution(const SymbolTable *table,
     }
 
     return NULL;
+}
+
+bool symbol_table_select_resolution(SymbolTable *table,
+                                    const AstExpression *identifier,
+                                    const Symbol *symbol) {
+    size_t i;
+
+    if (!table || !identifier || !symbol) {
+        return false;
+    }
+
+    for (i = 0; i < table->resolution_count; i++) {
+        if (table->resolutions[i].identifier == identifier) {
+            table->resolutions[i].symbol = symbol;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+const Symbol *symbol_table_find_symbol_for_declaration(const SymbolTable *table,
+                                                       const void *declaration) {
+    if (!table || !table->root_scope || !declaration) {
+        return NULL;
+    }
+
+    return st_find_symbol_by_declaration_recursive(table->root_scope, declaration);
 }

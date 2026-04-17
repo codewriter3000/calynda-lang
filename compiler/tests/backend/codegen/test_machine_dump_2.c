@@ -97,7 +97,14 @@ void test_runtime_abi_dump_defines_helper_surface(void) {
         "  helper __calynda_rt_atomic_new return=rax args=[rdi=atomic_new_value]\n"
         "  helper __calynda_rt_atomic_load return=rax args=[rdi=atomic_value]\n"
         "  helper __calynda_rt_atomic_store return=void args=[rdi=atomic_value, rsi=atomic_new_value]\n"
-        "  helper __calynda_rt_atomic_exchange return=rax args=[rdi=atomic_value, rsi=atomic_new_value]\n";
+        "  helper __calynda_rt_atomic_exchange return=rax args=[rdi=atomic_value, rsi=atomic_new_value]\n"
+        "  helper __calynda_typeof return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isint return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isfloat return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isbool return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isstring return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isarray return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_issametype return=rax args=[rdi=left_value, rsi=left_type_text, rdx=right_value, rcx=right_type_text]\n";
     char *dump;
 
     dump = runtime_abi_dump_surface_to_string(CODEGEN_TARGET_X86_64_SYSV_ELF);
@@ -146,6 +153,13 @@ void test_machine_dump_emits_minimal_direct_instruction_stream(void) {
         "  helper __calynda_rt_atomic_load return=rax args=[rdi=atomic_value]\n"
         "  helper __calynda_rt_atomic_store return=void args=[rdi=atomic_value, rsi=atomic_new_value]\n"
         "  helper __calynda_rt_atomic_exchange return=rax args=[rdi=atomic_value, rsi=atomic_new_value]\n"
+        "  helper __calynda_typeof return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isint return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isfloat return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isbool return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isstring return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_isarray return=rax args=[rdi=source_value, rsi=type_text]\n"
+        "  helper __calynda_issametype return=rax args=[rdi=left_value, rsi=left_type_text, rdx=right_value, rcx=right_type_text]\n"
         "  Unit name=add kind=binding return=int32 frame_slots=2 spills=0 helper_slots=0 outgoing_stack=0 blocks=1\n"
         "    Blocks:\n"
         "      Block bb0:\n"

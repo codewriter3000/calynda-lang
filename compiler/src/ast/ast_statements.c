@@ -69,6 +69,10 @@ void ast_statement_free(AstStatement *statement) {
         ast_parameter_list_free(&statement->as.manual.parameters);
         ast_block_free(statement->as.manual.body);
         break;
+    case AST_STMT_SWAP:
+        ast_expression_free(statement->as.swap.left);
+        ast_expression_free(statement->as.swap.right);
+        break;
     }
 
     free(statement);

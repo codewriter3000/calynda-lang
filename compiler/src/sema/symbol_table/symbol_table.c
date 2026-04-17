@@ -35,6 +35,13 @@ void symbol_table_free(SymbolTable *table) {
 }
 
 bool symbol_table_build(SymbolTable *table, const AstProgram *program) {
+    return symbol_table_build_with_archive_deps(table, program, NULL, 0);
+}
+
+bool symbol_table_build_with_archive_deps(SymbolTable *table,
+                                          const AstProgram *program,
+                                          const CarArchive *archive_deps,
+                                          size_t archive_dep_count) {
     size_t i;
 
     if (!table || !program) {
@@ -52,6 +59,9 @@ bool symbol_table_build(SymbolTable *table, const AstProgram *program) {
 
     if (!st_add_package_symbol(table, program) ||
         !st_add_import_symbols(table, program) ||
+        !st_symbol_table_load_archive_deps(table, program,
+                                           archive_deps,
+                                           archive_dep_count) ||
         !st_predeclare_top_level_bindings(table, program)) {
         return false;
     }

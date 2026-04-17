@@ -1,5 +1,57 @@
 #include "type_checker_internal.h"
 
+static bool tc_check_swap_target(TypeChecker *checker,
+                                 const AstExpression *expression,
+                                 const char *side_name,
+                                 const TypeCheckInfo **info_out,
+                                 const Symbol **root_symbol_out) {
+    const TypeCheckInfo *info;
+    const Symbol *root_symbol = NULL;
+    const AstSourceSpan *related_span = NULL;
+
+    if (info_out) {
+        *info_out = NULL;
+    }
+    if (root_symbol_out) {
+        *root_symbol_out = NULL;
+    }
+
+    info = tc_check_expression(checker, expression);
+    if (!info) {
+        return false;
+    }
+
+    if (expression->kind == AST_EXPR_DISCARD ||
+        !tc_expression_is_assignment_target(checker, expression, &root_symbol)) {
+        if (root_symbol && tc_source_span_is_valid(root_symbol->declaration_span)) {
+            related_span = &root_symbol->declaration_span;
+        }
+        tc_set_error_at(checker,
+                        expression->source_span,
+                        related_span,
+                        "Swap statement requires an assignable %s target.",
+                        side_name);
+        return false;
+    }
+
+    if (root_symbol && root_symbol->is_final) {
+        tc_set_error_at(checker,
+                        expression->source_span,
+                        &root_symbol->declaration_span,
+                        "Cannot swap final symbol '%s'.",
+                        root_symbol->name ? root_symbol->name : "<anonymous>");
+        return false;
+    }
+
+    if (info_out) {
+        *info_out = info;
+    }
+    if (root_symbol_out) {
+        *root_symbol_out = root_symbol;
+    }
+    return true;
+}
+
 bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                     const BlockContext *context,
                     CheckedType *return_type, AstSourceSpan *return_span) {
@@ -67,7 +119,8 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                                            sizeof(expected_text));
 
                     if (!statement->as.return_expression &&
-                        context->expected_return_type.kind != CHECKED_TYPE_VOID) {
+                        context->expected_return_type.kind != CHECKED_TYPE_VOID &&
+                        context->kind != BLOCK_CONTEXT_START) {
                         tc_set_error_at(checker,
                                         statement->source_span,
                                         tc_block_context_related_span(context,
@@ -245,11 +298,52 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                 }
             }
             break;
+
+        case AST_STMT_SWAP:
+            {
+                const TypeCheckInfo *left_info;
+                const TypeCheckInfo *right_info;
+                CheckedType left_type;
+                CheckedType right_type;
+
+                if (!tc_check_swap_target(checker,
+                                          statement->as.swap.left,
+                                          "left-hand",
+                                          &left_info,
+                                          NULL) ||
+                    !tc_check_swap_target(checker,
+                                          statement->as.swap.right,
+                                          "right-hand",
+                                          &right_info,
+                                          NULL)) {
+                    return false;
+                }
+
+                left_type = tc_type_check_source_type(left_info);
+                right_type = tc_type_check_source_type(right_info);
+                if (!tc_checked_type_equals(left_type, right_type)) {
+                    char left_text[64];
+                    char right_text[64];
+
+                    checked_type_to_string(left_type, left_text, sizeof(left_text));
+                    checked_type_to_string(right_type, right_text, sizeof(right_text));
+                    tc_set_error_at(checker,
+                                    statement->as.swap.right->source_span,
+                                    &statement->as.swap.left->source_span,
+                                    "Swap statement requires matching target types but got %s and %s.",
+                                    left_text,
+                                    right_text);
+                    return false;
+                }
+            }
+            break;
         }
     }
 
     if (context && context->has_expected_return_type &&
         context->enforce_expected_return_type &&
+        !(context->kind == BLOCK_CONTEXT_START &&
+          current_return_type.kind == CHECKED_TYPE_VOID) &&
         !tc_checked_type_assignable(context->expected_return_type,
                                     current_return_type)) {
         AstSourceSpan primary_span = tc_source_span_is_valid(first_return_span)

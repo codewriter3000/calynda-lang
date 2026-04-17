@@ -62,7 +62,9 @@ bool mr_lower_module_init_unit(MirBuildContext *context,
 
         if (!mr_lower_expression(&unit_context, decl->as.binding.initializer, &value) ||
             !mr_append_store_global_instruction(&unit_context,
-                                             decl->as.binding.name,
+                                             mr_named_symbol_global_name(
+                                                 decl->as.binding.name,
+                                                 decl->as.binding.symbol),
                                              value,
                                              decl->as.binding.source_span)) {
             goto cleanup;
@@ -153,7 +155,9 @@ bool mir_build_program(MirProgram *program, const HirProgram *hir_program,
             MirUnit asm_unit;
             memset(&asm_unit, 0, sizeof(asm_unit));
             asm_unit.kind = MIR_UNIT_ASM;
-            asm_unit.name = ast_copy_text(decl->as.asm_decl.name);
+            asm_unit.name = ast_copy_text(mr_named_symbol_global_name(
+                decl->as.asm_decl.name,
+                decl->as.asm_decl.symbol));
             asm_unit.symbol = decl->as.asm_decl.symbol;
             asm_unit.return_type = decl->as.asm_decl.return_type;
             asm_unit.parameter_count = decl->as.asm_decl.parameter_count;
@@ -183,7 +187,9 @@ bool mir_build_program(MirProgram *program, const HirProgram *hir_program,
 
         if (mr_top_level_binding_uses_lambda_unit(decl)) {
             if (!mr_lower_lambda_unit(&context,
-                                   decl->as.binding.name,
+                                   mr_named_symbol_global_name(
+                                       decl->as.binding.name,
+                                       decl->as.binding.symbol),
                                    decl->as.binding.symbol,
                                    &decl->as.binding.initializer->as.lambda,
                                    decl->as.binding.callable_signature.return_type,
@@ -201,6 +207,10 @@ bool mir_build_program(MirProgram *program, const HirProgram *hir_program,
     if (start_decl &&
         !mr_lower_start_unit(&context, start_decl, created_module_init_unit)) {
         return false;
+    }
+
+    for (i = 0; i < program->unit_count; i++) {
+        mir_apply_self_tco(&program->units[i]);
     }
 
     return true;

@@ -240,11 +240,20 @@ AstTopLevelDecl *parse_start_decl(Parser *parser) {
 
     decl->as.start_decl.start_span = parser_source_span(parser_current_token(parser));
 
-    if (!parser_consume(parser, TOK_START, "Expected 'start'.") ||
-        !parser_consume(parser, TOK_LPAREN, "Expected '(' after 'start'.") ||
-        !parser_parse_parameter_list(parser, &decl->as.start_decl.parameters, false) ||
-        !parser_consume(parser, TOK_RPAREN, "Expected ')' after start parameters.") ||
-        !parser_consume(parser, TOK_ARROW, "Expected '->' after start parameters.") ||
+    if (!parser_consume(parser, TOK_START, "Expected 'start'.")) {
+        ast_top_level_decl_free(decl);
+        return NULL;
+    }
+
+    if (parser_match(parser, TOK_LPAREN)) {
+        if (!parser_parse_parameter_list(parser, &decl->as.start_decl.parameters, true) ||
+            !parser_consume(parser, TOK_RPAREN, "Expected ')' after start parameters.")) {
+            ast_top_level_decl_free(decl);
+            return NULL;
+        }
+    }
+
+    if (!parser_consume(parser, TOK_ARROW, "Expected '->' after 'start'.") ||
         !parser_parse_block_or_expression_body(parser, &decl->as.start_decl.body) ||
         !parser_consume(parser, TOK_SEMICOLON, "Expected ';' after start declaration.")) {
         ast_top_level_decl_free(decl);
@@ -266,9 +275,7 @@ AstTopLevelDecl *parse_boot_decl(Parser *parser) {
     decl->as.start_decl.start_span = parser_source_span(parser_current_token(parser));
 
     if (!parser_consume(parser, TOK_BOOT, "Expected 'boot'.") ||
-        !parser_consume(parser, TOK_LPAREN, "Expected '(' after 'boot'.") ||
-        !parser_consume(parser, TOK_RPAREN, "Expected ')' after 'boot('.") ||
-        !parser_consume(parser, TOK_ARROW, "Expected '->' after boot parameters.") ||
+        !parser_consume(parser, TOK_ARROW, "Expected '->' after 'boot'.") ||
         !parser_parse_block_or_expression_body(parser, &decl->as.start_decl.body) ||
         !parser_consume(parser, TOK_SEMICOLON, "Expected ';' after boot declaration.")) {
         ast_top_level_decl_free(decl);

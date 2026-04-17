@@ -1,4 +1,14 @@
-# Calynda
+<p align="center">
+    <img src="calynda-icon.svg" width="350" alt="Calynda logo">
+</p>
+
+<p align="center">
+  <a href="https://github.com/codewriter3000/calynda-lang/actions">
+    <img src="https://github.com/codewriter3000/calynda-lang/workflows/CI/badge.svg" alt="GitHub Build Status">
+  </a>
+</p>
+
+---
 
 Calynda is a compiled functional systems programming language. The current 1.0.0-alpha.2 surface targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files.
 

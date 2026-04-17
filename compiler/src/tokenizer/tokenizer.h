@@ -132,6 +132,7 @@ typedef enum {
     TOK_GT,               /* >   */
     TOK_LTE,              /* <=  */
     TOK_GTE,              /* >=  */
+    TOK_SWAP,             /* ><  */
 
     /* Logical */
     TOK_LOGIC_OR,         /* ||  */

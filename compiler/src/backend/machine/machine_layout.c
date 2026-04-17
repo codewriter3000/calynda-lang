@@ -66,6 +66,26 @@ size_t mc_compute_helper_slot_count(const LirUnit *lir_unit,
                 case CODEGEN_RUNTIME_UNION_GET_TAG:
                 case CODEGEN_RUNTIME_UNION_GET_PAYLOAD:
                 case CODEGEN_RUNTIME_HETERO_ARRAY_GET_TAG:
+                case CODEGEN_RUNTIME_THREAD_SPAWN:
+                case CODEGEN_RUNTIME_THREAD_JOIN:
+                case CODEGEN_RUNTIME_THREAD_CANCEL:
+                case CODEGEN_RUNTIME_MUTEX_NEW:
+                case CODEGEN_RUNTIME_MUTEX_LOCK:
+                case CODEGEN_RUNTIME_MUTEX_UNLOCK:
+                case CODEGEN_RUNTIME_FUTURE_SPAWN:
+                case CODEGEN_RUNTIME_FUTURE_GET:
+                case CODEGEN_RUNTIME_FUTURE_CANCEL:
+                case CODEGEN_RUNTIME_ATOMIC_NEW:
+                case CODEGEN_RUNTIME_ATOMIC_LOAD:
+                case CODEGEN_RUNTIME_ATOMIC_STORE:
+                case CODEGEN_RUNTIME_ATOMIC_EXCHANGE:
+                case CODEGEN_RUNTIME_TYPEOF:
+                case CODEGEN_RUNTIME_ISINT:
+                case CODEGEN_RUNTIME_ISFLOAT:
+                case CODEGEN_RUNTIME_ISBOOL:
+                case CODEGEN_RUNTIME_ISSTRING:
+                case CODEGEN_RUNTIME_ISARRAY:
+                case CODEGEN_RUNTIME_ISSAMETYPE:
                     needed = 0;
                     break;
                 }

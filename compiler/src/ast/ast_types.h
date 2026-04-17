@@ -110,6 +110,7 @@ typedef struct {
     AstType       type;
     char         *name;
     AstSourceSpan name_span;
+    AstExpression *default_expr;
     bool          is_varargs;
 } AstParameter;
 

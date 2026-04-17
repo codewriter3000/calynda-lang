@@ -21,15 +21,21 @@ typedef struct {
     bool manual_bounds_check;
     bool strict_race_check;
     const TargetDescriptor *target;
+    char **archive_paths;
+    size_t archive_count;
+    size_t archive_capacity;
 } CalyndaCompileOptions;
 
 /* calynda_compile.c */
 int calynda_compile_to_machine_program(const char *path,
                                        MachineProgram *machine_program,
-                                       const TargetDescriptor *target);
+                                       const TargetDescriptor *target,
+                                       const CarArchive *archive_deps,
+                                       size_t archive_dep_count);
 int calynda_compile_to_bytecode_program(const char *path,
                                         BytecodeProgram *bytecode_program);
 void calynda_compile_options_init(CalyndaCompileOptions *options);
+void calynda_compile_options_free(CalyndaCompileOptions *options);
 void calynda_apply_compile_options(const CalyndaCompileOptions *options);
 void calynda_set_global_bounds_check(bool enabled);
 void calynda_set_global_strict_race_check(bool enabled);
@@ -37,7 +43,9 @@ void calynda_set_global_strict_race_check(bool enabled);
 /* calynda_car.c */
 int calynda_compile_car_to_machine_program(const CarArchive *archive,
                                            MachineProgram *machine_program,
-                                           const TargetDescriptor *target);
+                                           const TargetDescriptor *target,
+                                           const CarArchive *archive_deps,
+                                           size_t archive_dep_count);
 
 /* calynda_utils.c */
 char *calynda_read_entire_file(const char *path);
@@ -66,13 +74,19 @@ int calynda_command_pack(const char *program_name, int argc, char **argv);
 int calynda_command_run(const char *program_name, int argc, char **argv);
 int calynda_build_program_file(const char *source_path,
                                const char *output_path,
-                               const TargetDescriptor *target);
+                               const TargetDescriptor *target,
+                               const CarArchive *archive_deps,
+                               size_t archive_dep_count);
 int calynda_run_program_file(const char *source_path,
                              int argc, char **argv,
-                             const TargetDescriptor *target);
+                             const TargetDescriptor *target,
+                             const CarArchive *archive_deps,
+                             size_t archive_dep_count);
 int calynda_build_car_file(const char *car_path,
                            const char *output_path,
-                           const TargetDescriptor *target);
+                           const TargetDescriptor *target,
+                           const CarArchive *archive_deps,
+                           size_t archive_dep_count);
 int calynda_pack_directory(const char *dir_path, const char *output_path);
 
 #endif

@@ -10,6 +10,7 @@ typedef struct {
     bool          is_callable;
     HirCallableSignature callable_signature;
     bool          is_final;
+    bool          owns_symbol;
     AstSourceSpan source_span;
     HirExpression *initializer;
 } HirLocalBinding;

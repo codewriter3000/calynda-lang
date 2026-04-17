@@ -117,6 +117,30 @@ void test_parse_varargs_parameter(void) {
     parser_free(&parser);
 }
 
+void test_parse_default_parameter(void) {
+    const char *source = "int32 add = (int32 left, int32 right = left + 1) -> left + right;\n";
+    Parser parser;
+    AstProgram program;
+    const AstParameter *right;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse default parameter binding");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for default parameter");
+    ASSERT_EQ_INT(2,
+                  program.top_level_decls[0]->as.binding_decl.initializer
+                      ->as.lambda.parameters.count,
+                  "default parameter preserves arity");
+    right = &program.top_level_decls[0]->as.binding_decl.initializer
+                 ->as.lambda.parameters.items[1];
+    ASSERT_EQ_STR("right", right->name, "default parameter name");
+    ASSERT_TRUE(right->default_expr != NULL, "default parameter expression is present");
+    ASSERT_EQ_INT(AST_EXPR_BINARY, right->default_expr->kind,
+                  "default parameter parses full expression");
+
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 
 /* ------------------------------------------------------------------ */
 /* V2 feature: export / static / internal modifiers                   */

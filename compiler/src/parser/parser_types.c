@@ -253,6 +253,16 @@ bool parser_parse_parameter_list(Parser *parser, AstParameterList *list,
         }
         parameter.name_span = parser_source_span(name_token);
 
+        if (parser_match(parser, TOK_ASSIGN)) {
+            parameter.default_expr = parse_assignment_expression(parser);
+            if (!parameter.default_expr) {
+                ast_type_free(&parameter.type);
+                free(parameter.name);
+                ast_parameter_list_free(list);
+                return false;
+            }
+        }
+
         if (!parser_add_parameter(parser, list, &parameter)) {
             ast_parameter_list_free(list);
             return false;

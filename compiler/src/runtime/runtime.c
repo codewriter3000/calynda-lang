@@ -29,6 +29,10 @@ static bool registry_contains_pointer(const void *pointer);
 static bool registry_append_pointer(void *pointer, bool owned);
 static void registry_free_owned_object(void *pointer);
 static char *copy_text_n(const char *text, size_t length);
+static const char *rt_require_type_text(CalyndaRtWord word);
+static size_t rt_type_text_base_length(const char *type_text);
+static bool rt_type_text_base_equals(const char *type_text, const char *expected);
+static bool rt_type_text_is_array(const char *type_text);
 
 bool rt_reserve_items(void **items, size_t *capacity, size_t needed, size_t item_size) {
     void *resized;
@@ -209,6 +213,65 @@ static char *copy_text_n(const char *text, size_t length) {
     return copy;
 }
 
+static const char *rt_require_type_text(CalyndaRtWord word) {
+    if (!rt_is_runtime_string_word(word)) {
+        fprintf(stderr, "runtime: type helper expects a string metadata argument\n");
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
+    }
+
+    return calynda_rt_string_bytes(word);
+}
+
+static size_t rt_type_text_base_length(const char *type_text) {
+    size_t length;
+    size_t i;
+
+    if (!type_text) {
+        return 0;
+    }
+
+    length = strlen(type_text);
+    while (length >= 2 &&
+           type_text[length - 2] == '[' &&
+           type_text[length - 1] == ']') {
+        length -= 2;
+    }
+
+    for (i = 0; i < length; i++) {
+        if (type_text[i] == '<') {
+            return i;
+        }
+    }
+
+    return length;
+}
+
+static bool rt_type_text_base_equals(const char *type_text, const char *expected) {
+    size_t base_length;
+
+    if (!type_text || !expected) {
+        return false;
+    }
+
+    base_length = rt_type_text_base_length(type_text);
+    return strlen(expected) == base_length &&
+           strncmp(type_text, expected, base_length) == 0;
+}
+
+static bool rt_type_text_is_array(const char *type_text) {
+    size_t length;
+
+    if (!type_text) {
+        return false;
+    }
+
+    length = strlen(type_text);
+    return (length >= 2 &&
+            type_text[length - 2] == '[' &&
+            type_text[length - 1] == ']') ||
+           rt_type_text_base_equals(type_text, "arr");
+}
+
 CalyndaRtString *rt_new_string_object(const char *bytes, size_t length) {
     CalyndaRtString *string_object;
     char *copied_bytes;
@@ -352,6 +415,84 @@ CalyndaRtAtomic *rt_new_atomic_object(void) {
         return NULL;
     }
     return atomic_object;
+}
+
+CalyndaRtWord __calynda_typeof(CalyndaRtWord value, CalyndaRtWord type_text) {
+    const char *type_bytes = rt_require_type_text(type_text);
+    size_t base_length = rt_type_text_base_length(type_bytes);
+    char *base_text;
+    CalyndaRtWord result;
+
+    (void)value;
+
+    base_text = copy_text_n(type_bytes, base_length);
+    if (!base_text) {
+        fprintf(stderr, "runtime: out of memory while computing typeof()\n");
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
+    }
+
+    result = calynda_rt_make_string_copy(base_text);
+    free(base_text);
+    return result;
+}
+
+CalyndaRtWord __calynda_isint(CalyndaRtWord value, CalyndaRtWord type_text) {
+    const char *type_bytes = rt_require_type_text(type_text);
+
+    (void)value;
+
+    return rt_type_text_base_equals(type_bytes, "int8") ||
+           rt_type_text_base_equals(type_bytes, "int16") ||
+           rt_type_text_base_equals(type_bytes, "int32") ||
+           rt_type_text_base_equals(type_bytes, "int64") ||
+           rt_type_text_base_equals(type_bytes, "uint8") ||
+           rt_type_text_base_equals(type_bytes, "uint16") ||
+           rt_type_text_base_equals(type_bytes, "uint32") ||
+           rt_type_text_base_equals(type_bytes, "uint64") ||
+           rt_type_text_base_equals(type_bytes, "char") ||
+           rt_type_text_base_equals(type_bytes, "byte") ||
+           rt_type_text_base_equals(type_bytes, "sbyte") ||
+           rt_type_text_base_equals(type_bytes, "short") ||
+           rt_type_text_base_equals(type_bytes, "int") ||
+           rt_type_text_base_equals(type_bytes, "long") ||
+           rt_type_text_base_equals(type_bytes, "ulong") ||
+           rt_type_text_base_equals(type_bytes, "uint");
+}
+
+CalyndaRtWord __calynda_isfloat(CalyndaRtWord value, CalyndaRtWord type_text) {
+    const char *type_bytes = rt_require_type_text(type_text);
+
+    (void)value;
+
+    return rt_type_text_base_equals(type_bytes, "float32") ||
+           rt_type_text_base_equals(type_bytes, "float64") ||
+           rt_type_text_base_equals(type_bytes, "float") ||
+           rt_type_text_base_equals(type_bytes, "double");
+}
+
+CalyndaRtWord __calynda_isbool(CalyndaRtWord value, CalyndaRtWord type_text) {
+    (void)value;
+    return rt_type_text_base_equals(rt_require_type_text(type_text), "bool");
+}
+
+CalyndaRtWord __calynda_isstring(CalyndaRtWord value, CalyndaRtWord type_text) {
+    (void)value;
+    return rt_type_text_base_equals(rt_require_type_text(type_text), "string");
+}
+
+CalyndaRtWord __calynda_isarray(CalyndaRtWord value, CalyndaRtWord type_text) {
+    (void)value;
+    return rt_type_text_is_array(rt_require_type_text(type_text));
+}
+
+CalyndaRtWord __calynda_issametype(CalyndaRtWord left_value,
+                                   CalyndaRtWord left_type_text,
+                                   CalyndaRtWord right_value,
+                                   CalyndaRtWord right_type_text) {
+    (void)left_value;
+    (void)right_value;
+    return strcmp(rt_require_type_text(left_type_text),
+                  rt_require_type_text(right_type_text)) == 0;
 }
 
 bool calynda_rt_is_object(CalyndaRtWord word) { return calynda_rt_as_object(word) != NULL; }

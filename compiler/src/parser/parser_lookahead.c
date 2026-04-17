@@ -35,6 +35,56 @@ bool is_type_start_token(TokenType type) {
             type == TOK_PTR || is_primitive_type_token(type);
 }
 
+static bool scan_default_parameter_expression_pattern(const Parser *parser, size_t *index) {
+    int paren_depth = 0;
+    int bracket_depth = 0;
+    int brace_depth = 0;
+
+    if (!parser || !index) {
+        return false;
+    }
+
+    for (;;) {
+        TokenType type = parser_token_at(parser, *index)->type;
+
+        if (type == TOK_EOF || type == TOK_SEMICOLON) {
+            return false;
+        }
+
+        if (paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 &&
+            (type == TOK_COMMA || type == TOK_RPAREN)) {
+            return true;
+        }
+
+        switch (type) {
+        case TOK_LPAREN: paren_depth++; break;
+        case TOK_RPAREN:
+            if (paren_depth > 0) {
+                paren_depth--;
+            } else {
+                return true;
+            }
+            break;
+        case TOK_LBRACKET: bracket_depth++; break;
+        case TOK_RBRACKET:
+            if (bracket_depth > 0) {
+                bracket_depth--;
+            }
+            break;
+        case TOK_LBRACE: brace_depth++; break;
+        case TOK_RBRACE:
+            if (brace_depth > 0) {
+                brace_depth--;
+            }
+            break;
+        default:
+            break;
+        }
+
+        (*index)++;
+    }
+}
+
 bool scan_generic_args_pattern(const Parser *parser, size_t *index) {
     int depth = 1;
 
@@ -139,6 +189,12 @@ bool looks_like_lambda_expression(const Parser *parser) {
         }
 
         index++;
+        if (parser_token_at(parser, index)->type == TOK_ASSIGN) {
+            index++;
+            if (!scan_default_parameter_expression_pattern(parser, &index)) {
+                return false;
+            }
+        }
         if (parser_token_at(parser, index)->type == TOK_COMMA) {
             index++;
             continue;

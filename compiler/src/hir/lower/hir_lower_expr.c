@@ -72,6 +72,135 @@ static HirExpression *hr_make_helper_symbol(HirBuildContext *context,
     return symbol_expr;
 }
 
+static HirExpression *hr_make_string_literal_expression(HirBuildContext *context,
+                                                        const char *text,
+                                                        AstSourceSpan source_span) {
+    HirExpression *literal_expr = hr_expression_new(HIR_EXPR_LITERAL);
+    size_t text_length = text ? strlen(text) : 0;
+
+    if (!literal_expr) {
+        return NULL;
+    }
+
+    literal_expr->type =
+        (CheckedType){CHECKED_TYPE_VALUE, AST_PRIMITIVE_STRING, 0, NULL, 0, false};
+    literal_expr->source_span = source_span;
+    literal_expr->as.literal.kind = AST_LITERAL_STRING;
+    literal_expr->as.literal.as.text = malloc(text_length + 3);
+    if (literal_expr->as.literal.as.text) {
+        literal_expr->as.literal.as.text[0] = '"';
+        if (text_length > 0) {
+            memcpy(literal_expr->as.literal.as.text + 1, text, text_length);
+        }
+        literal_expr->as.literal.as.text[text_length + 1] = '"';
+        literal_expr->as.literal.as.text[text_length + 2] = '\0';
+    }
+    if (!literal_expr->as.literal.as.text) {
+        hir_expression_free(literal_expr);
+        hr_set_error(context,
+                     source_span,
+                     NULL,
+                     "Out of memory while lowering helper type metadata.");
+        return NULL;
+    }
+
+    return literal_expr;
+}
+
+static bool hr_format_helper_type_text(const TypeCheckInfo *info,
+                                       char *buffer,
+                                       size_t buffer_size) {
+    size_t written;
+
+    if (!info || !buffer || buffer_size == 0) {
+        return false;
+    }
+
+    if (info->type.kind == CHECKED_TYPE_NAMED &&
+        info->type.name &&
+        info->type.generic_arg_count == 1 &&
+        info->has_first_generic_arg) {
+        char generic_text[64];
+        size_t i;
+
+        if (!checked_type_to_string(info->first_generic_arg_type,
+                                    generic_text,
+                                    sizeof(generic_text))) {
+            return false;
+        }
+
+        written = (size_t)snprintf(buffer,
+                                   buffer_size,
+                                   "%s<%s>",
+                                   info->type.name,
+                                   generic_text);
+        if (written >= buffer_size) {
+            return false;
+        }
+
+        for (i = 0; i < info->type.array_depth; i++) {
+            written += (size_t)snprintf(buffer + written,
+                                        buffer_size - written,
+                                        "[]");
+            if (written >= buffer_size) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    return checked_type_to_string(info->type, buffer, buffer_size);
+}
+
+static bool hr_is_builtin_type_query_call(HirBuildContext *context,
+                                          const AstExpression *expression,
+                                          const char **helper_name_out) {
+    const AstExpression *callee;
+
+    if (!context || !expression || expression->kind != AST_EXPR_CALL ||
+        !expression->as.call.callee) {
+        return false;
+    }
+
+    callee = expression->as.call.callee;
+    if (callee->kind != AST_EXPR_IDENTIFIER ||
+        symbol_table_resolve_identifier(context->symbols, callee) != NULL ||
+        !callee->as.identifier) {
+        return false;
+    }
+
+    if (strcmp(callee->as.identifier, "typeof") == 0) {
+        *helper_name_out = "__calynda_typeof";
+        return true;
+    }
+    if (strcmp(callee->as.identifier, "isint") == 0) {
+        *helper_name_out = "__calynda_isint";
+        return true;
+    }
+    if (strcmp(callee->as.identifier, "isfloat") == 0) {
+        *helper_name_out = "__calynda_isfloat";
+        return true;
+    }
+    if (strcmp(callee->as.identifier, "isbool") == 0) {
+        *helper_name_out = "__calynda_isbool";
+        return true;
+    }
+    if (strcmp(callee->as.identifier, "isstring") == 0) {
+        *helper_name_out = "__calynda_isstring";
+        return true;
+    }
+    if (strcmp(callee->as.identifier, "isarray") == 0) {
+        *helper_name_out = "__calynda_isarray";
+        return true;
+    }
+    if (strcmp(callee->as.identifier, "issametype") == 0) {
+        *helper_name_out = "__calynda_issametype";
+        return true;
+    }
+
+    return false;
+}
+
 static HirExpression *hr_make_helper_call(HirBuildContext *context,
                                           const AstExpression *expression,
                                           const char *helper_name,
@@ -440,6 +569,71 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
 
     if (expression->kind == AST_EXPR_CALL) {
         const char *helper_name = NULL;
+
+        if (hr_is_builtin_type_query_call(context, expression, &helper_name)) {
+            HirExpression *arguments[4] = { NULL, NULL, NULL, NULL };
+            size_t lowered_argument_count =
+                strcmp(helper_name, "__calynda_issametype") == 0 ? 4 : 2;
+            size_t argument_index;
+
+            for (argument_index = 0;
+                 argument_index < expression->as.call.arguments.count;
+                 argument_index++) {
+                char type_text[128];
+                const TypeCheckInfo *argument_info =
+                    type_checker_get_expression_info(context->checker,
+                                                     expression->as.call.arguments.items[argument_index]);
+
+                if (!argument_info ||
+                    !hr_format_helper_type_text(argument_info,
+                                               type_text,
+                                               sizeof(type_text))) {
+                    while (argument_index > 0) {
+                        argument_index--;
+                        hir_expression_free(arguments[argument_index * 2]);
+                        hir_expression_free(arguments[argument_index * 2 + 1]);
+                    }
+                    hr_set_error(context,
+                                 expression->source_span,
+                                 NULL,
+                                 "Internal error: missing helper type metadata during HIR lowering.");
+                    return NULL;
+                }
+
+                arguments[argument_index * 2] =
+                    hr_lower_expression(context, expression->as.call.arguments.items[argument_index]);
+                if (!arguments[argument_index * 2]) {
+                    while (argument_index > 0) {
+                        argument_index--;
+                        hir_expression_free(arguments[argument_index * 2]);
+                        hir_expression_free(arguments[argument_index * 2 + 1]);
+                    }
+                    return NULL;
+                }
+
+                arguments[argument_index * 2 + 1] =
+                    hr_make_string_literal_expression(context,
+                                                      type_text,
+                                                      expression->as.call.arguments.items[argument_index]->source_span);
+                if (!arguments[argument_index * 2 + 1]) {
+                    hir_expression_free(arguments[argument_index * 2]);
+                    arguments[argument_index * 2] = NULL;
+                    while (argument_index > 0) {
+                        argument_index--;
+                        hir_expression_free(arguments[argument_index * 2]);
+                        hir_expression_free(arguments[argument_index * 2 + 1]);
+                    }
+                    return NULL;
+                }
+            }
+
+            return hr_make_helper_call(context,
+                                       expression,
+                                       helper_name,
+                                       info->type,
+                                       arguments,
+                                       lowered_argument_count);
+        }
 
         if (hr_is_builtin_array_call(context, expression, &helper_name)) {
             HirExpression *argument =

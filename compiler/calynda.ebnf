@@ -48,18 +48,19 @@ TopLevelDecl
     | AsmDecl
     ;
 
-(* Entry point — implicitly returns int32 (exit code).              *)
-(* Syntax: start(string[] args) -> { ... };                         *)
+(* Entry point — implicitly returns int32 (exit code), or 0 when a  *)
+(* void start body falls through or uses bare returns.              *)
+(* Syntax: start -> { ... }; / start(string[] args) -> { ... };     *)
 StartDecl
-    = "start" "(" ParameterList ")" "->" ( Block | Expression ) ";"
+    = "start" [ "(" [ ParameterList ] ")" ] "->" ( Block | Expression ) ";"
     ;
 
 (* Bare-metal entry point — no runtime, no parameters.              *)
 (* Implicitly returns int32 (halt code). Mutually exclusive with    *)
 (* StartDecl.                                                       *)
-(* Syntax: boot() -> { ... };                                       *)
+(* Syntax: boot -> { ... };                                         *)
 BootDecl
-    = "boot" "(" ")" "->" ( Block | Expression ) ";"
+    = "boot" "->" ( Block | Expression ) ";"
     ;
 
 (* Variable / function binding with optional modifiers.             *)
@@ -291,8 +292,7 @@ ParameterList
     ;
 
 Parameter
-    = Type "..." Identifier                                    (* varargs — must be last *)
-    | Type Identifier
+    = Type [ "..." ] Identifier [ "=" Expression ]             (* varargs — must be last *)
     ;
 
 (* --- Assignment (right-associative) ----------------------------- *)

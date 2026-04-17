@@ -196,13 +196,38 @@ void test_parse_asm_decl_with_modifiers(void) {
 }
 
 
+void test_parse_bare_start_decl(void) {
+    const char *source =
+        "start -> {\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    AstTopLevelDecl *decl;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse bare start program");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for bare start decl");
+    ASSERT_EQ_INT(1, (int)program.top_level_count, "one top-level decl");
+
+    decl = program.top_level_decls[0];
+    ASSERT_EQ_INT(AST_TOP_LEVEL_START, (int)decl->kind, "start decl kind");
+    ASSERT_TRUE(!decl->as.start_decl.is_boot, "bare start is not boot");
+    ASSERT_EQ_INT(0, (int)decl->as.start_decl.parameters.count, "bare start has zero parameters");
+    ASSERT_EQ_INT(AST_LAMBDA_BODY_BLOCK, (int)decl->as.start_decl.body.kind, "bare start body is block");
+
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+
 /* ------------------------------------------------------------------ */
 /*  Test: boot declaration                                            */
 /* ------------------------------------------------------------------ */
 
 void test_parse_boot_decl(void) {
     const char *source =
-        "boot() -> {\n"
+        "boot -> {\n"
         "    return 0;\n"
         "};\n";
     Parser parser;
@@ -226,7 +251,7 @@ void test_parse_boot_decl(void) {
 
 
 void test_parse_boot_decl_expression_body(void) {
-    const char *source = "boot() -> 42;\n";
+    const char *source = "boot -> 42;\n";
     Parser parser;
     AstProgram program;
     AstTopLevelDecl *decl;
@@ -244,4 +269,3 @@ void test_parse_boot_decl_expression_body(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
-

@@ -128,7 +128,7 @@ static bool cross_link_boot(const char *assembly, const char *cc,
 
 void test_cross_asm_riscv64_assembles(void) {
     static const char *cc = "riscv64-linux-gnu-gcc";
-    static const char source[] = "boot() -> 42;\n";
+    static const char source[] = "boot -> 42;\n";
     char *assembly;
 
     if (!cross_compiler_available(cc)) {
@@ -151,7 +151,7 @@ void test_cross_asm_riscv64_assembles(void) {
 
 void test_cross_asm_aarch64_assembles(void) {
     static const char *cc = "aarch64-linux-gnu-gcc";
-    static const char source[] = "boot() -> 42;\n";
+    static const char source[] = "boot -> 42;\n";
     char *assembly;
 
     if (!cross_compiler_available(cc)) {
@@ -174,7 +174,7 @@ void test_cross_asm_aarch64_assembles(void) {
 
 void test_cross_build_riscv64_boot_links(void) {
     static const char *cc = "riscv64-linux-gnu-gcc";
-    static const char source[] = "boot() -> 42;\n";
+    static const char source[] = "boot -> 42;\n";
     char *assembly;
     char exe_path[128];
 
@@ -211,7 +211,7 @@ void test_cross_build_riscv64_boot_links(void) {
  */
 void test_cross_run_riscv64_boot_qemu(void) {
     static const char *cc = "riscv64-linux-gnu-gcc";
-    static const char source[] = "boot() -> 42;\n";
+    static const char source[] = "boot -> 42;\n";
     char *assembly;
 
     if (!cross_compiler_available(cc)) {

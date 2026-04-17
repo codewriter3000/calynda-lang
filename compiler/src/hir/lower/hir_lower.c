@@ -120,7 +120,7 @@ bool hr_lower_parameters(HirBuildContext *context,
 }
 
 HirBlock *hr_lower_body_to_block(HirBuildContext *context,
-                                 const AstLambdaBody *body) {
+                                  const AstLambdaBody *body) {
     HirBlock *block;
 
     if (!body) {
@@ -170,6 +170,90 @@ HirBlock *hr_lower_body_to_block(HirBuildContext *context,
     return block;
 }
 
+HirBlock *hr_lower_start_body_to_block(HirBuildContext *context,
+                                       const AstLambdaBody *body) {
+    HirBlock *block;
+
+    if (!body) {
+        return NULL;
+    }
+
+    if (body->kind == AST_LAMBDA_BODY_BLOCK) {
+        return hr_lower_block(context, body->as.block);
+    }
+
+    block = hr_block_new();
+    if (!block) {
+        hr_set_error(context,
+                     body->as.expression ? body->as.expression->source_span : (AstSourceSpan){0},
+                     NULL,
+                     "Out of memory while lowering HIR blocks.");
+        return NULL;
+    }
+
+    if (body->as.expression) {
+        const TypeCheckInfo *info = type_checker_get_expression_info(context->checker,
+                                                                     body->as.expression);
+        HirStatement *statement;
+        HirExpression *expression;
+
+        if (!info) {
+            hr_set_error(context,
+                         body->as.expression->source_span,
+                         NULL,
+                         "Internal error: missing type info for start body expression.");
+            hir_block_free(block);
+            return NULL;
+        }
+
+        statement = hr_statement_new(info->type.kind == CHECKED_TYPE_VOID
+                                         ? HIR_STMT_EXPRESSION
+                                         : HIR_STMT_RETURN);
+        if (!statement) {
+            hir_block_free(block);
+            hr_set_error(context,
+                         body->as.expression->source_span,
+                         NULL,
+                         "Out of memory while lowering HIR statements.");
+            return NULL;
+        }
+
+        statement->source_span = body->as.expression->source_span;
+        expression = hr_lower_expression(context, body->as.expression);
+        if (!expression) {
+            hir_statement_free(statement);
+            hir_block_free(block);
+            if (!context->program->has_error) {
+                hr_set_error(context,
+                             body->as.expression->source_span,
+                             NULL,
+                             "Out of memory while lowering HIR statements.");
+            }
+            return NULL;
+        }
+
+        if (statement->kind == HIR_STMT_RETURN) {
+            statement->as.return_expression = expression;
+        } else {
+            statement->as.expression = expression;
+        }
+
+        if (!hr_append_statement(block, statement)) {
+            hir_statement_free(statement);
+            hir_block_free(block);
+            if (!context->program->has_error) {
+                hr_set_error(context,
+                             body->as.expression->source_span,
+                             NULL,
+                             "Out of memory while lowering HIR statements.");
+            }
+            return NULL;
+        }
+    }
+
+    return block;
+}
+
 HirBlock *hr_lower_block(HirBuildContext *context, const AstBlock *block) {
     const Scope *scope;
     HirBlock *hir_block;
@@ -198,22 +282,33 @@ HirBlock *hr_lower_block(HirBuildContext *context, const AstBlock *block) {
     }
 
     for (i = 0; i < block->statement_count; i++) {
-        HirStatement *statement = hr_lower_statement(context, block->statements[i], scope);
-
-        if (!statement) {
-            hir_block_free(hir_block);
-            return NULL;
+        if (block->statements[i]->kind == AST_STMT_SWAP) {
+            if (!hr_lower_swap_statement(context, hir_block, block->statements[i])) {
+                hir_block_free(hir_block);
+                return NULL;
+            }
+            continue;
         }
-        if (!hr_append_statement(hir_block, statement)) {
-            hir_statement_free(statement);
-            hir_block_free(hir_block);
-            hr_set_error(context,
-                         block->statements[i]->source_span,
-                         NULL,
-                         "Out of memory while lowering HIR statements.");
-            return NULL;
+
+        {
+            HirStatement *statement = hr_lower_statement(context, block->statements[i], scope);
+
+            if (!statement) {
+                hir_block_free(hir_block);
+                return NULL;
+            }
+            if (!hr_append_statement(hir_block, statement)) {
+                hir_statement_free(statement);
+                hir_block_free(hir_block);
+                hr_set_error(context,
+                             block->statements[i]->source_span,
+                             NULL,
+                             "Out of memory while lowering HIR statements.");
+                return NULL;
+            }
         }
     }
 
     return hir_block;
 }
+ 

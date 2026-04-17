@@ -322,6 +322,9 @@ static bool resolve_statement(TypeResolver *resolver, const AstStatement *statem
             return tr_resolve_block(resolver, statement->as.manual.body);
         }
         return true;
+    case AST_STMT_SWAP:
+        return tr_resolve_expression(resolver, statement->as.swap.left) &&
+               tr_resolve_expression(resolver, statement->as.swap.right);
     }
 
     return false;

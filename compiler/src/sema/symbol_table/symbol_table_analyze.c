@@ -3,6 +3,25 @@
 
 #include <stdlib.h>
 
+static bool st_analyze_parameter_defaults(SymbolTable *table,
+                                          const AstParameterList *parameters,
+                                          Scope *scope) {
+    size_t i;
+
+    if (!parameters) {
+        return true;
+    }
+
+    for (i = 0; i < parameters->count; i++) {
+        if (parameters->items[i].default_expr &&
+            !st_analyze_expression(table, parameters->items[i].default_expr, scope)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 bool st_analyze_top_level_decl(SymbolTable *table,
                                const AstTopLevelDecl *decl,
                                Scope *scope) {
@@ -16,8 +35,9 @@ bool st_analyze_top_level_decl(SymbolTable *table,
         return st_analyze_union_decl(table, &decl->as.union_decl, scope);
 
     case AST_TOP_LEVEL_ASM:
-        /* Asm declarations have opaque bodies — nothing to analyze. */
-        return true;
+        return st_analyze_parameter_defaults(table,
+                                             &decl->as.asm_decl.parameters,
+                                             scope);
 
     case AST_TOP_LEVEL_LAYOUT:
     case AST_TOP_LEVEL_TYPE_ALIAS:
@@ -37,6 +57,10 @@ bool st_analyze_start_decl(SymbolTable *table, const AstStartDecl *start_decl,
     }
 
     if (!st_add_parameter_symbols(table, &start_decl->parameters, start_scope)) {
+        return false;
+    }
+
+    if (!st_analyze_parameter_defaults(table, &start_decl->parameters, start_scope)) {
         return false;
     }
 
@@ -114,6 +138,12 @@ bool st_analyze_lambda_expression(SymbolTable *table,
         return false;
     }
 
+    if (!st_analyze_parameter_defaults(table,
+                                       &lambda_expression->as.lambda.parameters,
+                                       lambda_scope)) {
+        return false;
+    }
+
     if (lambda_expression->as.lambda.body.kind == AST_LAMBDA_BODY_BLOCK) {
         return st_analyze_block(table, lambda_expression->as.lambda.body.as.block,
                                 lambda_scope);
@@ -170,6 +200,9 @@ bool st_analyze_statement(SymbolTable *table, const AstStatement *statement,
             return st_analyze_block(table, statement->as.manual.body, scope);
         }
         return true;
+    case AST_STMT_SWAP:
+        return st_analyze_expression(table, statement->as.swap.left, scope) &&
+               st_analyze_expression(table, statement->as.swap.right, scope);
     }
 
     return false;

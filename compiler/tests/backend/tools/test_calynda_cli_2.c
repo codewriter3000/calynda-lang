@@ -122,7 +122,7 @@ void test_calynda_cli_help_and_emitters(void) {
                  "run calynda version");
     captured_output = output;
     ASSERT_EQ_INT(0, exit_code, "calynda version exits successfully");
-    ASSERT_CONTAINS("1.0.0-alpha.2", captured_output, "version text prints alpha.2 metadata");
+    ASSERT_CONTAINS("1.0.0-alpha.5", captured_output, "version text prints alpha.5 metadata");
 
     REQUIRE_TRUE(run_capture("./build/calynda", asm_argv, output, sizeof(output), &exit_code),
                  "run calynda asm");

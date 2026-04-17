@@ -1,3 +1,22 @@
+# Calynda 1.0.0-alpha.5
+
+April 17, 2026
+
+## Highlights
+
+- **`start` is now argument-optional and return-optional.** The entry point no longer requires `(string[] args)` parameters or an `int32` return. All four forms are now valid: `start -> expr;`, `start -> { ... };`, `start(string[] args) -> expr;`, and `start(string[] args) -> { ... };`. A void `start` body that falls through or uses bare `return;` exits with code 0.
+- **`boot` no longer takes arguments or parentheses.** The bare-metal entry point is now written as `boot -> { ... };` instead of `boot() -> { ... };`, reflecting that it bypasses the runtime entirely and therefore cannot receive any parameters.
+- **Operator overloading.** Top-level bindings may now share the same name with different parameter types. The type checker selects the correct overload at each call site using exact-type matching first, then numeric widening. Ambiguous call sites (where two overloads match equally well) are diagnosed as errors.
+- **Default parameter values.** Parameters may now carry a default expression: `Type name = expr`. Callers may omit trailing defaulted arguments; the HIR inlining pass substitutes the default expression at each omitted call site. A default expression may only reference parameters declared earlier in the same list.
+- **Swap operator (`><`).** `x >< y;` atomically exchanges the values of two writable expressions. The HIR expansion pass lowers the swap into a standard read/modify/write triple so no new runtime helpers are needed.
+- **Self tail-recursion elimination.** The MIR pass now detects when the sole recursive call in a lambda is in tail position and rewrites the unit into an explicit loop, preventing stack growth for deeply recursive programs.
+- **Type-query builtins.** Four new intrinsics are available anywhere in Calynda code: `typeof(value)` returns a `string` naming the runtime type; `isint(value)`, `isfloat(value)`, `isbool(value)`, `isstring(value)`, and `isarray(value)` return `bool`; and `issametype(x, y)` returns `bool`. These are dispatched through the runtime rather than resolved as compile-time constants.
+- **Wildcard imports fixed.** `import pkg.*;` now correctly injects all exported symbols from `pkg` into the current scope. Previously wildcard imports parsed but symbols were not merged, causing unresolved-identifier errors on direct calls like `print("…")`.
+- **External `.car` dependency archives.** `calynda build`, `run`, and `asm` now accept `--archive path.car` (repeatable) and `--archive-path dir` (loads all `.car` files from a directory) to resolve imports against prepackaged library archives without repacking the application source.
+- **Version string corrected.** `calynda --version` now reports the correct `1.0.0-alpha.5` string. Previously all releases reported `1.0.0-alpha.2`.
+
+---
+
 # Calynda 1.0.0-alpha.4
 
 April 17, 2026

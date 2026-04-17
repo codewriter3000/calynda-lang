@@ -2,6 +2,7 @@
 
 #include "calynda_internal.h"
 
+#include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -25,20 +26,39 @@ static bool calynda_option_enable_strict_race(const char *value,
 static bool calynda_option_set_target(const char *value,
                                       CalyndaCompileOptions *options,
                                       FILE *err);
+static bool calynda_option_add_archive(const char *value,
+                                       CalyndaCompileOptions *options,
+                                       FILE *err);
+static bool calynda_option_add_archive_path(const char *value,
+                                            CalyndaCompileOptions *options,
+                                            FILE *err);
 static bool calynda_parse_compile_options(int *argc, char ***argv,
                                           CalyndaCompileOptions *options,
                                           FILE *err);
+static bool calynda_compile_options_append_archive(CalyndaCompileOptions *options,
+                                                   const char *path,
+                                                   FILE *err);
+static bool calynda_load_archive_dependencies(const CalyndaCompileOptions *options,
+                                              CarArchive **archives_out,
+                                              size_t *archive_count_out,
+                                              FILE *err);
+static void calynda_free_archive_dependencies(CarArchive *archives,
+                                              size_t archive_count);
 static bool parse_build_output(int argc,
                                char **argv,
                                const char *default_output,
                                const char **output_path);
 static int emit_program_file(const char *path, CalyndaEmitMode mode,
-                             const TargetDescriptor *target);
+                             const TargetDescriptor *target,
+                             const CarArchive *archive_deps,
+                             size_t archive_dep_count);
 
 static const CalyndaOptionSpec k_compile_option_specs[] = {
     { "--manual-bounds-check", false, calynda_option_enable_manual_bounds },
     { "--strict-race-check", false, calynda_option_enable_strict_race },
-    { "--target", true, calynda_option_set_target }
+    { "--target", true, calynda_option_set_target },
+    { "--archive", true, calynda_option_add_archive },
+    { "--archive-path", true, calynda_option_add_archive_path }
 };
 
 void calynda_print_version(FILE *out) {
@@ -63,25 +83,41 @@ void calynda_print_usage(FILE *out, const char *program_name) {
     fprintf(out, "  --strict-race-check                             Enable the reserved alpha.2 strict race mode\n");
     fprintf(out, "  --manual-bounds-check                           Force manual memory ops through checked helpers\n");
     fprintf(out, "  --target T                                      Target x86_64, aarch64, or riscv64\n");
+    fprintf(out, "  --archive path.car                              Add a dependency CAR archive (repeatable)\n");
+    fprintf(out, "  --archive-path dir                              Add all .car files from a dependency directory\n");
     fprintf(out, "\nBuild, run, and asm accept .cal (single file) or .car (multi-file archive).\n");
     fprintf(out, "bytecode currently accepts .cal only.\n");
 }
 
 int calynda_command_asm(const char *program_name, int argc, char **argv) {
     CalyndaCompileOptions options;
+    CarArchive *archive_deps = NULL;
+    size_t archive_dep_count = 0;
+    int exit_code;
 
     calynda_compile_options_init(&options);
     if (!calynda_parse_compile_options(&argc, &argv, &options, stderr)) {
         calynda_print_usage(stderr, program_name);
+        calynda_compile_options_free(&options);
         return 64;
     }
     if (argc != 1) {
         calynda_print_usage(stderr, program_name);
+        calynda_compile_options_free(&options);
         return 64;
+    }
+    if (!calynda_load_archive_dependencies(&options, &archive_deps,
+                                           &archive_dep_count, stderr)) {
+        calynda_compile_options_free(&options);
+        return 66;
     }
 
     calynda_apply_compile_options(&options);
-    return emit_program_file(argv[0], CALYNDA_EMIT_MODE_ASM, options.target);
+    exit_code = emit_program_file(argv[0], CALYNDA_EMIT_MODE_ASM, options.target,
+                                  archive_deps, archive_dep_count);
+    calynda_free_archive_dependencies(archive_deps, archive_dep_count);
+    calynda_compile_options_free(&options);
+    return exit_code;
 }
 
 int calynda_command_bytecode(const char *program_name, int argc, char **argv) {
@@ -92,11 +128,13 @@ int calynda_command_bytecode(const char *program_name, int argc, char **argv) {
 
     calynda_apply_compile_options(NULL);
     return emit_program_file(argv[0], CALYNDA_EMIT_MODE_BYTECODE,
-                             target_get_default());
+                             target_get_default(), NULL, 0);
 }
 
 int calynda_command_build(const char *program_name, int argc, char **argv) {
     CalyndaCompileOptions options;
+    CarArchive *archive_deps = NULL;
+    size_t archive_dep_count = 0;
     const char *output_path;
     char default_output[PATH_MAX];
     const char *source_path;
@@ -107,10 +145,12 @@ int calynda_command_build(const char *program_name, int argc, char **argv) {
     calynda_compile_options_init(&options);
     if (!calynda_parse_compile_options(&argc, &argv, &options, stderr)) {
         calynda_print_usage(stderr, program_name);
+        calynda_compile_options_free(&options);
         return 64;
     }
     if (argc < 1) {
         calynda_print_usage(stderr, program_name);
+        calynda_compile_options_free(&options);
         return 64;
     }
 
@@ -128,18 +168,37 @@ int calynda_command_build(const char *program_name, int argc, char **argv) {
                  (int)length,
                  basename) < 0) {
         fprintf(stderr, "failed to build default output path\n");
+        calynda_compile_options_free(&options);
         return 1;
     }
     if (!parse_build_output(argc - 1, argv + 1, default_output, &output_path)) {
         calynda_print_usage(stderr, program_name);
+        calynda_compile_options_free(&options);
         return 64;
+    }
+    if (!calynda_load_archive_dependencies(&options, &archive_deps,
+                                           &archive_dep_count, stderr)) {
+        calynda_compile_options_free(&options);
+        return 66;
     }
 
     calynda_apply_compile_options(&options);
     if (has_car_extension(source_path)) {
-        return calynda_build_car_file(source_path, output_path, options.target);
+        int exit_code = calynda_build_car_file(source_path, output_path,
+                                               options.target,
+                                               archive_deps, archive_dep_count);
+        calynda_free_archive_dependencies(archive_deps, archive_dep_count);
+        calynda_compile_options_free(&options);
+        return exit_code;
     }
-    return calynda_build_program_file(source_path, output_path, options.target);
+    {
+        int exit_code = calynda_build_program_file(source_path, output_path,
+                                                   options.target,
+                                                   archive_deps, archive_dep_count);
+        calynda_free_archive_dependencies(archive_deps, archive_dep_count);
+        calynda_compile_options_free(&options);
+        return exit_code;
+    }
 }
 
 int calynda_command_pack(const char *program_name, int argc, char **argv) {
@@ -165,19 +224,34 @@ int calynda_command_pack(const char *program_name, int argc, char **argv) {
 
 int calynda_command_run(const char *program_name, int argc, char **argv) {
     CalyndaCompileOptions options;
+    CarArchive *archive_deps = NULL;
+    size_t archive_dep_count = 0;
+    int exit_code;
 
     calynda_compile_options_init(&options);
     if (!calynda_parse_compile_options(&argc, &argv, &options, stderr)) {
         calynda_print_usage(stderr, program_name);
+        calynda_compile_options_free(&options);
         return 64;
     }
     if (argc < 1) {
         calynda_print_usage(stderr, program_name);
+        calynda_compile_options_free(&options);
         return 64;
+    }
+    if (!calynda_load_archive_dependencies(&options, &archive_deps,
+                                           &archive_dep_count, stderr)) {
+        calynda_compile_options_free(&options);
+        return 66;
     }
 
     calynda_apply_compile_options(&options);
-    return calynda_run_program_file(argv[0], argc - 1, argv + 1, options.target);
+    exit_code = calynda_run_program_file(argv[0], argc - 1, argv + 1,
+                                         options.target,
+                                         archive_deps, archive_dep_count);
+    calynda_free_archive_dependencies(archive_deps, archive_dep_count);
+    calynda_compile_options_free(&options);
+    return exit_code;
 }
 
 static bool calynda_option_enable_manual_bounds(const char *value,
@@ -212,49 +286,182 @@ static bool calynda_option_set_target(const char *value,
     return true;
 }
 
+static bool calynda_compile_options_append_archive(CalyndaCompileOptions *options,
+                                                   const char *path,
+                                                   FILE *err) {
+    char **resized;
+    size_t new_capacity;
+    char *copy;
+
+    if (!options || !path) {
+        return false;
+    }
+
+    copy = strdup(path);
+    if (!copy) {
+        fprintf(err, "out of memory while recording archive dependency\n");
+        return false;
+    }
+    if (options->archive_count < options->archive_capacity) {
+        options->archive_paths[options->archive_count++] = copy;
+        return true;
+    }
+
+    new_capacity = options->archive_capacity == 0 ? 4 : options->archive_capacity * 2;
+    resized = realloc(options->archive_paths, new_capacity * sizeof(*resized));
+    if (!resized) {
+        free(copy);
+        fprintf(err, "out of memory while growing archive dependency list\n");
+        return false;
+    }
+    options->archive_paths = resized;
+    options->archive_capacity = new_capacity;
+    options->archive_paths[options->archive_count++] = copy;
+    return true;
+}
+
+static bool calynda_option_add_archive(const char *value,
+                                       CalyndaCompileOptions *options,
+                                       FILE *err) {
+    return calynda_compile_options_append_archive(options, value, err);
+}
+
+static bool calynda_option_add_archive_path(const char *value,
+                                            CalyndaCompileOptions *options,
+                                            FILE *err) {
+    DIR *dir;
+    struct dirent *entry;
+    bool found_any = false;
+
+    dir = opendir(value);
+    if (!dir) {
+        fprintf(err, "failed to open archive path: %s\n", value);
+        return false;
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+        size_t length = strlen(entry->d_name);
+        char path[PATH_MAX];
+
+        if (length <= 4 || strcmp(entry->d_name + length - 4, ".car") != 0) {
+            continue;
+        }
+        if (snprintf(path, sizeof(path), "%s/%s", value, entry->d_name) < 0) {
+            closedir(dir);
+            fprintf(err, "failed to build archive dependency path in %s\n", value);
+            return false;
+        }
+        if (!calynda_compile_options_append_archive(options, path, err)) {
+            closedir(dir);
+            return false;
+        }
+        found_any = true;
+    }
+
+    closedir(dir);
+    if (!found_any) {
+        fprintf(err, "no .car archives found in %s\n", value);
+        return false;
+    }
+    return true;
+}
+
 static bool calynda_parse_compile_options(int *argc, char ***argv,
                                           CalyndaCompileOptions *options,
                                           FILE *err) {
-    while (*argc > 0) {
-        const char *current = (*argv)[0];
+    int read_index = 0;
+    int write_index = 0;
+
+    while (read_index < *argc) {
+        const char *current = (*argv)[read_index];
         size_t i;
         bool matched = false;
 
-        if (!current || current[0] != '-') {
-            break;
-        }
+        if (current && current[0] == '-') {
+            for (i = 0; i < sizeof(k_compile_option_specs) / sizeof(k_compile_option_specs[0]); i++) {
+                const CalyndaOptionSpec *spec = &k_compile_option_specs[i];
+                const char *value = NULL;
+                int consumed = 1;
 
-        for (i = 0; i < sizeof(k_compile_option_specs) / sizeof(k_compile_option_specs[0]); i++) {
-            const CalyndaOptionSpec *spec = &k_compile_option_specs[i];
-            const char *value = NULL;
-            int consumed = 1;
-
-            if (strcmp(current, spec->name) != 0) {
-                continue;
-            }
-            if (spec->takes_value) {
-                if (*argc < 2) {
-                    fprintf(err, "missing value for option: %s\n", current);
+                if (strcmp(current, spec->name) != 0) {
+                    continue;
+                }
+                if (spec->takes_value) {
+                    if (read_index + 1 >= *argc) {
+                        fprintf(err, "missing value for option: %s\n", current);
+                        return false;
+                    }
+                    value = (*argv)[read_index + 1];
+                    consumed = 2;
+                }
+                if (!spec->apply(value, options, err)) {
                     return false;
                 }
-                value = (*argv)[1];
-                consumed = 2;
+                read_index += consumed;
+                matched = true;
+                break;
             }
-            if (!spec->apply(value, options, err)) {
-                return false;
-            }
-            *argc -= consumed;
-            *argv += consumed;
-            matched = true;
-            break;
         }
 
         if (!matched) {
-            fprintf(err, "unknown option: %s\n", current);
+            (*argv)[write_index++] = (*argv)[read_index++];
+        }
+    }
+    *argc = write_index;
+    return true;
+}
+
+static bool calynda_load_archive_dependencies(const CalyndaCompileOptions *options,
+                                              CarArchive **archives_out,
+                                              size_t *archive_count_out,
+                                              FILE *err) {
+    CarArchive *archives;
+    size_t i;
+
+    if (!archives_out || !archive_count_out) {
+        return false;
+    }
+
+    *archives_out = NULL;
+    *archive_count_out = 0;
+    if (!options || options->archive_count == 0) {
+        return true;
+    }
+
+    archives = calloc(options->archive_count, sizeof(*archives));
+    if (!archives) {
+        fprintf(err, "out of memory while loading archive dependencies\n");
+        return false;
+    }
+
+    for (i = 0; i < options->archive_count; i++) {
+        car_archive_init(&archives[i]);
+        if (!car_archive_read(&archives[i], options->archive_paths[i])) {
+            fprintf(err, "%s: %s\n",
+                    options->archive_paths[i],
+                    car_archive_get_error(&archives[i]));
+            calynda_free_archive_dependencies(archives, i + 1);
             return false;
         }
     }
+
+    *archives_out = archives;
+    *archive_count_out = options->archive_count;
     return true;
+}
+
+static void calynda_free_archive_dependencies(CarArchive *archives,
+                                              size_t archive_count) {
+    size_t i;
+
+    if (!archives) {
+        return;
+    }
+
+    for (i = 0; i < archive_count; i++) {
+        car_archive_free(&archives[i]);
+    }
+    free(archives);
 }
 
 static bool parse_build_output(int argc,
@@ -277,7 +484,9 @@ static bool parse_build_output(int argc,
 }
 
 static int emit_program_file(const char *path, CalyndaEmitMode mode,
-                             const TargetDescriptor *target) {
+                             const TargetDescriptor *target,
+                             const CarArchive *archive_deps,
+                             size_t archive_dep_count) {
     int exit_code;
 
     if (mode == CALYNDA_EMIT_MODE_ASM) {
@@ -294,12 +503,16 @@ static int emit_program_file(const char *path, CalyndaEmitMode mode,
             }
             exit_code = calynda_compile_car_to_machine_program(&archive,
                                                                &machine_program,
-                                                               target);
+                                                               target,
+                                                               archive_deps,
+                                                               archive_dep_count);
             car_archive_free(&archive);
         } else {
             exit_code = calynda_compile_to_machine_program(path,
                                                            &machine_program,
-                                                           target);
+                                                           target,
+                                                           archive_deps,
+                                                           archive_dep_count);
         }
         if (exit_code != 0) {
             return exit_code;
@@ -329,7 +542,9 @@ static int emit_program_file(const char *path, CalyndaEmitMode mode,
 }
 
 int calynda_build_program_file(const char *source_path, const char *output_path,
-                               const TargetDescriptor *target) {
+                               const TargetDescriptor *target,
+                               const CarArchive *archive_deps,
+                               size_t archive_dep_count) {
     MachineProgram machine_program;
     char *assembly;
     char assembly_path[PATH_MAX];
@@ -340,7 +555,9 @@ int calynda_build_program_file(const char *source_path, const char *output_path,
     bool is_boot;
 
     exit_code = calynda_compile_to_machine_program(source_path, &machine_program,
-                                                   target);
+                                                   target,
+                                                   archive_deps,
+                                                   archive_dep_count);
     if (exit_code != 0) {
         return exit_code;
     }
@@ -397,7 +614,9 @@ int calynda_build_program_file(const char *source_path, const char *output_path,
 }
 
 int calynda_run_program_file(const char *source_path, int argc, char **argv,
-                             const TargetDescriptor *target) {
+                             const TargetDescriptor *target,
+                             const CarArchive *archive_deps,
+                             size_t archive_dep_count) {
     char executable_path[PATH_MAX];
     char template_path[] = "/tmp/calynda-run-XXXXXX";
     char **child_argv;
@@ -415,8 +634,10 @@ int calynda_run_program_file(const char *source_path, int argc, char **argv,
     memcpy(executable_path, template_path, sizeof(template_path));
 
     exit_code = has_car_extension(source_path)
-        ? calynda_build_car_file(source_path, executable_path, target)
-        : calynda_build_program_file(source_path, executable_path, target);
+        ? calynda_build_car_file(source_path, executable_path, target,
+                                 archive_deps, archive_dep_count)
+        : calynda_build_program_file(source_path, executable_path, target,
+                                     archive_deps, archive_dep_count);
     if (exit_code != 0) {
         unlink(executable_path);
         return exit_code;
@@ -445,7 +666,9 @@ int calynda_run_program_file(const char *source_path, int argc, char **argv,
 }
 
 int calynda_build_car_file(const char *car_path, const char *output_path,
-                           const TargetDescriptor *target) {
+                           const TargetDescriptor *target,
+                           const CarArchive *archive_deps,
+                           size_t archive_dep_count) {
     CarArchive archive;
     MachineProgram machine_program;
     char *assembly;
@@ -466,7 +689,9 @@ int calynda_build_car_file(const char *car_path, const char *output_path,
 
     exit_code = calynda_compile_car_to_machine_program(&archive,
                                                        &machine_program,
-                                                       target);
+                                                       target,
+                                                       archive_deps,
+                                                       archive_dep_count);
     car_archive_free(&archive);
     if (exit_code != 0) {
         return exit_code;

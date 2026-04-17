@@ -79,8 +79,20 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
     case AST_EXPR_IDENTIFIER:
         {
             const Symbol *symbol = symbol_table_resolve_identifier(checker->symbols, expression);
+            const OverloadSet *overload_set =
+                symbol_table_resolve_overload_set(checker->symbols, expression);
 
             if (!symbol) {
+                if (overload_set) {
+                    tc_set_error_at(checker,
+                                    expression->source_span,
+                                    &overload_set->declaration_span,
+                                    "Overload set '%s' cannot be used as a value.",
+                                    expression->as.identifier
+                                        ? expression->as.identifier
+                                        : "<unknown>");
+                    return NULL;
+                }
                 if (expression->as.identifier &&
                     strcmp(expression->as.identifier, "Mutex") == 0) {
                     info = tc_type_check_info_make(tc_checked_type_named("Mutex", 0, 0));

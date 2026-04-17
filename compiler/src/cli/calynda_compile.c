@@ -16,6 +16,25 @@ void calynda_compile_options_init(CalyndaCompileOptions *options) {
     options->manual_bounds_check = false;
     options->strict_race_check = false;
     options->target = target_get_default();
+    options->archive_paths = NULL;
+    options->archive_count = 0;
+    options->archive_capacity = 0;
+}
+
+void calynda_compile_options_free(CalyndaCompileOptions *options) {
+    size_t i;
+
+    if (!options) {
+        return;
+    }
+
+    for (i = 0; i < options->archive_count; i++) {
+        free(options->archive_paths[i]);
+    }
+    free(options->archive_paths);
+    options->archive_paths = NULL;
+    options->archive_count = 0;
+    options->archive_capacity = 0;
 }
 
 void calynda_apply_compile_options(const CalyndaCompileOptions *options) {
@@ -38,7 +57,9 @@ void calynda_set_global_strict_race_check(bool enabled) {
 
 int calynda_compile_to_machine_program(const char *path,
                                        MachineProgram *machine_program,
-                                       const TargetDescriptor *target) {
+                                       const TargetDescriptor *target,
+                                       const CarArchive *archive_deps,
+                                       size_t archive_dep_count) {
     char *source;
     Parser parser;
     AstProgram program;
@@ -66,6 +87,28 @@ int calynda_compile_to_machine_program(const char *path,
         return 66;
     }
 
+    if (archive_dep_count > 0) {
+        CarArchive source_archive;
+
+        car_archive_init(&source_archive);
+        if (!car_archive_add_file(&source_archive, path, source, strlen(source))) {
+            fprintf(stderr, "%s: %s\n", path, car_archive_get_error(&source_archive));
+            car_archive_free(&source_archive);
+            free(source);
+            return 1;
+        }
+        {
+            int exit_code = calynda_compile_car_to_machine_program(&source_archive,
+                                                                   machine_program,
+                                                                   target,
+                                                                   archive_deps,
+                                                                   archive_dep_count);
+            car_archive_free(&source_archive);
+            free(source);
+            return exit_code;
+        }
+    }
+
     symbol_table_init(&symbols);
     type_checker_init(&checker);
     hir_program_init(&hir_program);
@@ -90,7 +133,9 @@ int calynda_compile_to_machine_program(const char *path,
         return 1;
     }
 
-    if (!symbol_table_build(&symbols, &program)) {
+    if (!symbol_table_build_with_archive_deps(&symbols, &program,
+                                              archive_deps,
+                                              archive_dep_count)) {
         symbol_error = symbol_table_get_error(&symbols);
         if (symbol_error && symbol_table_format_error(symbol_error, diagnostic, sizeof(diagnostic))) {
             fprintf(stderr, "%s: semantic error: %s\n", path, diagnostic);

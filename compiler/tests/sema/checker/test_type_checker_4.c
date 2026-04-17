@@ -68,6 +68,28 @@ extern int tests_failed;
 } while (0)
 
 
+void test_type_checker_accepts_bare_start_entry_point(void) {
+    const char *source = "start -> { };\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse bare start program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for bare start");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "bare start entry point passes type checking");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+
 void test_type_checker_requires_start_entry_point(void) {
     const char *source = "int32 value = 1;\n";
     Parser parser;
@@ -170,7 +192,7 @@ void test_type_checker_rejects_invalid_start_parameter_type(void) {
 
 
 void test_type_checker_accepts_boot_entry_point(void) {
-    const char *source = "boot() -> 0;\n";
+    const char *source = "boot -> { };\n";
     Parser parser;
     AstProgram program;
     SymbolTable symbols;
@@ -182,7 +204,7 @@ void test_type_checker_accepts_boot_entry_point(void) {
     REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse boot program");
     REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols for boot program");
     ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
-                "boot entry point passes type checking");
+        "boot entry point passes type checking");
 
     type_checker_free(&checker);
     symbol_table_free(&symbols);
@@ -193,7 +215,7 @@ void test_type_checker_accepts_boot_entry_point(void) {
 
 void test_type_checker_rejects_boot_and_start_together(void) {
     const char *source =
-        "boot() -> 0;\n"
+        "boot -> { };\n"
         "start(string[] args) -> 0;\n";
     Parser parser;
     AstProgram program;
@@ -225,4 +247,3 @@ void test_type_checker_rejects_boot_and_start_together(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
-

@@ -73,6 +73,15 @@ bool ast_dump_statement(AstDumpBuilder *builder, const AstStatement *statement,
         return ast_dump_block_label(builder, indent + 1, "Body",
                                     statement->as.manual.body);
     }
+
+    case AST_STMT_SWAP:
+        return ast_dump_builder_start_line(builder, indent) &&
+               ast_dump_builder_append(builder, "SwapStmt") &&
+               ast_dump_builder_finish_line(builder) &&
+               ast_dump_expression_label(builder, indent + 1, "Left",
+                                         statement->as.swap.left) &&
+               ast_dump_expression_label(builder, indent + 1, "Right",
+                                         statement->as.swap.right);
     }
 
     return false;

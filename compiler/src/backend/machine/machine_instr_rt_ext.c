@@ -225,6 +225,25 @@ bool mc_emit_instruction_runtime_ext(MachineBuildContext *context,
                      NULL,
                      "Throw helper should only be emitted from terminators.");
         return false;
+    case CODEGEN_RUNTIME_TYPEOF:
+    case CODEGEN_RUNTIME_ISINT:
+    case CODEGEN_RUNTIME_ISFLOAT:
+    case CODEGEN_RUNTIME_ISBOOL:
+    case CODEGEN_RUNTIME_ISSTRING:
+    case CODEGEN_RUNTIME_ISARRAY:
+    case CODEGEN_RUNTIME_ISSAMETYPE: {
+        const RuntimeAbiHelperSignature *signature =
+            runtime_abi_get_helper_signature(context->program->target,
+                                             selected->selection.as.runtime_helper);
+
+        return signature &&
+               mc_emit_runtime_helper_call(context, codegen_unit, signature, block, false) &&
+               mc_emit_store_vreg(context,
+                                  codegen_unit,
+                                  instruction->as.call.dest_vreg,
+                                  block,
+                                  ret);
+    }
     default:
         return false;
     }

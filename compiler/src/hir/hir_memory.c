@@ -107,6 +107,11 @@ void hir_statement_free(HirStatement *statement) {
     switch (statement->kind) {
     case HIR_STMT_LOCAL_BINDING:
         free(statement->as.local_binding.name);
+        if (statement->as.local_binding.owns_symbol && statement->as.local_binding.symbol) {
+            free(statement->as.local_binding.symbol->qualified_name);
+            free(statement->as.local_binding.symbol->name);
+            free((Symbol *)statement->as.local_binding.symbol);
+        }
         if (statement->as.local_binding.is_callable) {
             hr_free_callable_signature(&statement->as.local_binding.callable_signature);
         }
@@ -211,4 +216,3 @@ void hir_expression_free(HirExpression *expression) {
 
     free(expression);
 }
-

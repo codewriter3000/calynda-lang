@@ -99,6 +99,20 @@ const char *codegen_runtime_helper_name(CodegenRuntimeHelper helper) {
         return CALYNDA_RT_ATOMIC_STORE;
     case CODEGEN_RUNTIME_ATOMIC_EXCHANGE:
         return CALYNDA_RT_ATOMIC_EXCHANGE;
+    case CODEGEN_RUNTIME_TYPEOF:
+        return CALYNDA_TYPEOF;
+    case CODEGEN_RUNTIME_ISINT:
+        return CALYNDA_ISINT;
+    case CODEGEN_RUNTIME_ISFLOAT:
+        return CALYNDA_ISFLOAT;
+    case CODEGEN_RUNTIME_ISBOOL:
+        return CALYNDA_ISBOOL;
+    case CODEGEN_RUNTIME_ISSTRING:
+        return CALYNDA_ISSTRING;
+    case CODEGEN_RUNTIME_ISARRAY:
+        return CALYNDA_ISARRAY;
+    case CODEGEN_RUNTIME_ISSAMETYPE:
+        return CALYNDA_ISSAMETYPE;
     }
 
     return "__calynda_rt_unknown";

@@ -122,13 +122,19 @@ typedef struct {
     bool             is_checked;
 } AstManualStatement;
 
+typedef struct {
+    AstExpression *left;
+    AstExpression *right;
+} AstSwapStatement;
+
 typedef enum {
     AST_STMT_LOCAL_BINDING = 0,
     AST_STMT_RETURN,
     AST_STMT_EXIT,
     AST_STMT_THROW,
     AST_STMT_EXPRESSION,
-    AST_STMT_MANUAL
+    AST_STMT_MANUAL,
+    AST_STMT_SWAP
 } AstStatementKind;
 
 struct AstStatement {
@@ -140,6 +146,7 @@ struct AstStatement {
         AstExpression            *throw_expression;
         AstExpression            *expression;
         AstManualStatement       manual;
+        AstSwapStatement         swap;
     } as;
 };
 

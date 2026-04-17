@@ -11,7 +11,24 @@ void st_symbol_free(Symbol *symbol) {
 
     free(symbol->name);
     free(symbol->qualified_name);
+    if (symbol->has_external_declared_type) {
+        ast_type_free(&symbol->external_declared_type);
+    }
+    if (symbol->has_external_return_type) {
+        ast_type_free(&symbol->external_return_type);
+    }
+    ast_parameter_list_free(&symbol->external_parameters);
     free(symbol);
+}
+
+void st_overload_set_free(OverloadSet *overload_set) {
+    if (!overload_set) {
+        return;
+    }
+
+    free(overload_set->name);
+    free(overload_set->symbols);
+    free(overload_set);
 }
 
 void st_scope_free(Scope *scope) {
@@ -28,9 +45,13 @@ void st_scope_free(Scope *scope) {
     for (i = 0; i < scope->symbol_count; i++) {
         st_symbol_free(scope->symbols[i]);
     }
+    for (i = 0; i < scope->overload_set_count; i++) {
+        st_overload_set_free(scope->overload_sets[i]);
+    }
 
     free(scope->children);
     free(scope->symbols);
+    free(scope->overload_sets);
     free(scope);
 }
 
@@ -172,6 +193,29 @@ Symbol *st_symbol_new(SymbolTable *table, SymbolKind kind,
     return symbol;
 }
 
+OverloadSet *st_overload_set_new(SymbolTable *table,
+                                 const char *name,
+                                 Scope *scope,
+                                 AstSourceSpan declaration_span) {
+    OverloadSet *overload_set = calloc(1, sizeof(*overload_set));
+
+    if (!overload_set) {
+        st_set_error(table, "Out of memory while creating an overload set.");
+        return NULL;
+    }
+
+    overload_set->scope = scope;
+    overload_set->declaration_span = declaration_span;
+    overload_set->name = ast_copy_text(name);
+    if (name && !overload_set->name) {
+        st_set_error(table, "Out of memory while copying an overload-set name.");
+        st_overload_set_free(overload_set);
+        return NULL;
+    }
+
+    return overload_set;
+}
+
 bool st_scope_append_symbol(SymbolTable *table, Scope *scope, Symbol *symbol) {
     Symbol **resized;
     size_t new_capacity;
@@ -191,5 +235,61 @@ bool st_scope_append_symbol(SymbolTable *table, Scope *scope, Symbol *symbol) {
     scope->symbols = resized;
     scope->symbol_capacity = new_capacity;
     scope->symbols[scope->symbol_count++] = symbol;
+    return true;
+}
+
+bool st_scope_append_overload_set(SymbolTable *table,
+                                  Scope *scope,
+                                  OverloadSet *overload_set) {
+    OverloadSet **resized;
+    size_t new_capacity;
+
+    if (scope->overload_set_count < scope->overload_set_capacity) {
+        scope->overload_sets[scope->overload_set_count++] = overload_set;
+        return true;
+    }
+
+    new_capacity = (scope->overload_set_capacity == 0)
+        ? 4
+        : scope->overload_set_capacity * 2;
+    resized = realloc(scope->overload_sets, new_capacity * sizeof(*scope->overload_sets));
+    if (!resized) {
+        st_set_error(table, "Out of memory while growing scope overload sets.");
+        return false;
+    }
+
+    scope->overload_sets = resized;
+    scope->overload_set_capacity = new_capacity;
+    scope->overload_sets[scope->overload_set_count++] = overload_set;
+    return true;
+}
+
+bool st_overload_set_append_symbol(SymbolTable *table,
+                                   OverloadSet *overload_set,
+                                   Symbol *symbol) {
+    Symbol **resized;
+    size_t new_capacity;
+
+    if (!overload_set || !symbol) {
+        return false;
+    }
+
+    if (overload_set->symbol_count < overload_set->symbol_capacity) {
+        overload_set->symbols[overload_set->symbol_count++] = symbol;
+        return true;
+    }
+
+    new_capacity = (overload_set->symbol_capacity == 0)
+        ? 4
+        : overload_set->symbol_capacity * 2;
+    resized = realloc(overload_set->symbols, new_capacity * sizeof(*overload_set->symbols));
+    if (!resized) {
+        st_set_error(table, "Out of memory while growing overload-set members.");
+        return false;
+    }
+
+    overload_set->symbols = resized;
+    overload_set->symbol_capacity = new_capacity;
+    overload_set->symbols[overload_set->symbol_count++] = symbol;
     return true;
 }

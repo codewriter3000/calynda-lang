@@ -29,11 +29,21 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
 
     case AST_EXPR_IDENTIFIER:
         {
+            const OverloadSet *resolved_overload_set =
+                symbol_table_lookup_overload_set(table, scope, expression->as.identifier);
             const Symbol *resolved = symbol_table_lookup(table, scope,
                                                          expression->as.identifier);
 
+            if (resolved_overload_set) {
+                return st_resolutions_append(table,
+                                             expression,
+                                             scope,
+                                             NULL,
+                                             resolved_overload_set);
+            }
+
             if (resolved) {
-                return st_resolutions_append(table, expression, scope, resolved);
+                return st_resolutions_append(table, expression, scope, resolved, NULL);
             }
 
             if (expression->as.identifier &&
@@ -42,7 +52,14 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
                  strcmp(expression->as.identifier, "Future") == 0 ||
                  strcmp(expression->as.identifier, "Atomic") == 0 ||
                  strcmp(expression->as.identifier, "car") == 0 ||
-                 strcmp(expression->as.identifier, "cdr") == 0)) {
+                 strcmp(expression->as.identifier, "cdr") == 0 ||
+                 strcmp(expression->as.identifier, "typeof") == 0 ||
+                 strcmp(expression->as.identifier, "isint") == 0 ||
+                 strcmp(expression->as.identifier, "isfloat") == 0 ||
+                 strcmp(expression->as.identifier, "isbool") == 0 ||
+                 strcmp(expression->as.identifier, "isstring") == 0 ||
+                 strcmp(expression->as.identifier, "isarray") == 0 ||
+                 strcmp(expression->as.identifier, "issametype") == 0)) {
                 return true;
             }
 

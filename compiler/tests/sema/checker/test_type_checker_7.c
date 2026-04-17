@@ -209,6 +209,62 @@ void test_type_checker_rejects_varargs_type_mismatch(void) {
     parser_free(&parser);
 }
 
+void test_type_checker_allows_trailing_default_arguments(void) {
+    const char *source =
+        "int32 add = (int32 left, int32 right = left + 1) -> left + right;\n"
+        "start -> {\n"
+        "    return add(4) == 9 ? (add(4, 6) == 10 ? 0 : 2) : 1;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse trailing default arguments");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols trailing default arguments");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "call with omitted trailing default argument passes type checking");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_rejects_required_parameter_after_default(void) {
+    const char *source =
+        "int32 bad = (int32 left = 1, int32 right) -> left + right;\n"
+        "start -> bad(2);\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    char diagnostic[256];
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse required-after-default program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program), "build symbols required-after-default");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
+                "required parameter after default is rejected");
+    REQUIRE_TRUE(type_checker_format_error(type_checker_get_error(&checker),
+                                           diagnostic,
+                                           sizeof(diagnostic)),
+                 "format required-after-default diagnostic");
+    ASSERT_CONTAINS("Required parameter 'right' cannot follow",
+                    diagnostic,
+                    "required-after-default diagnostic mentions ordering");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 
 /* ------------------------------------------------------------------ */
 /* V2: Java-style primitive aliases type check                         */
@@ -240,4 +296,3 @@ void test_type_checker_handles_java_primitive_aliases(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
-

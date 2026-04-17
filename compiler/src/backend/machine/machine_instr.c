@@ -99,8 +99,10 @@ bool mc_emit_instruction(MachineBuildContext *context,
                 return false;
             }
 
-            if (call_selected->selection.kind == CODEGEN_SELECTION_DIRECT &&
-                call_selected->selection.as.direct_pattern == CODEGEN_DIRECT_CALL_GLOBAL) {
+            if ((call_selected->selection.kind == CODEGEN_SELECTION_DIRECT &&
+                 call_selected->selection.as.direct_pattern == CODEGEN_DIRECT_CALL_GLOBAL) ||
+                (call_selected->selection.kind == CODEGEN_SELECTION_RUNTIME &&
+                 call_selected->selection.as.runtime_helper != CODEGEN_RUNTIME_CALL_CALLABLE)) {
 
                 if (instruction->as.outgoing_arg.argument_index < td->arg_register_count) {
                     destination = ast_copy_text(target_register_name(td,
@@ -120,7 +122,7 @@ bool mc_emit_instruction(MachineBuildContext *context,
                 mc_set_error(context,
                              (AstSourceSpan){0},
                              NULL,
-                             "Outgoing argument lowering only supports direct global calls or runtime callable dispatch.");
+                             "Outgoing argument lowering only supports direct/global-style calls or runtime callable dispatch.");
                 return false;
             }
 

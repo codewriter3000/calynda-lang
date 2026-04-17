@@ -8,6 +8,11 @@ typedef struct {
     const AstProgram   *ast_program;
     const SymbolTable  *symbols;
     const TypeChecker  *checker;
+    const AstParameterList *inline_parameters;
+    const Symbol      **inline_parameter_symbols;
+    const AstExpression *const *inline_argument_sources;
+    size_t              inline_resolved_count;
+    size_t              synthetic_local_count;
 } HirBuildContext;
 
 /* hir_memory.c */
@@ -56,12 +61,17 @@ bool hr_lower_parameters(HirBuildContext *context,
                          const Scope *scope);
 HirBlock *hr_lower_body_to_block(HirBuildContext *context,
                                  const AstLambdaBody *body);
+HirBlock *hr_lower_start_body_to_block(HirBuildContext *context,
+                                       const AstLambdaBody *body);
 HirBlock *hr_lower_block(HirBuildContext *context, const AstBlock *block);
 
 /* hir_lower_stmt.c */
 HirStatement *hr_lower_statement(HirBuildContext *context,
                                  const AstStatement *statement,
                                  const Scope *scope);
+bool hr_lower_swap_statement(HirBuildContext *context,
+                             HirBlock *block,
+                             const AstStatement *statement);
 
 /* hir_lower_expr.c */
 HirExpression *hr_lower_expression(HirBuildContext *context,

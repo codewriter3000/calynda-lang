@@ -70,6 +70,7 @@ void test_car_empty_archive(void);
 void test_car_add_directory(void);
 void test_car_many_files(void);
 void test_car_build_reports_parse_span(void);
+void test_car_collects_exported_symbols_by_package(void);
 
 
 /* ================================================================
@@ -89,6 +90,7 @@ int main(void) {
     RUN_TEST(test_car_add_directory);
     RUN_TEST(test_car_many_files);
     RUN_TEST(test_car_build_reports_parse_span);
+    RUN_TEST(test_car_collects_exported_symbols_by_package);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

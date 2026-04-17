@@ -1,5 +1,43 @@
 #include "codegen_internal.h"
 
+static bool cg_runtime_helper_for_global_name(const char *name,
+                                              CodegenRuntimeHelper *helper_out) {
+    if (!name || !helper_out) {
+        return false;
+    }
+
+    if (strcmp(name, CALYNDA_TYPEOF) == 0) {
+        *helper_out = CODEGEN_RUNTIME_TYPEOF;
+        return true;
+    }
+    if (strcmp(name, CALYNDA_ISINT) == 0) {
+        *helper_out = CODEGEN_RUNTIME_ISINT;
+        return true;
+    }
+    if (strcmp(name, CALYNDA_ISFLOAT) == 0) {
+        *helper_out = CODEGEN_RUNTIME_ISFLOAT;
+        return true;
+    }
+    if (strcmp(name, CALYNDA_ISBOOL) == 0) {
+        *helper_out = CODEGEN_RUNTIME_ISBOOL;
+        return true;
+    }
+    if (strcmp(name, CALYNDA_ISSTRING) == 0) {
+        *helper_out = CODEGEN_RUNTIME_ISSTRING;
+        return true;
+    }
+    if (strcmp(name, CALYNDA_ISARRAY) == 0) {
+        *helper_out = CODEGEN_RUNTIME_ISARRAY;
+        return true;
+    }
+    if (strcmp(name, CALYNDA_ISSAMETYPE) == 0) {
+        *helper_out = CODEGEN_RUNTIME_ISSAMETYPE;
+        return true;
+    }
+
+    return false;
+}
+
 bool cg_source_span_is_valid(AstSourceSpan span) {
     return span.start_line > 0 && span.start_column > 0;
 }
@@ -116,8 +154,16 @@ bool cg_select_instruction(CodegenBuildContext *context,
 
     case LIR_INSTR_CALL:
         if (instruction->as.call.callee.kind == LIR_OPERAND_GLOBAL) {
-            selected->selection.kind = CODEGEN_SELECTION_DIRECT;
-            selected->selection.as.direct_pattern = CODEGEN_DIRECT_CALL_GLOBAL;
+            CodegenRuntimeHelper runtime_helper;
+
+            if (cg_runtime_helper_for_global_name(instruction->as.call.callee.as.global_name,
+                                                  &runtime_helper)) {
+                selected->selection.kind = CODEGEN_SELECTION_RUNTIME;
+                selected->selection.as.runtime_helper = runtime_helper;
+            } else {
+                selected->selection.kind = CODEGEN_SELECTION_DIRECT;
+                selected->selection.as.direct_pattern = CODEGEN_DIRECT_CALL_GLOBAL;
+            }
         } else {
             selected->selection.kind = CODEGEN_SELECTION_RUNTIME;
             selected->selection.as.runtime_helper = CODEGEN_RUNTIME_CALL_CALLABLE;

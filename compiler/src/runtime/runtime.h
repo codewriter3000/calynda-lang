@@ -173,6 +173,13 @@ typedef struct {
 #define CALYNDA_RT_ATOMIC_EXCHANGE "__calynda_rt_atomic_exchange"
 #define CALYNDA_RT_ARRAY_CAR       "__calynda_rt_array_car"
 #define CALYNDA_RT_ARRAY_CDR       "__calynda_rt_array_cdr"
+#define CALYNDA_TYPEOF             "__calynda_typeof"
+#define CALYNDA_ISINT              "__calynda_isint"
+#define CALYNDA_ISFLOAT            "__calynda_isfloat"
+#define CALYNDA_ISBOOL             "__calynda_isbool"
+#define CALYNDA_ISSTRING           "__calynda_isstring"
+#define CALYNDA_ISARRAY            "__calynda_isarray"
+#define CALYNDA_ISSAMETYPE         "__calynda_issametype"
 
 extern CalyndaRtPackage __calynda_pkg_stdlib;
 
@@ -253,6 +260,17 @@ void          __calynda_rt_atomic_store(CalyndaRtWord atomic_handle,
                                         CalyndaRtWord value);
 CalyndaRtWord __calynda_rt_atomic_exchange(CalyndaRtWord atomic_handle,
                                            CalyndaRtWord new_value);
+
+CalyndaRtWord __calynda_typeof(CalyndaRtWord value, CalyndaRtWord type_text);
+CalyndaRtWord __calynda_isint(CalyndaRtWord value, CalyndaRtWord type_text);
+CalyndaRtWord __calynda_isfloat(CalyndaRtWord value, CalyndaRtWord type_text);
+CalyndaRtWord __calynda_isbool(CalyndaRtWord value, CalyndaRtWord type_text);
+CalyndaRtWord __calynda_isstring(CalyndaRtWord value, CalyndaRtWord type_text);
+CalyndaRtWord __calynda_isarray(CalyndaRtWord value, CalyndaRtWord type_text);
+CalyndaRtWord __calynda_issametype(CalyndaRtWord left_value,
+                                   CalyndaRtWord left_type_text,
+                                   CalyndaRtWord right_value,
+                                   CalyndaRtWord right_type_text);
 
 /* Manual memory pointer operations */
 CalyndaRtWord __calynda_deref(CalyndaRtWord ptr);

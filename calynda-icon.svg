@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+
+    <!-- Background gradient: deep violet → dark navy -->
+    <linearGradient id="bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#1a0533"/>
+      <stop offset="100%" stop-color="#0d1b34"/>
+    </linearGradient>
+
+    <!-- Lambda stroke gradient: fuchsia → violet → cyan -->
+    <linearGradient id="sym" x1="30" y1="20" x2="96" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#e879f9"/>
+      <stop offset="45%"  stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+
+    <!-- Wide glow for halo effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Tight glow for crisp stroke bloom -->
+    <filter id="softglow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+  </defs>
+
+  <!-- ── Background ─────────────────────────────────────── -->
+  <rect width="128" height="128" rx="22" fill="url(#bg)"/>
+
+  <!-- Subtle inset border -->
+  <rect x="1.5" y="1.5" width="125" height="125" rx="20.5"
+        fill="none" stroke="#5b21b6" stroke-width="1" opacity="0.4"/>
+
+  <!-- ── Circuit corner brackets (systems motif) ──────────── -->
+  <g fill="none" stroke="#6d28d9" stroke-width="1.5"
+     stroke-linecap="round" opacity="0.35">
+    <polyline points="14,42 14,14 42,14"/>
+    <polyline points="114,42 114,14 86,14"/>
+    <polyline points="14,86 14,114 42,114"/>
+    <polyline points="114,86 114,114 86,114"/>
+  </g>
+  <!-- Endpoint nodes on brackets -->
+  <g fill="#7c3aed" opacity="0.5">
+    <circle cx="14"  cy="42" r="2.5"/>
+    <circle cx="114" cy="42" r="2.5"/>
+    <circle cx="14"  cy="86" r="2.5"/>
+    <circle cx="114" cy="86" r="2.5"/>
+  </g>
+
+  <!-- ── Lambda (λ) — halo layer ──────────────────────────── -->
+  <!--
+    Left arm:  vertex (64,20) → (30,84)   shorter leg, lower-left
+    Right arm: vertex (64,20) → (96,100)  longer leg, lower-right
+    Asymmetry makes it unmistakably λ rather than Λ
+  -->
+  <path d="M 30,84 L 64,20 L 96,100"
+        stroke="url(#sym)" stroke-width="22"
+        stroke-linecap="round" stroke-linejoin="round"
+        fill="none" opacity="0.22" filter="url(#glow)"/>
+
+  <!-- ── Lambda — crisp main stroke ──────────────────────── -->
+  <path d="M 30,84 L 64,20 L 96,100"
+        stroke="url(#sym)" stroke-width="11"
+        stroke-linecap="round" stroke-linejoin="round"
+        fill="none" filter="url(#softglow)"/>
+
+  <!-- ── Vertex accent dot ────────────────────────────────── -->
+  <circle cx="64" cy="20" r="7"   fill="#e879f9" opacity="0.55" filter="url(#glow)"/>
+  <circle cx="64" cy="20" r="3.5" fill="white"   opacity="0.92"/>
+
+  <!-- ── Wordmark ─────────────────────────────────────────── -->
+  <text x="64" y="122"
+        text-anchor="middle"
+        font-family="monospace"
+        font-size="9"
+        font-weight="bold"
+        letter-spacing="2"
+        fill="#8b5cf6"
+        opacity="0.72">CALYNDA</text>
+
+</svg>

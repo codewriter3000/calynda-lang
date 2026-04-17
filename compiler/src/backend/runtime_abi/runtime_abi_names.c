@@ -56,6 +56,16 @@ const char *runtime_abi_argument_role_name(RuntimeAbiArgumentRole role) {
         return "atomic_value";
     case RUNTIME_ABI_ARG_ATOMIC_NEW_VALUE:
         return "atomic_new_value";
+    case RUNTIME_ABI_ARG_TYPE_TEXT:
+        return "type_text";
+    case RUNTIME_ABI_ARG_LEFT_VALUE:
+        return "left_value";
+    case RUNTIME_ABI_ARG_LEFT_TYPE_TEXT:
+        return "left_type_text";
+    case RUNTIME_ABI_ARG_RIGHT_VALUE:
+        return "right_value";
+    case RUNTIME_ABI_ARG_RIGHT_TYPE_TEXT:
+        return "right_type_text";
     }
 
     return "unknown";

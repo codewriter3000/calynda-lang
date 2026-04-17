@@ -42,7 +42,12 @@ typedef enum {
     /* Future / Atomic arg roles (alpha.2) */
     RUNTIME_ABI_ARG_FUTURE_VALUE,
     RUNTIME_ABI_ARG_ATOMIC_VALUE,
-    RUNTIME_ABI_ARG_ATOMIC_NEW_VALUE
+    RUNTIME_ABI_ARG_ATOMIC_NEW_VALUE,
+    RUNTIME_ABI_ARG_TYPE_TEXT,
+    RUNTIME_ABI_ARG_LEFT_VALUE,
+    RUNTIME_ABI_ARG_LEFT_TYPE_TEXT,
+    RUNTIME_ABI_ARG_RIGHT_VALUE,
+    RUNTIME_ABI_ARG_RIGHT_TYPE_TEXT
 } RuntimeAbiArgumentRole;
 
 typedef enum {
@@ -60,7 +65,7 @@ typedef struct {
     CodegenRuntimeHelper helper;
     const char          *name;
     RuntimeAbiReturnKind return_kind;
-    RuntimeAbiArgument   arguments[3];
+    RuntimeAbiArgument   arguments[4];
     size_t               argument_count;
     RuntimeAbiPackKind   pack_kind;
 } RuntimeAbiHelperSignature;

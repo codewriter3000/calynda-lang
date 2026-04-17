@@ -13,8 +13,9 @@ bool import_is_in_archive(const AstImportDecl *import_decl,
                            const CarArchive *archive);
 bool qualified_names_equal(const AstQualifiedName *a, const AstQualifiedName *b);
 bool import_already_present(const AstProgram *merged,
-                             const AstImportDecl *import_decl);
+                              const AstImportDecl *import_decl);
 bool copy_import_decl(AstImportDecl *dst, const AstImportDecl *src);
+static bool append_archive_files(CarArchive *dst, const CarArchive *src);
 
 /* ----------------------------------------------------------------
  *  Public API
@@ -22,7 +23,12 @@ bool copy_import_decl(AstImportDecl *dst, const AstImportDecl *src);
 
 int calynda_compile_car_to_machine_program(const CarArchive *archive,
                                            MachineProgram *machine_program,
-                                           const TargetDescriptor *target) {
+                                           const TargetDescriptor *target,
+                                           const CarArchive *archive_deps,
+                                           size_t archive_dep_count) {
+    const CarArchive *source_archive = archive;
+    CarArchive combined_archive;
+    bool has_combined_archive = false;
     size_t file_count;
     size_t i, j;
     int exit_code = 0;
@@ -49,9 +55,32 @@ int calynda_compile_car_to_machine_program(const CarArchive *archive,
         return 1;
     }
 
-    file_count = archive->file_count;
+    if (archive_dep_count > 0) {
+        size_t dep_index;
+
+        car_archive_init(&combined_archive);
+        if (!append_archive_files(&combined_archive, archive)) {
+            fprintf(stderr, "car: %s\n", car_archive_get_error(&combined_archive));
+            car_archive_free(&combined_archive);
+            return 1;
+        }
+        for (dep_index = 0; dep_index < archive_dep_count; dep_index++) {
+            if (!append_archive_files(&combined_archive, &archive_deps[dep_index])) {
+                fprintf(stderr, "car: %s\n", car_archive_get_error(&combined_archive));
+                car_archive_free(&combined_archive);
+                return 1;
+            }
+        }
+        source_archive = &combined_archive;
+        has_combined_archive = true;
+    }
+
+    file_count = source_archive->file_count;
     if (file_count == 0) {
         fprintf(stderr, "car: archive contains no files\n");
+        if (has_combined_archive) {
+            car_archive_free(&combined_archive);
+        }
         return 1;
     }
 
@@ -68,7 +97,7 @@ int calynda_compile_car_to_machine_program(const CarArchive *archive,
 
     /* ---- Phase 1: Parse all files ---- */
     for (i = 0; i < file_count; i++) {
-        const CarFile *file = &archive->files[i];
+        const CarFile *file = &source_archive->files[i];
         const ParserError *parse_error;
 
         /* Make a mutable copy of the source (parser may modify) */
@@ -121,7 +150,7 @@ int calynda_compile_car_to_machine_program(const CarArchive *archive,
         for (j = 0; j < prog->import_count; j++) {
             AstImportDecl *imp = &prog->imports[j];
 
-            if (import_is_in_archive(imp, archive)) {
+            if (import_is_in_archive(imp, source_archive)) {
                 continue; /* Skip intra-archive imports */
             }
             if (import_already_present(&merged, imp)) {
@@ -154,7 +183,9 @@ int calynda_compile_car_to_machine_program(const CarArchive *archive,
     codegen_program_init(&codegen_program);
     machine_program_init(machine_program);
 
-    if (!symbol_table_build(&symbols, &merged)) {
+    if (!symbol_table_build_with_archive_deps(&symbols, &merged,
+                                              archive_deps,
+                                              archive_dep_count)) {
         symbol_error = symbol_table_get_error(&symbols);
         if (symbol_error &&
             symbol_table_format_error(symbol_error, diagnostic,
@@ -222,6 +253,28 @@ cleanup_parse:
     free(parsers);
     free(programs);
     free(parsed);
+    if (has_combined_archive) {
+        car_archive_free(&combined_archive);
+    }
 
     return exit_code;
+}
+
+static bool append_archive_files(CarArchive *dst, const CarArchive *src) {
+    size_t i;
+
+    if (!dst || !src) {
+        return false;
+    }
+
+    for (i = 0; i < src->file_count; i++) {
+        if (!car_archive_add_file(dst,
+                                  src->files[i].path,
+                                  src->files[i].content,
+                                  src->files[i].content_length)) {
+            return false;
+        }
+    }
+
+    return true;
 }

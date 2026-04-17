@@ -137,7 +137,7 @@ void test_type_checker_rejects_void_lambda_body_for_typed_binding(void) {
 
 
 void test_type_checker_rejects_bad_start_return_type(void) {
-    const char *source = "start(string[] args) -> true;\n";
+    const char *source = "start -> true;\n";
     Parser parser;
     AstProgram program;
     SymbolTable symbols;
@@ -158,7 +158,7 @@ void test_type_checker_rejects_bad_start_return_type(void) {
     REQUIRE_TRUE(error != NULL, "bad start error exists");
     REQUIRE_TRUE(type_checker_format_error(error, diagnostic, sizeof(diagnostic_buffer)),
                  "format bad start error");
-    ASSERT_EQ_STR("1:25: start body must produce int32 but got bool. Related location at 1:1.",
+    ASSERT_EQ_STR("1:10: start body must produce int32 or void but got bool. Related location at 1:1.",
                   diagnostic,
                   "formatted bad start diagnostic");
 
@@ -238,4 +238,3 @@ void test_type_checker_reports_type_resolution_errors(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
-

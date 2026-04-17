@@ -163,7 +163,7 @@ void test_build_native_auto_calls_zero_arg_template_callable(void) {
 
 void test_build_native_runs_boot_program(void) {
     static const char source[] =
-        "boot() -> 13;\n";
+        "boot -> 13;\n";
     char output_path[64];
     char *run_argv[] = { output_path, NULL };
     int exit_code;
@@ -178,7 +178,7 @@ void test_build_native_runs_boot_program(void) {
 
 void test_build_native_runs_boot_program_with_block(void) {
     static const char source[] =
-        "boot() -> {\n"
+        "boot -> {\n"
         "    int32 x = 3;\n"
         "    int32 y = 4;\n"
         "    return x + y;\n"
@@ -191,6 +191,21 @@ void test_build_native_runs_boot_program_with_block(void) {
                  "build boot block native executable");
     exit_code = run_process(output_path, run_argv);
     ASSERT_EQ_INT(7, exit_code, "boot block native executable returns computed result");
+    unlink(output_path);
+}
+
+void test_build_native_runs_void_start_program(void) {
+    static const char source[] =
+        "start -> {\n"
+        "};\n";
+    char output_path[64];
+    char *run_argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build void start native executable");
+    exit_code = run_process(output_path, run_argv);
+    ASSERT_EQ_INT(0, exit_code, "void start native executable returns zero");
     unlink(output_path);
 }
 
