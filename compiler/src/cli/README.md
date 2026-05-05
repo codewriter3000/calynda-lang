@@ -202,3 +202,8 @@ The `build_native` module:
 - Build system is incremental and cacheable
 - CLI is the primary interface for developers
 - Future: Language server protocol (LSP) integration
+## Changes in 1.0.0-alpha.6
+
+- `build_native.c` / `build_native_utils.c` link the freestanding boot archive (`calynda_runtime_boot.a`) for `boot -> { ... };` programs and the hosted archive (`calynda_runtime.a`) otherwise.
+- `calynda_compile.c`, `calynda_commands.c`, `calynda_car.c`, and `calynda_utils.c` were extended for the new archive surface and standard-library auto-discovery.
+- The driver continues to expose `--archive path.car` and `--archive-path dir`; bundled stdlib modules are picked up implicitly when present.

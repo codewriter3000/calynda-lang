@@ -133,3 +133,9 @@ mir_program_free(&mir);
 - MIR uses a flat array of locals + temporaries (not full SSA)
 - MIR is target-independent; no machine-specific details yet
 - MIR captures all semantic information needed for code generation
+## Changes in 1.0.0-alpha.6
+
+- `mir_capture` and `mir_capture_analysis*` were extended to materialise capture-by-reference: captured locals are addressed indirectly through a closure record so writes are visible to the enclosing scope.
+- `mir_expr_call.c`, `mir_lambda.c`, `mir_lvalue.c`, and `mir_store.c` lower untyped (`var`) parameters and `|var` non-local-return assignments.
+- `mir_tco.c` self-tail-call elimination remains in effect; it now correctly handles the reference-capture indirection.
+- `mir_internal.h` carries the new builder signatures; helper builders live in `mir_builders.c`.

@@ -169,8 +169,26 @@ bool mc_format_vreg_operand(const TargetDescriptor *target,
     return *text != NULL;
 }
 
+/* Normalize alias primitive types (int, long, etc.) to their canonical form
+ * (int32, int64, etc.) so the asm emit backend recognises the literal tag. */
+static AstPrimitiveType mc_canonical_primitive(AstPrimitiveType p) {
+    switch (p) {
+    case AST_PRIMITIVE_BYTE:   return AST_PRIMITIVE_UINT8;
+    case AST_PRIMITIVE_SBYTE:  return AST_PRIMITIVE_INT8;
+    case AST_PRIMITIVE_SHORT:  return AST_PRIMITIVE_INT16;
+    case AST_PRIMITIVE_INT:    return AST_PRIMITIVE_INT32;
+    case AST_PRIMITIVE_UINT:   return AST_PRIMITIVE_UINT32;
+    case AST_PRIMITIVE_LONG:   return AST_PRIMITIVE_INT64;
+    case AST_PRIMITIVE_ULONG:  return AST_PRIMITIVE_UINT64;
+    case AST_PRIMITIVE_FLOAT:  return AST_PRIMITIVE_FLOAT32;
+    case AST_PRIMITIVE_DOUBLE: return AST_PRIMITIVE_FLOAT64;
+    default:                   return p;
+    }
+}
+
 bool mc_format_literal_operand(LirOperand operand, char **text) {
     char type_name[64];
+    CheckedType canonical_type;
 
     if (!text || operand.kind != LIR_OPERAND_LITERAL) {
         return false;
@@ -184,7 +202,11 @@ bool mc_format_literal_operand(LirOperand operand, char **text) {
         *text = ast_copy_text("null");
         return *text != NULL;
     default:
-        if (!checked_type_to_string(operand.type, type_name, sizeof(type_name))) {
+        canonical_type = operand.type;
+        if (canonical_type.kind == CHECKED_TYPE_VALUE) {
+            canonical_type.primitive = mc_canonical_primitive(canonical_type.primitive);
+        }
+        if (!checked_type_to_string(canonical_type, type_name, sizeof(type_name))) {
             return false;
         }
         *text = mc_copy_format("%s(%s)", type_name, operand.as.literal.text ? operand.as.literal.text : "\"\"");

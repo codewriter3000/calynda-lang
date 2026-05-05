@@ -108,3 +108,9 @@ ast_dump_program(stdout, &program);
 - All strings are dynamically allocated and owned by the AST
 - The AST preserves all information from the source, including comments (future work)
 - Generic type arguments are represented as lists for flexibility
+## Changes in 1.0.0-alpha.6
+
+- `Parameter` declarations now carry an optional *untyped* form: `var name [= default]`. The AST node records both typed and untyped parameters; type-resolution treats untyped slots as the opaque `any` type.
+- `|var` (early-return) parameters are encoded as a flag on the parameter node and surface as a non-local-return write site during HIR/MIR lowering.
+- New built-in type tokens: `num` (generic numeric primitive) and the wildcard `arr<?>` (any primitive-element array). Both are emitted as ordinary `Type` AST nodes with a dedicated kind.
+- `ast_decl_types.h` and `ast_types.h` were extended; `ast_dump_types.c` / `ast_dump_expr.c` were updated to render the new forms.

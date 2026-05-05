@@ -112,6 +112,8 @@ typedef struct {
     AstSourceSpan name_span;
     AstExpression *default_expr;
     bool          is_varargs;
+    bool          is_untyped;     /* true when declared with `var` (no type) */
+    bool          is_block;       /* true when declared with `|var` (non-local return block) */
 } AstParameter;
 
 typedef struct {
@@ -242,15 +244,5 @@ typedef struct {
     AstExpression *else_branch;
 } AstTernaryExpression;
 
-typedef struct {
-    AstBinaryOperator operator;
-    AstExpression    *left;
-    AstExpression    *right;
-} AstBinaryExpression;
-
-typedef struct {
-    AstUnaryOperator operator;
-    AstExpression   *operand;
-} AstUnaryExpression;
-
+#include "ast_types_p2.inc"
 #endif /* CALYNDA_AST_TYPES_H */

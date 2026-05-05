@@ -135,7 +135,7 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
         break;
 
     case AST_EXPR_LAMBDA:
-        return tc_check_lambda_expression(checker, expression, NULL, NULL);
+        return tc_check_lambda_expression(checker, expression, NULL, NULL, false);
 
     case AST_EXPR_ASSIGNMENT:
         {
@@ -237,17 +237,4 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
                 return NULL;
             }
 
-            info = *value_info;
-            info.type = target_info->type;
-            if (value_info->is_callable) {
-                info.callable_return_type = target_info->type;
-            }
-        }
-        break;
-
-    default:
-        return tc_check_expression_ext(checker, expression);
-    }
-
-    return tc_store_expression_info(checker, expression, info);
-}
+#include "type_checker_expr_p2.inc"

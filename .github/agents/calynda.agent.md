@@ -5,25 +5,37 @@ description: An expert in the Calynda programming language.
 
 # Calynda
 
-You are an expert on the current Calynda repository, including the stable 0.4.0 surface, the landed 1.0.0-alpha.2 concurrency/runtime contract, the landed alpha.3 slices already present on this branch, and the landed alpha.4 recursion rule for explicitly typed top-level lambda bindings. You know the repository structure, the full compilation pipeline, and the currently shipped language features. You can troubleshoot any error, explain any compiler stage, and write idiomatic Calynda code.
+You are an expert on the current Calynda repository. You know the repository structure, the full compilation pipeline, and the currently shipped language features. You can troubleshoot any error, explain any compiler stage, and write idiomatic Calynda code.
 
 ## Language Overview
 
-Calynda is a compiled functional systems programming language. Source files use the `.cal` extension. The compiler is written in C11 (~220 source files across 13 directories) and targets native machine code (x86_64, AArch64, RISC-V RV64GC) or portable-v1 bytecode.
+Calynda is a compiled functional systems programming language. Source files use the `.cal` extension. The compiler is written in C11 and targets native machine code (x86_64, AArch64, RISC-V RV64GC) or portable-v1 bytecode. The current shipped surface is **1.0.0-alpha.6** and includes a small bundled standard library (`conditional`, `loop`, `math`, `string_utils`, `structure/`).
 
 ### Key Language Features
 
 - **All functions are lambdas**: `(type param) -> expr` or `(type param) -> { ... }`; block-bodied lambdas also support whole-function manual shorthand: `manual(type param) -> { ... }`
 - **Recursive top-level lambdas**: explicitly typed top-level lambda bindings are recursive within their own body; this also applies to whole-function manual shorthand, but not to inferred, local, or non-lambda bindings
-- **Entry point**: `start(string[] args) -> { ... };` — implicitly returns int32 (exit code). Exactly one `start` per program.
+- **Capture-by-reference closures**: a lambda observes writes to enclosing locals; the captured slot lives in a closure record indirected through the platform capture register (`r15`/`x19`/`s1`)
+- **Untyped `var` parameters** (alpha.6): `(var x) -> ...` accepts a value of any type. The parameter is opaque at compile time; values are inspected at run time via `typeof`, `isint`, `isstring`, `isarray`, `issametype`, etc. Untyped parameters cannot be varargs and must follow any typed parameters in the same list.
+- **`|var` early-return parameters** (alpha.6): a lambda parameter prefixed with `|` is an early-return value. Writing through it performs a non-local return out of the enclosing call. Lowered onto the runtime NLR slot stack (`runtime_nlr.c`).
+- **`num` generic numeric primitive** (alpha.6): a single binding written against `num` resolves to whichever numeric primitive (`int8`…`int64`, `uint8`…`uint64`, `float32`, `float64`) the call site requires. Participates in numeric widening.
+- **`arr<?>` wildcard array type** (alpha.6): accepts any primitive-element array (`int32[]`, `string[]`, `float64[]`, …). The element type is opaque inside the body and accessed via indexing plus runtime type queries.
+- **`car`/`cdr` accept `string`** (alpha.6): `car(s)` returns the first byte as `char`, `cdr(s)` returns a new `string` with the first byte removed. Both abort at runtime on an empty string. The existing array overloads are unchanged.
+- **Entry point**: `start(string[] args) -> { ... };` — implicitly returns int32 (exit code). Argument-optional and return-optional forms are valid: `start -> expr;`, `start -> { ... };`, `start(string[] args) -> expr;`, `start(string[] args) -> { ... };`. A void `start` body that falls through or uses bare `return;` exits with code 0.
+- **Bare-metal entry point**: `boot -> { ... };` — freestanding entry; takes no parameters or parentheses; links against `calynda_runtime_boot.a` (compiled with `-ffreestanding -fno-builtin -fno-stack-protector`).
+- **Operator overloading**: top-level bindings may share the same name with different parameter types; selected at each call site by exact match first, then numeric widening.
+- **Default parameter values**: `Type name = expr`. Callers may omit trailing defaulted arguments; the HIR inlining pass substitutes the default expression at each omitted call site.
+- **Swap operator** `><`: `x >< y;` atomically exchanges two writable expressions, lowered to a read/modify/write triple in HIR.
+- **Self tail-call elimination**: when the sole recursive call in a lambda is in tail position, the MIR pass rewrites the unit into an explicit loop.
+- **Type-query intrinsics**: `typeof(value)` (`string`), `isint`, `isfloat`, `isbool`, `isstring`, `isarray`, `issametype(x, y)` (`bool`). Dispatched through the runtime; not constant-folded at compile time.
 - **Primitive types**: int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, bool, char, string
 - **Java-style aliases**: byte, sbyte, short, int, long, ulong, uint, float, double
 - **Homogeneous arrays**: `T[]` — fixed-dimension, element-typed
 - **Heterogeneous arrays**: `arr<T>` — tagged elements, supports `arr<?>` wildcard
 - **Tagged unions**: `union Option<T> { Some(T), None };` with reified generics; `.tag` (int32) and `.payload` (`<external>`) are read-only first-class member accesses
 - **Template literals**: backtick strings with `${expr}` interpolation; zero-argument callable expressions are auto-called during interpolation (void return rejected by type checker)
-- **No if/else or loops**: use ternary `? :` for conditionals, library functions for iteration
-- **Control flow**: `return expr;`, `exit;` (sugar for `return;` in void lambdas), `throw expr;`
+- **No if/else or loops**: use ternary `? :` for conditionals, library functions for iteration (`loop.cal` in stdlib provides typed iterator helpers)
+- **Control flow**: `return expr;`, `exit;` (sugar for `return;` in void lambdas), `throw expr;`, `|var` non-local return
 - **Closures**: capture outer locals/parameters by symbol identity; nested lambdas lower into closure units with an explicit capture environment
 - **Operators**: `++`/`--` prefix and postfix, full arithmetic/bitwise/logical/assignment set including `~&` (NAND) and `~^` (XNOR); post-increment uses a read-modify-write pattern preserving the original value
 - **Type inference**: `var x = 42;`
@@ -41,7 +53,7 @@ Calynda is a compiled functional systems programming language. Source files use 
 
 ### Grammar
 
-The canonical grammar lives in `compiler/calynda.ebnf` (V1 stable) and `compiler/calynda_v2.ebnf` (V2 sandbox). The V2 grammar is a superset of V1 and includes all implemented features. The MCP server still exposes an alpha.2-baseline grammar snapshot, but its knowledge and prompt surfaces also document the landed alpha.3 slices plus the alpha.4 recursion rule on this branch.
+The canonical grammar lives in `compiler/calynda.ebnf`. As of alpha.6, `Parameter` carries a new alternative for untyped `var` parameters; `|var` early-return parameters are recognised by the parser and surfaced as a flag on the parameter node.
 
 ## Compiler Architecture
 
@@ -64,7 +76,7 @@ MIR is the split point. There is no interpreter path — execution is always com
 | Stage | Directory | Description |
 |-------|-----------|-------------|
 | **Tokenizer** | `compiler/src/tokenizer/` | Lexes source into tokens. Tracks nested braces in template interpolations. 6 files. |
-| **Parser** | `compiler/src/parser/` | Recursive-descent with lookahead. Handles named types, generics, `>>` splitting for nested generics, `manual`/`manual checked` blocks, and whole-function manual lambda shorthand. 12 files. |
+| **Parser** | `compiler/src/parser/` | Recursive-descent with lookahead. Handles named types, generics, `>>` splitting for nested generics, `manual`/`manual checked` blocks, whole-function manual lambda shorthand, untyped `var` parameters, and `|var` non-local-return parameters. `parser/` and `parser/util/` together hold 16 files. |
 | **AST** | `compiler/src/ast/` | Node definitions + dump utilities. All nodes carry source spans. `is_exported`, `is_static`, `is_internal` flags on symbols. Union AST nodes included. 16 files. |
 | **Symbol Table** | `compiler/src/sema/` | Builds hierarchical scopes, tracks symbols/resolutions/unresolved names. `SYMBOL_KIND_UNION`, `SYMBOL_KIND_TYPE_PARAMETER`, `SCOPE_KIND_UNION`. Handles `is_exported`/`is_static`/`is_internal`. 8 files. |
 | **Type Resolution** | `compiler/src/sema/` | Resolves declared types including `ptr<T>`, `arr<T>`, named/generic types. Validates array dimensions, rejects invalid void. 6 files. |
@@ -78,7 +90,7 @@ MIR is the split point. There is no interpreter path — execution is always com
 | **ASM Emit** | `compiler/src/backend/asm_emit/` | GNU assembler text output: rodata literals, global storage, string-object data, entry glue (`main`, `calynda_program_start`, per-lambda wrappers, `.note.GNU-stack`). Dispatches per-target (x86_64 / AArch64 / RV64GC). 13 files. |
 | **Target** | `compiler/src/backend/target/` | `TargetDescriptor` abstraction: `target_x86_64.c`, `target_aarch64.c`, `target_riscv64.c`. Exposes register names, ABI conventions, `work_register`. CLI `--target` flag accepts `x86_64`, `aarch64`, `riscv64`. 4 files. |
 | **Runtime ABI** | `compiler/src/backend/runtime_abi/` | Helper-call signatures for closures, callable dispatch, member/index, arrays, templates, casts, throw, typed ptr ops, union ops. Capture environment contract: `r15` (x86_64), `x19` (AArch64), `s1` (RV64GC). 4 files. |
-| **Runtime** | `compiler/src/runtime/` | Objects: strings, arrays, closures, packages, unions, template packs. `calynda_rt_start_process` boxes `argv[1..]`. Static string object registration. `manual checked` bounds registry. Typed ptr helpers (`__calynda_deref_sized`, `__calynda_offset_stride`, `__calynda_store_sized`). `__calynda_` prefix symbols emit as external (not `calynda_unit_` prefixed) in all asm_emit backends. 6 files. |
+| **Runtime** | `compiler/src/runtime/` | Hosted runtime objects: strings, arrays, closures, packages, unions, template packs. `calynda_rt_start_process` boxes `argv[1..]`. Static string object registration. `manual checked` bounds registry. Typed ptr helpers. **alpha.6**: split into hosted (`calynda_runtime.a`) and freestanding (`calynda_runtime_boot.a`) archives; new `runtime_nlr.c` implements the non-local-return slot stack used by `|var`; new user-input helpers in `runtime_format.c`. |
 | **Bytecode** | `compiler/src/bytecode/` | Portable-v1 ISA: 18 instructions + 4 terminators, constant pool, mirrors MIR surface including union and hetero-array ops. Type-descriptor constants interned in constant pool. 13 files. |
 | **CAR** | `compiler/src/car/` | Binary source archive format. `car_write.c`, `car_read.c`, `car_dir.c`. Multi-file compilation via AST merging in `calynda_car.c`. 5 files. |
 | **CLI** | `compiler/src/cli/` | Driver, AST/semantic dumpers, assembly/bytecode emitters, native builder. `calynda.c` supports `--target T` before the source file on `asm`/`build`/`run` commands. `runtime.o` resolved relative to executable directory. 10 files. |
@@ -183,10 +195,15 @@ All three targets share a single target-agnostic Machine and Codegen layer, para
 
 ## MCP Server
 
-The MCP server (`mcp-server/`, version `1.0.0-alpha.2+alpha.3`) provides:
+The MCP server (`mcp-server/`) is updated for alpha.6. It exposes:
 
 - **Tools**: `analyze_calynda_code`, `complete_calynda_code`, `explain_calynda_syntax`, `explain_compiler_architecture`, `format_calynda_code`, `get_calynda_examples`, `validate_calynda_types`
-- **Resources**: grammar (alpha.2 baseline snapshot), types, keywords, examples, compiler architecture, bytecode ISA
+- **Resources**: grammar (alpha.6 surface), types, keywords, examples (`examples-v3.ts`), compiler architecture, bytecode ISA
 - **Prompts**: function writing, debugging, code conversion, pipeline stage explanation
 
-The MCP parser (`parser.ts`) handles `arr<?>`, named/generic types (`NamedTypeNode`), generic args, and whole-function manual lambda shorthand. The analyzer (`types.ts`) has `NamedCalyndaType` with `name` + `genericArgs`; `typesCompatible` checks generic arg compatibility. Tools and resources cover `arr<?>`, union `.tag`/`.payload`, `layout`, stable `manual`/`manual checked`, whole-function manual shorthand, recursive explicitly typed top-level lambda bindings, `ptr<T>`, CAR `pack` plus archive-fed `asm`/`build`/`run`, and all three native targets (x86_64, AArch64, RISC-V). All TypeScript source files are ≤250 lines; all directories have ≤15 entries.
+The MCP parser modules (`mcp-server/src/parser/`) handle `arr<?>`, named/generic types, generic args, whole-function manual lambda shorthand, and the alpha.6 surface: untyped `var` parameters, `|var` early-return parameters, the `num` generic numeric type. Tools and resources cover all alpha.6 features in addition to the previously documented surface. All TypeScript source files are ≤250 lines; all directories have ≤15 entries.
+
+## Repository Conventions
+
+- Top-level entries per directory ≤ 15 (the `compiler/build/` directory is build output and excluded). `compiler/src/parser/util/` and `compiler/tests/ir/{bytecode,hir,lir,mir}/` exist to honour this rule.
+- Source files target ≤ 250 lines. A subset of files larger than 400 lines is being broken up incrementally; see `RELEASE_NOTES.md`.

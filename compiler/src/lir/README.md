@@ -128,3 +128,6 @@ lir_program_free(&lir);
 - LIR separates logical operations from physical register assignment
 - LIR enables cross-platform optimizations before target selection
 - LIR is designed to make register allocation straightforward
+## Changes in 1.0.0-alpha.6
+
+- No surface-language changes land in LIR for this release. The pass continues to receive MIR with reference-captured locals already lowered into closure-record loads/stores.

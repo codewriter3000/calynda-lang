@@ -43,8 +43,8 @@ const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - All functions are lambdas: (type param) -> expr or (type param) -> { ... }
 - Block-bodied lambdas also support whole-function manual shorthand: manual(type param) -> { ... }
 - Explicitly typed top-level lambda bindings are recursive within their own body; this also applies to whole-function manual shorthand, but not to inferred, local, or non-lambda bindings
-- Entry point: start(string[] args) -> { ... }; returns int32 (exit code)
-- Bare-metal entry point: boot() -> expr; bypasses runtime, emits freestanding _start, and cannot coexist with start
+- Entry point: start(string[] args) -> { ... }; or bare form start -> { ... }; returns int32 (exit code)
+- Bare-metal entry point: boot -> expr; bypasses runtime, emits freestanding _start, and cannot coexist with start
 - Inline assembly: int32 name = asm(int32 a) -> { ... }; passed through to assembler unchanged
 - Stable unsafe manual memory: manual { ... }; / manual checked { ... }; with malloc/calloc/realloc/free, cleanup(value, fn), stackalloc(size), deref/store/offset/addr, and ptr<T>
 - Types: int8/16/32/64, uint8/16/32/64, float32/64, bool, char, string, T[], arr<?>, ptr<T>, layout types, Thread, Future<T>, Mutex, Atomic<T>, void
@@ -65,7 +65,8 @@ const CALYNDA_LANGUAGE_FACTS = `Calynda key facts:
 - Import styles: plain, alias ("as"), wildcard (".*"), selective (".{a, b}")
 - Closures capture outer locals/parameters; ++ and -- prefix/postfix operators
 - Discard expression: _ = expr; to explicitly ignore values
-- Varargs: Type... name in parameter lists
+- Varargs: Type... name in parameter lists; optional parameter defaults: Type name = defaultExpr after required parameters
+- Swap statement: a >< b; atomically exchanges two same-type mutable l-values in one statement
 - CAR archives bundle .cal files: calynda pack src/ -o archive.car, then calynda asm/build/run project.car`;
 function getPromptMessages(name, args) {
     switch (name) {
@@ -77,7 +78,7 @@ function getPromptMessages(name, args) {
         case 'debug-calynda-code':
             return [{
                     role: 'user',
-                    content: `Debug this Calynda code${args['problem'] ? ` (Problem: ${args['problem']})` : ''}:\n\n\`\`\`cal\n${args['code']}\n\`\`\`\n\n${CALYNDA_LANGUAGE_FACTS}\n\nCheck for:\n- Syntax errors (missing semicolons, incorrect -> arrow syntax)\n- Type mismatches and invalid casts\n- Missing or incorrect start(string[] args) -> { ... }; entry point (must be exactly one)\n- boot() and start() cannot coexist in the same compilation unit\n- Undefined variables or out-of-scope references\n- Incorrect lambda parameter types\n- Template literal interpolation issues (zero-arg callables are auto-called)\n- Incorrect use of throw, exit, return (exit only in void lambdas)\n- internal visibility violations (nested-lambda-only access)\n- Assignment to non-l-values (imports, packages, final bindings, temporaries)\n- manual { } blocks: malloc/calloc/realloc/free/cleanup/stackalloc and pointer ops only valid inside manual scope`,
+                    content: `Debug this Calynda code${args['problem'] ? ` (Problem: ${args['problem']})` : ''}:\n\n\`\`\`cal\n${args['code']}\n\`\`\`\n\n${CALYNDA_LANGUAGE_FACTS}\n\nCheck for:\n- Syntax errors (missing semicolons, incorrect -> arrow syntax)\n- Type mismatches and invalid casts\n- Missing or incorrect start entry point (start -> ... or start(string[] args) -> ...; must be exactly one)\n- boot and start cannot coexist in the same compilation unit\n- Swap statement: a >< b; requires same type mutable l-values\n- Undefined variables or out-of-scope references\n- Incorrect lambda parameter types\n- Template literal interpolation issues (zero-arg callables are auto-called)\n- Incorrect use of throw, exit, return (exit only in void lambdas)\n- internal visibility violations (nested-lambda-only access)\n- Assignment to non-l-values (imports, packages, final bindings, temporaries)\n- manual { } blocks: malloc/calloc/realloc/free/cleanup/stackalloc and pointer ops only valid inside manual scope`,
                 }];
         case 'convert-to-calynda':
             return [{

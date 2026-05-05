@@ -143,57 +143,103 @@ bool mr_lower_call_expression(MirUnitBuildContext *context,
 
     memset(&instruction, 0, sizeof(instruction));
     instruction.kind = MIR_INSTR_CALL;
-    if (!mr_lower_expression(context, expression->as.call.callee, &instruction.as.call.callee)) {
-        return false;
-    }
-    instruction.as.call.has_result = (expression->type.kind != CHECKED_TYPE_VOID);
-    if (instruction.as.call.has_result) {
-        instruction.as.call.dest_temp = context->unit->next_temp_index++;
-    }
-    if (expression->as.call.argument_count > 0) {
-        instruction.as.call.arguments = calloc(expression->as.call.argument_count,
-                                               sizeof(*instruction.as.call.arguments));
-        if (!instruction.as.call.arguments) {
-            mr_instruction_free(&instruction);
-            mr_set_error(context->build,
-                          expression->source_span,
-                          NULL,
-                          "Out of memory while lowering MIR calls.");
+    {
+        /* Detect NLR arguments (|var closures or return-as-arg) */
+        bool has_nlr = false;
+        size_t n_args = expression->as.call.argument_count;
+        size_t *nlr_retval_locals = NULL;
+        size_t nlr_slot_local = 0;
+
+        for (i = 0; i < n_args && !has_nlr; i++) {
+            const HirExpression *a = expression->as.call.arguments[i];
+            if (a->kind == HIR_EXPR_NONLOCAL_RETURN ||
+                (a->kind == HIR_EXPR_LAMBDA && a->as.lambda.is_nlr_block)) {
+                has_nlr = true;
+            }
+        }
+
+        if (has_nlr) {
+            MirInstruction push_call;
+            MirValue slot_ptr_temp;
+            CheckedType ext_type = mr_nlr_external_type();
+
+            /* Allocate per-arg retval local index array (sentinel = (size_t)-1) */
+            nlr_retval_locals = calloc(n_args, sizeof(*nlr_retval_locals));
+            if (!nlr_retval_locals) {
+                mr_set_error(context->build, expression->source_span, NULL,
+                             "Out of memory while lowering NLR call.");
+                return false;
+            }
+            memset(nlr_retval_locals, 0xFF, n_args * sizeof(*nlr_retval_locals));
+
+            /* Pre-evaluate NONLOCAL_RETURN values into synthetic locals */
+            for (i = 0; i < n_args; i++) {
+                const HirExpression *a = expression->as.call.arguments[i];
+                if (a->kind == HIR_EXPR_NONLOCAL_RETURN && a->as.nonlocal_return_value) {
+                    MirValue retval;
+                    size_t retval_local;
+                    if (!mr_lower_expression(context, a->as.nonlocal_return_value, &retval) ||
+                        !mr_append_synthetic_local(context, "nlrv", retval.type,
+                                                   a->source_span, &retval_local) ||
+                        !mr_append_store_local_instruction(context, retval_local,
+                                                           retval, a->source_span)) {
+                        free(nlr_retval_locals);
+                        return false;
+                    }
+                    nlr_retval_locals[i] = retval_local;
+                }
+            }
+
+            /* Emit: temp_slot_ptr = call __calynda_rt_nlr_push() */
+            memset(&push_call, 0, sizeof(push_call));
+            push_call.kind = MIR_INSTR_CALL;
+            if (!mr_value_from_global(context->build, "__calynda_rt_nlr_push",
+                                      ext_type, &push_call.as.call.callee)) {
+                free(nlr_retval_locals);
+                return false;
+            }
+            push_call.as.call.has_result = true;
+            push_call.as.call.dest_temp = context->unit->next_temp_index++;
+            if (!mr_current_block(context) ||
+                !mr_append_instruction(mr_current_block(context), push_call)) {
+                mr_instruction_free(&push_call);
+                free(nlr_retval_locals);
+                mr_set_error(context->build, expression->source_span, NULL,
+                             "Out of memory while lowering NLR push call.");
+                return false;
+            }
+            memset(&slot_ptr_temp, 0, sizeof(slot_ptr_temp));
+            slot_ptr_temp.kind = MIR_VALUE_TEMP;
+            slot_ptr_temp.type = ext_type;
+            slot_ptr_temp.as.temp_index = push_call.as.call.dest_temp;
+            if (!mr_append_synthetic_local(context, "nlrs", ext_type,
+                                           expression->source_span, &nlr_slot_local) ||
+                !mr_append_store_local_instruction(context, nlr_slot_local,
+                                                   slot_ptr_temp, expression->source_span)) {
+                free(nlr_retval_locals);
+                return false;
+            }
+        }
+
+        if (!mr_lower_expression(context, expression->as.call.callee, &instruction.as.call.callee)) {
+            free(nlr_retval_locals);
             return false;
         }
-    }
-    instruction.as.call.argument_count = expression->as.call.argument_count;
-    for (i = 0; i < expression->as.call.argument_count; i++) {
-        if (!mr_lower_expression(context,
-                              expression->as.call.arguments[i],
-                              &instruction.as.call.arguments[i])) {
-            mr_instruction_free(&instruction);
-            return false;
+        instruction.as.call.has_result = (expression->type.kind != CHECKED_TYPE_VOID);
+        if (instruction.as.call.has_result) {
+            instruction.as.call.dest_temp = context->unit->next_temp_index++;
         }
-    }
-    if (!mr_current_block(context)) {
-        mr_instruction_free(&instruction);
-        mr_set_error(context->build,
-                      expression->source_span,
-                      NULL,
-                      "Internal error: missing current MIR block after lowering call arguments.");
-        return false;
-    }
-    if (!mr_append_instruction(mr_current_block(context), instruction)) {
-        mr_instruction_free(&instruction);
-        mr_set_error(context->build,
-                      expression->source_span,
-                      NULL,
-                      "Out of memory while lowering MIR calls.");
-        return false;
-    }
-    if (instruction.as.call.has_result) {
-        value->kind = MIR_VALUE_TEMP;
-        value->type = expression->type;
-        value->as.temp_index = instruction.as.call.dest_temp;
-    } else {
-        value->kind = MIR_VALUE_INVALID;
-        value->type = expression->type;
-    }
-    return true;
-}
+        if (n_args > 0) {
+            instruction.as.call.arguments = calloc(n_args,
+                                                    sizeof(*instruction.as.call.arguments));
+            if (!instruction.as.call.arguments) {
+                free(nlr_retval_locals);
+                mr_instruction_free(&instruction);
+                mr_set_error(context->build, expression->source_span, NULL,
+                             "Out of memory while lowering MIR calls.");
+                return false;
+            }
+        }
+        instruction.as.call.argument_count = n_args;
+
+#include "mir_expr_call_p2.inc"

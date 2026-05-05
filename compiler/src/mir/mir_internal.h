@@ -25,6 +25,9 @@ typedef struct {
     size_t           current_block_index;
     size_t           next_synthetic_local_index;
     bool             in_checked_manual;
+    bool             is_nlr_block;  /* returns in this unit invoke NLR helpers */
+    const Symbol   **escape_set;        /* symbols that must be heap-cell'd (escape analysis) */
+    size_t           escape_set_count;
     MirDeferredCleanup *deferred_cleanups;
     size_t              deferred_cleanup_count;
     size_t              deferred_cleanup_capacity;
@@ -43,6 +46,7 @@ typedef enum {
 typedef struct {
     MirLValueKind kind;
     CheckedType   type;
+    bool          is_cell; /* if true and kind==MIR_LVALUE_LOCAL, r/w via cell helpers */
     union {
         size_t local_index;
         char  *global_name;
@@ -60,6 +64,7 @@ typedef struct {
 typedef struct {
     const Symbol *symbol;
     CheckedType   type;
+    bool          is_cell;  /* captured as a cell reference */
 } MirCaptureSpec;
 
 typedef struct {
@@ -147,6 +152,13 @@ bool mr_analyze_lambda_captures(MirBuildContext *context,
                                 const HirLambdaExpression *lambda,
                                 AstSourceSpan source_span,
                                 MirCaptureList *captures);
+bool mr_compute_block_escape_set(MirBuildContext *context,
+                                 const HirBlock *block,
+                                 const Symbol ***escape_out,
+                                 size_t *escape_count_out);
+bool mr_symbol_in_escape_set(const Symbol * const *escape_set,
+                             size_t escape_count,
+                             const Symbol *symbol);
 
 /* mir_value.c */
 MirValue mr_invalid_value(void);
@@ -214,102 +226,20 @@ bool mr_append_synthetic_local(MirUnitBuildContext *context,
                                size_t *local_index);
 void mr_set_goto_terminator(MirUnitBuildContext *context,
                             size_t target_block_index);
+/* Cell helpers: emit call to __calynda_rt_cell_alloc/read/write */
+bool mr_emit_cell_alloc(MirUnitBuildContext *context,
+                        MirValue initial_value,
+                        AstSourceSpan source_span,
+                        size_t cell_local_index);
+bool mr_emit_cell_read(MirUnitBuildContext *context,
+                       size_t cell_local_index,
+                       CheckedType value_type,
+                       AstSourceSpan source_span,
+                       MirValue *out);
+bool mr_emit_cell_write(MirUnitBuildContext *context,
+                        size_t cell_local_index,
+                        MirValue value,
+                        AstSourceSpan source_span);
 
-/* mir_lvalue.c */
-bool mr_map_compound_assignment(AstAssignmentOperator operator,
-                                AstBinaryOperator *binary_operator);
-bool mr_lower_assignment_target(MirUnitBuildContext *context,
-                                const HirExpression *expression,
-                                MirLValue *lvalue);
-bool mr_load_lvalue_value(MirUnitBuildContext *context,
-                          const MirLValue *lvalue,
-                          AstSourceSpan source_span,
-                          MirValue *value);
-bool mr_store_lvalue_value(MirUnitBuildContext *context,
-                           const MirLValue *lvalue,
-                           MirValue value,
-                           AstSourceSpan source_span);
-
-/* mir_control.c */
-bool mr_lower_ternary_expression(MirUnitBuildContext *context,
-                                 const HirExpression *expression,
-                                 MirValue *value);
-bool mr_lower_short_circuit_binary(MirUnitBuildContext *context,
-                                   const HirExpression *expression,
-                                   MirValue *value);
-
-/* mir_expr_memory.c */
-bool mr_lower_memory_op_expression(MirUnitBuildContext *context,
-                                   const HirExpression *expression,
-                                   MirValue *value);
-bool mr_register_manual_cleanup(MirUnitBuildContext *context,
-                                const MirValue *argument,
-                                const MirValue *callee,
-                                AstSourceSpan source_span,
-                                MirValue *captured_argument);
-bool mr_enter_manual_scope(MirUnitBuildContext *context,
-                           AstSourceSpan source_span);
-bool mr_leave_manual_scope(MirUnitBuildContext *context,
-                           AstSourceSpan source_span);
-bool mr_emit_active_cleanups(MirUnitBuildContext *context,
-                             AstSourceSpan source_span);
-void mr_free_manual_cleanup_state(MirUnitBuildContext *context);
-
-/* mir_assign.c */
-bool mr_lower_assignment_expression(MirUnitBuildContext *context,
-                                    const HirExpression *expression,
-                                    MirValue *value);
-bool mr_lower_postfix_increment(MirUnitBuildContext *context,
-                                const HirExpression *expression,
-                                MirValue *value, bool is_increment);
-
-/* mir_expr_helpers.c */
-bool mr_lower_template_part_value(MirUnitBuildContext *context,
-                                  const HirExpression *expression,
-                                  MirValue *value);
-bool mr_lower_template_expression(MirUnitBuildContext *context,
-                                  const HirExpression *expression,
-                                  MirValue *value);
-bool mr_lower_member_expression(MirUnitBuildContext *context,
-                                const HirExpression *expression,
-                                MirValue *value);
-bool mr_lower_index_expression(MirUnitBuildContext *context,
-                               const HirExpression *expression,
-                               MirValue *value);
-bool mr_lower_array_literal(MirUnitBuildContext *context,
-                            const HirExpression *expression,
-                            MirValue *value);
-
-/* mir_expr.c */
-bool mr_lower_expression(MirUnitBuildContext *context,
-                         const HirExpression *expression,
-                         MirValue *value);
-
-/* mir_lower.c */
-bool mr_lower_statement(MirUnitBuildContext *context,
-                        const HirStatement *statement);
-bool mr_lower_block(MirUnitBuildContext *context, const HirBlock *block);
-bool mr_lower_parameters(MirUnitBuildContext *context,
-                         const HirParameterList *parameters);
-bool mr_top_level_binding_uses_lambda_unit(const HirTopLevelDecl *decl);
-bool mr_lower_module_init_unit(MirBuildContext *context,
-                               bool *created_module_init_unit);
-
-/* mir_lambda.c */
-bool mr_build_lambda_unit(MirBuildContext *context,
-                          const char *name, const Symbol *symbol,
-                          const HirLambdaExpression *lambda,
-                          CheckedType return_type, MirUnitKind kind,
-                          const MirCaptureList *captures);
-bool mr_lower_lambda_unit(MirBuildContext *context,
-                          const char *name, const Symbol *symbol,
-                          const HirLambdaExpression *lambda,
-                          CheckedType return_type, MirUnitKind kind);
-bool mr_lower_lambda_expression(MirUnitBuildContext *context,
-                                const HirExpression *expression,
-                                MirValue *value);
-bool mr_lower_start_unit(MirBuildContext *context,
-                         const HirStartDecl *start_decl,
-                         bool call_module_init);
-
+#include "mir_internal_p2.inc"
 #endif /* CALYNDA_MIR_INTERNAL_H */

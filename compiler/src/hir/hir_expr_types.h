@@ -34,6 +34,7 @@ typedef struct {
     const Symbol *symbol;
     CheckedType   type;
     bool          is_varargs;
+    bool          is_block;       /* true for |var non-local return block parameters */
     AstSourceSpan source_span;
 } HirParameter;
 
@@ -126,6 +127,7 @@ typedef struct {
 typedef struct {
     HirParameterList parameters;
     HirBlock        *body;
+    bool             is_nlr_block; /* lambda is passed to a |var parameter */
 } HirLambdaExpression;
 
 typedef struct {
@@ -174,7 +176,8 @@ typedef enum {
     HIR_EXPR_DISCARD,
     HIR_EXPR_POST_INCREMENT,
     HIR_EXPR_POST_DECREMENT,
-    HIR_EXPR_MEMORY_OP
+    HIR_EXPR_MEMORY_OP,
+    HIR_EXPR_NONLOCAL_RETURN  /* |var non-local return expression */
 } HirExpressionKind;
 
 struct HirExpression {
@@ -200,6 +203,7 @@ struct HirExpression {
         HirPostIncrementExpression  post_increment;
         HirPostDecrementExpression  post_decrement;
         HirMemoryOpExpression       memory_op;
+        HirExpression              *nonlocal_return_value; /* NULL for bare return */
     } as;
 };
 

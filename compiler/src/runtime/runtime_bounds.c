@@ -97,12 +97,39 @@ static void bc_unregister(uintptr_t base) {
 
 /* Check that ptr lies within [base, base+size). */
 static void bc_check_access(uintptr_t ptr) {
-    if (bc_find_owner(ptr)) {
+    BcEntry *owner = bc_find_owner(ptr);
+    if (owner) {
         return;
     }
-    fprintf(stderr,
-            "calynda bounds-check: out-of-bounds access at %p\n",
-            (void *)ptr);
+    /* Try to find the nearest allocation to give a helpful hint */
+    {
+        BcEntry *nearest = NULL;
+        uintptr_t nearest_dist = (uintptr_t)-1;
+        size_t i;
+        for (i = 0; i < bc_count; i++) {
+            uintptr_t base = bc_entries[i].base;
+            uintptr_t dist = ptr < base
+                ? base - ptr
+                : ptr - (base + bc_entries[i].size - 1);
+            if (dist < nearest_dist) {
+                nearest_dist = dist;
+                nearest = &bc_entries[i];
+            }
+        }
+        if (nearest) {
+            fprintf(stderr,
+                    "calynda bounds-check: out-of-bounds access at %p\n"
+                    "   nearest allocation: [%p, %p) (size %zu)\n",
+                    (void *)ptr,
+                    (void *)nearest->base,
+                    (void *)(nearest->base + nearest->size),
+                    nearest->size);
+        } else {
+            fprintf(stderr,
+                    "calynda bounds-check: out-of-bounds access at %p (no tracked allocations)\n",
+                    (void *)ptr);
+        }
+    }
     rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
 }
 

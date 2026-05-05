@@ -171,7 +171,6 @@ bool mr_append_instruction(MirBasicBlock *block, MirInstruction instruction) {
                        sizeof(*block->instructions))) {
         return false;
     }
-
     block->instructions[block->instruction_count++] = instruction;
     return true;
 }

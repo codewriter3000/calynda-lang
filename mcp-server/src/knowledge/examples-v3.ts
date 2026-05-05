@@ -15,7 +15,7 @@ export const EXAMPLES_V3: Example[] = [
     name: 'boot-entry',
     description: 'Freestanding bare-metal entry point that bypasses the Calynda runtime without promising Linux-only exit behavior',
     tags: ['boot', 'v3', 'embedded'],
-    code: `boot() -> 0;`,
+    code: `boot -> 0;`,
   },
   {
     name: 'future-value',
@@ -61,14 +61,14 @@ export const EXAMPLES_V3: Example[] = [
     description: 'Compiling for AArch64 Linux target',
     tags: ['arm64', 'target', 'v3', 'backend'],
     code: `// Compile with: calynda build --target aarch64 main.cal
-start(string[] args) -> 0;`,
+start -> 0;`,
   },
   {
     name: 'riscv64-target',
     description: 'Compiling for RISC-V 64 Linux target',
     tags: ['riscv64', 'target', 'v3', 'backend'],
     code: `// Compile with: calynda build --target riscv64 main.cal
-start(string[] args) -> 0;`,
+start -> 0;`,
   },
   {
     name: 'car-archive',
@@ -103,6 +103,34 @@ start(string[] args) -> {
         _ = next;
     };
     return 0;
+};`,
+  },
+  {
+    name: 'swap-statement',
+    description: 'Swap two assignable l-values of the same type with the >< operator',
+    tags: ['swap', 'statement', 'v5'],
+    code: `start(string[] args) -> {
+    int32[] values = [1, 2, 3];
+    values[0] >< values[2];
+    return values[0];
+};`,
+  },
+  {
+    name: 'bare-start',
+    description: 'Entry point with no parameters (bare start form)',
+    tags: ['start', 'basic', 'v5'],
+    code: `start -> {
+    return 0;
+};`,
+  },
+  {
+    name: 'default-parameter',
+    description: 'Lambda with a parameter that has a default value',
+    tags: ['lambda', 'default', 'parameter', 'v5'],
+    code: `int32 add = (int32 left, int32 right = left + 1) -> left + right;
+
+start(string[] args) -> {
+    return add(3);
 };`,
   },
 ];

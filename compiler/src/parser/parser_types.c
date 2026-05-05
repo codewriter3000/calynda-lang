@@ -234,48 +234,4 @@ bool parser_parse_parameter_list(Parser *parser, AstParameterList *list,
         AstParameter parameter;
         const Token *name_token;
 
-        memset(&parameter, 0, sizeof(parameter));
-        if (!parser_parse_type(parser, &parameter.type)) {
-            ast_parameter_list_free(list);
-            return false;
-        }
-
-        if (parser_match(parser, TOK_ELLIPSIS)) {
-            parameter.is_varargs = true;
-        }
-
-        name_token = parser_current_token(parser);
-        parameter.name = parser_consume_identifier(parser, "Expected parameter name.");
-        if (!parameter.name) {
-            ast_type_free(&parameter.type);
-            ast_parameter_list_free(list);
-            return false;
-        }
-        parameter.name_span = parser_source_span(name_token);
-
-        if (parser_match(parser, TOK_ASSIGN)) {
-            parameter.default_expr = parse_assignment_expression(parser);
-            if (!parameter.default_expr) {
-                ast_type_free(&parameter.type);
-                free(parameter.name);
-                ast_parameter_list_free(list);
-                return false;
-            }
-        }
-
-        if (!parser_add_parameter(parser, list, &parameter)) {
-            ast_parameter_list_free(list);
-            return false;
-        }
-
-        if (parameter.is_varargs) {
-            break;
-        }
-
-        if (!parser_match(parser, TOK_COMMA)) {
-            break;
-        }
-    }
-
-    return true;
-}
+#include "parser_types_p2.inc"

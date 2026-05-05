@@ -66,6 +66,8 @@ struct MirUnit {
     size_t         asm_body_length;
     /* Boot flag for START units */
     bool           is_boot;
+    /* NLR block flag: this lambda's returns invoke non-local return helpers */
+    bool           is_nlr_block;
 };
 
 typedef struct {

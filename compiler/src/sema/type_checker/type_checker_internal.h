@@ -42,6 +42,7 @@ CheckedType tc_checked_type_named(const char *name, size_t generic_arg_count,
 CheckedType tc_checked_type_type_param(const char *name);
 CheckedType tc_checked_type_function(size_t param_count);
 bool tc_checked_type_is_hetero_array(CheckedType type);
+bool tc_checked_type_is_num(CheckedType type);
 bool tc_checked_type_equals(CheckedType left, CheckedType right);
 bool tc_checked_type_is_scalar_value(CheckedType type);
 bool tc_checked_type_is_bool(CheckedType type);
@@ -53,6 +54,7 @@ bool tc_checked_type_is_reference_like(CheckedType type);
 bool tc_primitive_is_float(AstPrimitiveType primitive);
 bool tc_primitive_is_integral(AstPrimitiveType primitive);
 int tc_primitive_width(AstPrimitiveType primitive);
+AstPrimitiveType tc_primitive_canonical(AstPrimitiveType primitive);
 bool tc_primitive_is_signed(AstPrimitiveType primitive);
 AstPrimitiveType tc_signed_primitive_for_width(int width);
 AstPrimitiveType tc_unsigned_primitive_for_width(int width);
@@ -133,7 +135,8 @@ bool tc_check_parameter_defaults(TypeChecker *checker,
 const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
                                                 const AstExpression *expression,
                                                 const CheckedType *expected_return_type,
-                                                const AstSourceSpan *related_span);
+                                                const AstSourceSpan *related_span,
+                                                bool is_nlr_block);
 bool tc_check_start_decl(TypeChecker *checker, const AstStartDecl *start_decl);
 
 /* type_checker_block.c */

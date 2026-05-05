@@ -108,6 +108,12 @@ bool tr_resolve_expression(TypeResolver *resolver, const AstExpression *expressi
         return true;
     case AST_EXPR_SPAWN:
         return tr_resolve_expression(resolver, expression->as.spawn.callable);
+
+    case AST_EXPR_NONLOCAL_RETURN:
+        if (expression->as.nonlocal_return_value) {
+            return tr_resolve_expression(resolver, expression->as.nonlocal_return_value);
+        }
+        return true;
     }
 
     return false;

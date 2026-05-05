@@ -1,7 +1,7 @@
 export type NodeKind = 
   | 'Program' | 'PackageDecl' | 'ImportDecl'
   | 'StartDecl' | 'BindingDecl' | 'TypeAliasDecl' | 'UnionDecl' | 'LayoutDecl' | 'AsmDecl' | 'BootDecl'
-  | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'ManualStatement'
+  | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'ManualStatement' | 'SwapStatement'
   | 'LambdaExpression' | 'AssignmentExpression' | 'TernaryExpression'
   | 'BinaryExpression' | 'UnaryExpression' | 'PostfixExpression'
   | 'CallExpression' | 'IndexExpression' | 'MemberExpression'
@@ -100,6 +100,8 @@ export interface Parameter extends ASTNode {
   kind: 'Parameter';
   typeAnnotation: TypeNode;
   name: string;
+  isVarargs?: boolean;
+  defaultValue?: Expression;
 }
 
 export interface Block extends ASTNode {
@@ -107,8 +109,9 @@ export interface Block extends ASTNode {
   statements: Statement[];
 }
 
-export type Statement = LocalBindingStatement | ReturnStatement | ExitStatement | ThrowStatement | ExpressionStatement | ManualStatement;
+export type Statement = LocalBindingStatement | ReturnStatement | ExitStatement | ThrowStatement | ExpressionStatement | ManualStatement | SwapStatement;
 export interface ManualStatement extends ASTNode { kind: 'ManualStatement'; body: Block; }
+export interface SwapStatement extends ASTNode { kind: 'SwapStatement'; left: Expression; right: Expression; }
 
 export interface LocalBindingStatement extends ASTNode {
   kind: 'LocalBindingStatement';

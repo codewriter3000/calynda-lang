@@ -89,9 +89,12 @@ function parseTopLevelDecl(state) {
 }
 function parseStartDecl(state) {
     const startTok = state.eat('keyword', 'start');
-    state.eat('lparen');
-    const params = (0, parser_statements_1.parseParameterList)(state);
-    state.eat('rparen');
+    let params = [];
+    if (state.check('lparen')) {
+        state.advance();
+        params = (0, parser_statements_1.parseParameterList)(state);
+        state.eat('rparen');
+    }
     state.eat('arrow');
     const body = (0, parser_expressions_1.parseLambdaBody)(state);
     state.eat('semicolon');
@@ -153,8 +156,6 @@ function parseLayoutDecl(state) {
 }
 function parseBootDecl(state) {
     const startTok = state.eat('keyword', 'boot');
-    state.eat('lparen');
-    state.eat('rparen');
     state.eat('arrow');
     const body = (0, parser_expressions_1.parseLambdaBody)(state);
     state.eat('semicolon');

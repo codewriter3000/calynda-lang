@@ -146,6 +146,9 @@ int calynda_run_linker(const char *assembly_path,
         (char *)"-x",
         (char *)"assembler",
         (char *)assembly_path,
+        (char *)"-x",
+        (char *)"none",
+        (char *)runtime_object_path,
         (char *)"-o",
         (char *)output_path,
         NULL
@@ -189,3 +192,51 @@ int calynda_run_child_process(const char *path, char *const argv[]) {
 
     return calynda_wait_for_child_exit(child);
 }
+
+/* Returns a pointer into `source` at the start of line `target_line` (1-based).
+ * Returns NULL if the line does not exist. */
+static const char *caly_diag_find_line(const char *source, int target_line) {
+    int cur = 1;
+    if (target_line <= 0 || !source) return NULL;
+    while (*source) {
+        if (cur == target_line) return source;
+        if (*source++ == '\n') cur++;
+    }
+    return (cur == target_line) ? source : NULL;
+}
+
+void calynda_print_diagnostic(const char *path, const char *source,
+                               int line, int col_start, int col_end,
+                               const char *kind, const char *message) {
+    const char *line_ptr;
+    int line_len, gutter, i;
+
+    /* Header: path:line:col: kind: message */
+    if (line > 0 && col_start > 0) {
+        fprintf(stderr, "%s:%d:%d: %s: %s\n",
+                path ? path : "?", line, col_start, kind, message);
+    } else if (line > 0) {
+        fprintf(stderr, "%s:%d: %s: %s\n",
+                path ? path : "?", line, kind, message);
+    } else {
+        fprintf(stderr, "%s: %s: %s\n",
+                path ? path : "?", kind, message);
+    }
+
+    if (!source || line <= 0) return;
+
+    /* Gutter width = number of digits in the error line number */
+    gutter = 1;
+    for (i = line; i >= 10; i /= 10) gutter++;
+
+    /* Line before the error */
+    if (line > 1) {
+        line_ptr = caly_diag_find_line(source, line - 1);
+        if (line_ptr) {
+            line_len = 0;
+            while (line_ptr[line_len] && line_ptr[line_len] != '\n') line_len++;
+            fprintf(stderr, " %*d | %.*s\n", gutter, line - 1, line_len, line_ptr);
+        }
+    }
+
+#include "calynda_utils_p2.inc"

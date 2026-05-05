@@ -9,7 +9,8 @@ Usage: ./install.sh [--prefix DIR] [--bin-dir DIR] [--lib-dir DIR] [--help]
 Builds Calynda and installs:
   - a launcher at <bin-dir>/calynda
   - the real CLI binary at <lib-dir>/calynda/calynda
-  - the runtime archive at <lib-dir>/calynda/calynda_runtime.a
+    - the hosted runtime archive at <lib-dir>/calynda/calynda_runtime.a
+    - the boot runtime archive at <lib-dir>/calynda/calynda_runtime_boot.a
 
 Defaults:
   - root:    prefix=/usr/local
@@ -116,9 +117,11 @@ require_command gcc
 BUILD_DIR=$SCRIPT_DIR/build
 SOURCE_BIN=$BUILD_DIR/calynda
 SOURCE_RUNTIME=$BUILD_DIR/calynda_runtime.a
+SOURCE_BOOT_RUNTIME=$BUILD_DIR/calynda_runtime_boot.a
 INSTALL_ROOT=$LIB_DIR/calynda
 INSTALL_BIN=$INSTALL_ROOT/calynda
 INSTALL_RUNTIME=$INSTALL_ROOT/calynda_runtime.a
+INSTALL_BOOT_RUNTIME=$INSTALL_ROOT/calynda_runtime_boot.a
 LAUNCHER_PATH=$BIN_DIR/calynda
 
 printf '==> Building Calynda\n'
@@ -134,10 +137,16 @@ if [ ! -f "$SOURCE_RUNTIME" ]; then
     exit 1
 fi
 
+if [ ! -f "$SOURCE_BOOT_RUNTIME" ]; then
+    printf 'error: build did not produce %s\n' "$SOURCE_BOOT_RUNTIME" >&2
+    exit 1
+fi
+
 printf '==> Installing files\n'
 install -d "$BIN_DIR" "$INSTALL_ROOT"
 install -m 755 "$SOURCE_BIN" "$INSTALL_BIN"
 install -m 644 "$SOURCE_RUNTIME" "$INSTALL_RUNTIME"
+install -m 644 "$SOURCE_BOOT_RUNTIME" "$INSTALL_BOOT_RUNTIME"
 
 cat > "$LAUNCHER_PATH" <<EOF
 #!/usr/bin/env sh
@@ -149,6 +158,7 @@ printf '\nInstalled Calynda:\n'
 printf '  launcher: %s\n' "$LAUNCHER_PATH"
 printf '  binary:   %s\n' "$INSTALL_BIN"
 printf '  runtime:  %s\n' "$INSTALL_RUNTIME"
+printf '  boot rt:  %s\n' "$INSTALL_BOOT_RUNTIME"
 
 case ":${PATH}:" in
     *":$BIN_DIR:"*)

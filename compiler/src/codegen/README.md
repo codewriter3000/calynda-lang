@@ -128,3 +128,6 @@ codegen_program_free(&codegen);
 - Physical machine code emission happens in the backend
 - Codegen decisions directly impact performance
 - Register allocation is critical for efficiency
+## Changes in 1.0.0-alpha.6
+
+- No direct codegen-pass changes for this release; new behaviour is fully expressed through the existing MIR → LIR → backend pipeline. Codegen helpers continue to track operand widths so `num`-typed lambdas emit the correct primitive instructions.

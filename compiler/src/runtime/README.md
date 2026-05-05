@@ -278,3 +278,9 @@ bool calynda_rt_dump_layout(FILE *out);
 - Runtime is linked as shared library (future: static option)
 - Runtime functions are prefixed with `__calynda_rt_` or `calynda_rt_`
 - Public API uses `calynda_rt_`, private uses `__calynda_rt_`
+## Changes in 1.0.0-alpha.6
+
+- New module `runtime_nlr.c` implements the non-local-return slot stack used to lower `|var` early-return parameters. Public helpers: `__calynda_rt_nlr_push`, `__calynda_rt_nlr_invoke`, `__calynda_rt_nlr_check_pop`, `__calynda_rt_nlr_get_value`. Slots are thread-local.
+- `runtime_boot.c` (built into the freestanding boot archive) provides the bare-metal entry path. Its compilation flags add `-ffreestanding -fno-builtin -fno-stack-protector`; it deliberately avoids any libc/pthread dependency.
+- `runtime_format.c` and `runtime.c` gained user-input helpers (line-oriented and typed reads from stdin).
+- `runtime.c`, `runtime.h`, `runtime_internal.h`, `runtime_ops.c`, `runtime_union.c`, and `runtime_threads.c` were updated for `var` and `|var` interactions, the new boot archive layout, and `string`-form `car`/`cdr`.

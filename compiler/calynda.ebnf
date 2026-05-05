@@ -291,8 +291,13 @@ ParameterList
     = Parameter { "," Parameter }
     ;
 
+(* "var" parameters are untyped — the type is opaque ("any") and *)
+(* values are accessed dynamically via runtime type queries        *)
+(* (typeof, isint, isstring, etc.). Untyped parameters cannot be   *)
+(* varargs.                                                        *)
 Parameter
     = Type [ "..." ] Identifier [ "=" Expression ]             (* varargs — must be last *)
+    | "var" Identifier [ "=" Expression ]                      (* untyped parameter *)
     ;
 
 (* --- Assignment (right-associative) ----------------------------- *)

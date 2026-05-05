@@ -10,7 +10,7 @@
 
 ---
 
-Calynda is a compiled functional systems programming language. The current 1.0.0-alpha.2 surface targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files.
+Calynda is a compiled functional systems programming language. The current 1.0.0-alpha.6 surface targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files. A small standard library ships alongside the toolchain.
 
 ## Repository Layout
 
@@ -58,6 +58,12 @@ There is no interpreter path. AST or IR interpretation is not part of the design
 - Ternary expressions, member access, index access, and casts
 - CAR source archives for bundling `.cal` files
 - `throw` for error propagation
+- Untyped `var` parameters; type queried at runtime via `typeof`, `isint`, `isstring`, `isarray`, …
+- `|var` early-return parameters for non-local return values
+- `num` built-in generic numeric primitive type
+- `arr<?>` wildcard array type accepting any primitive-element array
+- Lambdas capture enclosing locals by reference (writes are visible to the enclosing scope)
+- Bundled standard library (`conditional`, `loop`, `math`, `string_utils`, `structure/`)
 
 The standard entry point is `start(string[] args)`. Bare-metal programs use `boot()` instead.
 
@@ -87,7 +93,8 @@ The installer builds Calynda and installs:
 
 - a `calynda` launcher in your bin directory
 - the real CLI binary under `lib/calynda/`
-- the required `calynda_runtime.a` archive beside that binary so generated executables can link correctly
+- the hosted `calynda_runtime.a` archive beside that binary so generated executables can link correctly
+- the freestanding `calynda_runtime_boot.a` archive used by `boot -> { ... };` programs
 
 If your install bin directory is not on `PATH`, the installer prints the export line to add to your shell profile.
 

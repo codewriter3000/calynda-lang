@@ -24,8 +24,14 @@ function getCompletions(input) {
         items.push({
             label: 'start',
             kind: 'snippet',
-            detail: 'Entry point',
+            detail: 'Entry point (with args)',
             insertText: 'start(string[] args) -> {\n    \n    return 0;\n};',
+        });
+        items.push({
+            label: 'start (bare)',
+            kind: 'snippet',
+            detail: 'Entry point (no parameters)',
+            insertText: 'start -> {\n    \n    return 0;\n};',
         });
     }
     if ('union'.startsWith(prefix)) {
@@ -56,8 +62,8 @@ function getCompletions(input) {
         items.push({
             label: 'boot',
             kind: 'snippet',
-            detail: 'Freestanding bare-metal entry point',
-            insertText: 'boot() -> {\n    ${1}\n};',
+            detail: 'Freestanding bare-metal entry point (no runtime, no parameters)',
+            insertText: 'boot -> {\n    ${1}\n};',
         });
     }
     if ('manual'.startsWith(prefix)) {

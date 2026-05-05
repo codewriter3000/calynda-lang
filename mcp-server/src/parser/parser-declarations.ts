@@ -100,9 +100,12 @@ function parseTopLevelDecl(state: ParserState): AST.TopLevelDecl | null {
 
 function parseStartDecl(state: ParserState): AST.StartDecl {
   const startTok = state.eat('keyword', 'start');
-  state.eat('lparen');
-  const params = parseParameterList(state);
-  state.eat('rparen');
+  let params: AST.Parameter[] = [];
+  if (state.check('lparen')) {
+    state.advance();
+    params = parseParameterList(state);
+    state.eat('rparen');
+  }
   state.eat('arrow');
   const body = parseLambdaBody(state);
   state.eat('semicolon');
@@ -172,8 +175,6 @@ function parseLayoutDecl(state: ParserState): AST.LayoutDecl {
 
 function parseBootDecl(state: ParserState): AST.BootDecl {
   const startTok = state.eat('keyword', 'boot');
-  state.eat('lparen');
-  state.eat('rparen');
   state.eat('arrow');
   const body = parseLambdaBody(state);
   state.eat('semicolon');

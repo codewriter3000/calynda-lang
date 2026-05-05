@@ -6,7 +6,8 @@ bool mr_build_lambda_unit(MirBuildContext *context,
                           const HirLambdaExpression *lambda,
                           CheckedType return_type,
                           MirUnitKind kind,
-                          const MirCaptureList *captures) {
+                          const MirCaptureList *captures,
+                          bool is_nlr_block) {
     MirUnit unit;
     MirUnitBuildContext unit_context;
     size_t i;
@@ -18,6 +19,7 @@ bool mr_build_lambda_unit(MirBuildContext *context,
     unit.name = ast_copy_text(name);
     unit.symbol = symbol;
     unit.return_type = return_type;
+    unit.is_nlr_block = is_nlr_block;
     if (!unit.name) {
         mr_set_error(context,
                       (AstSourceSpan){0},
@@ -26,10 +28,34 @@ bool mr_build_lambda_unit(MirBuildContext *context,
         return false;
     }
 
+    if (is_nlr_block) {
+        /* Prepend synthetic NLR slot capture at index 0 */
+        MirLocal nlr_slot_local;
+        memset(&nlr_slot_local, 0, sizeof(nlr_slot_local));
+        nlr_slot_local.kind = MIR_LOCAL_CAPTURE;
+        nlr_slot_local.name = ast_copy_text("__nlr_slot");
+        nlr_slot_local.symbol = NULL;
+        nlr_slot_local.type = mr_nlr_external_type();
+        nlr_slot_local.index = unit.local_count;
+        if (!nlr_slot_local.name || !mr_append_local(&unit, nlr_slot_local)) {
+            free(nlr_slot_local.name);
+            mr_unit_free(&unit);
+            mr_set_error(context,
+                          (AstSourceSpan){0},
+                          NULL,
+                          "Out of memory while lowering MIR NLR slot capture.");
+            return false;
+        }
+    }
+
     if (captures) {
         for (i = 0; i < captures->count; i++) {
             MirLocal local;
-            const char *capture_name = captures->items[i].symbol->name
+            const char *capture_name;
+            if (!captures->items[i].symbol) {
+                return false;
+            }
+            capture_name = captures->items[i].symbol->name
                                            ? captures->items[i].symbol->name
                                            : "<capture>";
 
@@ -37,8 +63,11 @@ bool mr_build_lambda_unit(MirBuildContext *context,
             local.kind = MIR_LOCAL_CAPTURE;
             local.name = ast_copy_text(capture_name);
             local.symbol = captures->items[i].symbol;
-            local.type = captures->items[i].type;
+            local.type = captures->items[i].is_cell
+                             ? mr_nlr_external_type()
+                             : captures->items[i].type;
             local.is_final = captures->items[i].symbol->is_final;
+            local.is_cell = captures->items[i].is_cell;
             local.index = unit.local_count;
             if (!local.name || !mr_append_local(&unit, local)) {
                 free(local.name);
@@ -55,6 +84,7 @@ bool mr_build_lambda_unit(MirBuildContext *context,
     unit_context.build = context;
     unit_context.unit = &unit;
     unit_context.in_checked_manual = context->global_bounds_check;
+    unit_context.is_nlr_block = is_nlr_block;
     if (!mr_create_block(&unit_context, &unit_context.current_block_index) ||
         !mr_lower_parameters(&unit_context, &lambda->parameters) ||
         !mr_lower_block(&unit_context, lambda->body)) {
@@ -95,7 +125,8 @@ bool mr_lower_lambda_unit(MirBuildContext *context,
                              lambda,
                              return_type,
                              kind,
-                             &empty_captures);
+                             &empty_captures,
+                             false);
 }
 
 bool mr_lower_lambda_expression(MirUnitBuildContext *context,
@@ -135,13 +166,21 @@ bool mr_lower_lambda_expression(MirUnitBuildContext *context,
         return false;
     }
 
+    /* Propagate is_cell from enclosing scope BEFORE building the lambda unit */
+    for (i = 0; i < captures.count; i++) {
+        size_t local_index = mr_find_local_index(context->unit, captures.items[i].symbol);
+        captures.items[i].is_cell = (local_index != (size_t)-1) &&
+                                    context->unit->locals[local_index].is_cell;
+    }
+
     if (!mr_build_lambda_unit(context->build,
                            unit_name,
                            NULL,
                            &expression->as.lambda,
                            expression->callable_signature.return_type,
                            MIR_UNIT_LAMBDA,
-                           &captures)) {
+                           &captures,
+                           false)) {
         mr_capture_list_free(&captures);
         return false;
     }
@@ -189,25 +228,13 @@ bool mr_lower_lambda_expression(MirUnitBuildContext *context,
         }
 
         instruction.as.closure.captures[i].kind = MIR_VALUE_LOCAL;
-        instruction.as.closure.captures[i].type = captures.items[i].type;
+        /* Cell captures pass the opaque cell ref (same type as what's in the local) */
+        instruction.as.closure.captures[i].type = captures.items[i].is_cell
+            ? mr_nlr_external_type()
+            : captures.items[i].type;
         instruction.as.closure.captures[i].as.local_index = local_index;
     }
 
     mr_capture_list_free(&captures);
 
-    if (!mr_current_block(context) ||
-        !mr_append_instruction(mr_current_block(context), instruction)) {
-        mr_instruction_free(&instruction);
-        mr_set_error(context->build,
-                      expression->source_span,
-                      NULL,
-                      "Out of memory while lowering MIR closures.");
-        return false;
-    }
-
-    value->kind = MIR_VALUE_TEMP;
-    value->type = expression->type;
-    value->as.temp_index = instruction.as.closure.dest_temp;
-    return true;
-}
-
+#include "mir_lambda_p2.inc"

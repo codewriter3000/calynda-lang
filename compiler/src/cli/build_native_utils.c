@@ -73,6 +73,65 @@ char *build_native_read_entire_file(const char *path) {
     return buffer;
 }
 
+static const char *bn_diag_find_line(const char *source, int target_line) {
+    int cur = 1;
+    if (target_line <= 0 || !source) return NULL;
+    while (*source) {
+        if (cur == target_line) return source;
+        if (*source++ == '\n') cur++;
+    }
+    return (cur == target_line) ? source : NULL;
+}
+
+void build_native_print_diagnostic(const char *path, const char *source,
+                                    int line, int col_start, int col_end,
+                                    const char *kind, const char *message) {
+    const char *line_ptr;
+    int line_len, gutter, i;
+
+    if (line > 0 && col_start > 0) {
+        fprintf(stderr, "%s:%d:%d: %s: %s\n",
+                path ? path : "?", line, col_start, kind, message);
+    } else if (line > 0) {
+        fprintf(stderr, "%s:%d: %s: %s\n",
+                path ? path : "?", line, kind, message);
+    } else {
+        fprintf(stderr, "%s: %s: %s\n",
+                path ? path : "?", kind, message);
+    }
+
+    if (!source || line <= 0) return;
+
+    gutter = 1;
+    for (i = line; i >= 10; i /= 10) gutter++;
+
+    if (line > 1) {
+        line_ptr = bn_diag_find_line(source, line - 1);
+        if (line_ptr) {
+            line_len = 0;
+            while (line_ptr[line_len] && line_ptr[line_len] != '\n') line_len++;
+            fprintf(stderr, " %*d | %.*s\n", gutter, line - 1, line_len, line_ptr);
+        }
+    }
+
+    line_ptr = bn_diag_find_line(source, line);
+    if (!line_ptr) return;
+    line_len = 0;
+    while (line_ptr[line_len] && line_ptr[line_len] != '\n') line_len++;
+    fprintf(stderr, " %*d | %.*s\n", gutter, line, line_len, line_ptr);
+
+    if (col_start > 0) {
+        int cs = col_start;
+        int ce = (col_end >= col_start && col_end > 0) ? col_end : col_start;
+        int carets = ce - cs + 1;
+        if (carets < 1) carets = 1;
+        fprintf(stderr, " %*s | ", gutter, "");
+        for (i = 1; i < cs; i++) fputc(' ', stderr);
+        for (i = 0; i < carets; i++) fputc('^', stderr);
+        fputc('\n', stderr);
+    }
+}
+
 bool build_native_executable_directory(char *buffer, size_t buffer_size) {
     ssize_t written;
     char *slash;
@@ -141,6 +200,9 @@ int build_native_run_linker(const char *assembly_path,
         (char *)"-x",
         (char *)"assembler",
         (char *)assembly_path,
+        (char *)"-x",
+        (char *)"none",
+        (char *)runtime_object_path,
         (char *)"-o",
         (char *)output_path,
         NULL

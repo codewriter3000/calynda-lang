@@ -137,6 +137,8 @@ static const char *extern_callable_name(CalyndaRtExternCallableKind kind) {
     switch (kind) {
     case CALYNDA_RT_EXTERN_CALL_STDOUT_PRINT:
         return "print";
+    case CALYNDA_RT_EXTERN_CALL_STDIN_INPUT:
+        return "input";
     }
 
     return "unknown";
@@ -163,6 +165,32 @@ CalyndaRtWord rt_dispatch_extern_callable(const CalyndaRtExternCallable *callabl
             printf("\n");
         }
         return 0;
+    case CALYNDA_RT_EXTERN_CALL_STDIN_INPUT: {
+        char line[4096];
+        size_t len;
+        CalyndaRtString *str;
+
+        if (argument_count > 0) {
+            if (!rt_format_word_internal(arguments[0], buffer, sizeof(buffer))) {
+                buffer[0] = '\0';
+            }
+            printf("%s", buffer);
+            fflush(stdout);
+        }
+        if (!fgets(line, sizeof(line), stdin)) {
+            line[0] = '\0';
+        }
+        len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[--len] = '\0';
+        }
+        str = rt_new_string_object(line, len);
+        if (!str) {
+            fprintf(stderr, "runtime: out of memory while reading input\n");
+            rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
+        }
+        return rt_make_object_word(str);
+    }
     }
 
     fprintf(stderr,

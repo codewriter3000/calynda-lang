@@ -202,7 +202,7 @@ bool mr_append_synthetic_local(MirUnitBuildContext *context,
     char name[48];
     int written;
 
-    if (!context || !context->unit || !local_index || !name_prefix) {
+    if (!context || !context->unit || !name_prefix) {
         return false;
     }
 
@@ -233,18 +233,13 @@ bool mr_append_synthetic_local(MirUnitBuildContext *context,
         return false;
     }
 
-    *local_index = local.index;
+    if (local_index) {
+        *local_index = local.index;
+    }
     return true;
 }
 
 void mr_set_goto_terminator(MirUnitBuildContext *context, size_t target_block_index) {
     MirBasicBlock *block;
 
-    block = mr_current_block(context);
-    if (!block || block->terminator.kind != MIR_TERM_NONE) {
-        return;
-    }
-
-    block->terminator.kind = MIR_TERM_GOTO;
-    block->terminator.as.goto_term.target_block = target_block_index;
-}
+#include "mir_store_p2.inc"

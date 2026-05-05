@@ -86,3 +86,6 @@ while ((tok = tokenizer_next(&t)).type != TOK_EOF) {
 - Source positions are tracked for error reporting
 - The tokenizer is designed to be fast and memory-efficient
 - It operates directly on the source string without copying (zero-copy design)
+## Changes in 1.0.0-alpha.6
+
+- No tokenizer changes for this release. New keywords were not introduced — `var` is reused as a parameter modifier and `num` / `arr<?>` are recognised by the existing identifier/type-name infrastructure.

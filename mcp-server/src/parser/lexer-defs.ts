@@ -12,6 +12,7 @@ export type TokenType =
   | 'ampamp' | 'pipepipe'
   | 'tildeamp' | 'tildecaret'
   | 'ltlt' | 'gtgt'
+  | 'swap'
   | 'eq' | 'pluseq' | 'minuseq' | 'stareq' | 'slasheq' | 'percenteq'
   | 'ampeq' | 'pipeeq' | 'careteq' | 'ltlteq' | 'gtgteq'
   | 'lparen' | 'rparen' | 'lbrace' | 'rbrace' | 'lbracket' | 'rbracket'
@@ -112,6 +113,7 @@ export function readOperatorToken(ctx: LexerContext, line: number, col: number, 
         if (ctx.peek() === '=') { ctx.advance(); return ctx.makeToken('gtgteq', '>>=', line, col, offset); }
         return ctx.makeToken('gtgt', '>>', line, col, offset);
       }
+      if (next === '<') { ctx.advance(); return ctx.makeToken('swap', '><', line, col, offset); }
       if (next === '=') { ctx.advance(); return ctx.makeToken('gteq', '>=', line, col, offset); }
       return ctx.makeToken('gt', '>', line, col, offset);
     case '=':

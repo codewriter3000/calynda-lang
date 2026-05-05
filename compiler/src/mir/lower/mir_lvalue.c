@@ -69,6 +69,7 @@ bool mr_lower_assignment_target(MirUnitBuildContext *context,
 
             lvalue->kind = MIR_LVALUE_LOCAL;
             lvalue->as.local_index = local_index;
+            lvalue->is_cell = context->unit->locals[local_index].is_cell;
             return true;
         }
 
@@ -138,6 +139,10 @@ bool mr_load_lvalue_value(MirUnitBuildContext *context,
     *value = mr_invalid_value();
     switch (lvalue->kind) {
     case MIR_LVALUE_LOCAL:
+        if (lvalue->is_cell) {
+            return mr_emit_cell_read(context, lvalue->as.local_index,
+                                      lvalue->type, source_span, value);
+        }
         value->kind = MIR_VALUE_LOCAL;
         value->type = lvalue->type;
         value->as.local_index = lvalue->as.local_index;
@@ -221,31 +226,4 @@ bool mr_store_lvalue_value(MirUnitBuildContext *context,
         return false;
     }
 
-    switch (lvalue->kind) {
-    case MIR_LVALUE_LOCAL:
-        return mr_append_store_local_instruction(context,
-                                              lvalue->as.local_index,
-                                              value,
-                                              source_span);
-    case MIR_LVALUE_GLOBAL:
-        return mr_append_store_global_instruction(context,
-                                               lvalue->as.global_name,
-                                               value,
-                                               source_span);
-    case MIR_LVALUE_INDEX:
-        return mr_append_store_index_instruction(context,
-                                              &lvalue->as.index.target,
-                                              &lvalue->as.index.index,
-                                              value,
-                                              source_span);
-    case MIR_LVALUE_MEMBER:
-        return mr_append_store_member_instruction(context,
-                                               &lvalue->as.member.target,
-                                               lvalue->as.member.member,
-                                               value,
-                                               source_span);
-    }
-
-    mr_value_free(&value);
-    return false;
-}
+#include "mir_lvalue_p2.inc"

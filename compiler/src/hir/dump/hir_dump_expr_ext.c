@@ -127,6 +127,16 @@ bool hir_dump_expression_ext(FILE *out, const HirExpression *expression, int ind
         }
     default:
         return false;
+
+    case HIR_EXPR_NONLOCAL_RETURN:
+        hir_dump_write_indent(out, indent);
+        fprintf(out, "NonlocalReturn span=");
+        hir_dump_write_span(out, expression->source_span);
+        fputc('\n', out);
+        if (expression->as.nonlocal_return_value) {
+            return hir_dump_expression(out, expression->as.nonlocal_return_value, indent + 2);
+        }
+        return true;
     }
 
     return false;

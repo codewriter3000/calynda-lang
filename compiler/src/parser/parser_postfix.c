@@ -21,7 +21,36 @@ AstExpression *parse_postfix_expression(Parser *parser) {
             call->as.call.callee = expression;
             if (!parser_check(parser, TOK_RPAREN)) {
                 do {
-                    AstExpression *argument = parse_expression_node(parser);
+                    AstExpression *argument;
+
+                    /* Allow `return expr` shorthand for |var block arguments */
+                    if (parser_check(parser, TOK_RETURN)) {
+                        const Token *ret_token = parser_current_token(parser);
+                        AstExpression *nlr = ast_expression_new(AST_EXPR_NONLOCAL_RETURN);
+
+                        if (!nlr) {
+                            parser_set_oom_error(parser);
+                            ast_expression_free(call);
+                            return NULL;
+                        }
+
+                        nlr->source_span = parser_source_span(ret_token);
+                        parser_advance(parser); /* consume 'return' */
+
+                        if (!parser_check(parser, TOK_COMMA) &&
+                            !parser_check(parser, TOK_RPAREN)) {
+                            nlr->as.nonlocal_return_value = parse_expression_node(parser);
+                            if (!nlr->as.nonlocal_return_value) {
+                                ast_expression_free(nlr);
+                                ast_expression_free(call);
+                                return NULL;
+                            }
+                        }
+
+                        argument = nlr;
+                    } else {
+                        argument = parse_expression_node(parser);
+                    }
 
                     if (!argument) {
                         ast_expression_free(call);

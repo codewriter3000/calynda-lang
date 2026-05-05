@@ -39,6 +39,7 @@ bool mr_capture_list_add(MirBuildContext *context,
 
     captures->items[captures->count].symbol = symbol;
     captures->items[captures->count].type = type;
+    captures->items[captures->count].is_cell = false;
     captures->count++;
     return true;
 }

@@ -163,3 +163,13 @@ if (!type_checker_check_program(&checker, &program, &symbols)) {
 - Type checking happens after full symbol resolution
 - Generic types are validated but not instantiated at this stage
 - The type system is designed to prevent common programming errors
+## Changes in 1.0.0-alpha.6
+
+- Type-checker (`type_checker_lambda.c`, `type_checker_resolve_binding.c`, `type_checker_types.c`, `type_checker_ops.c`, `type_checker_convert.c`) now understands:
+  - `var` (untyped) parameters: opaque type, only usable through type-query intrinsics or as a passthrough argument.
+  - `|var` non-local-return parameters: writes are valid only as a tail effect of the enclosing call.
+  - `num`: generic numeric primitive, resolved per call site via existing widening rules.
+  - `arr<?>`: wildcard array type, accepting any primitive-element array.
+  - Lambda capture-by-reference: closure environments are typed with mutable slots so writes propagate.
+- Type resolution (`type_resolution_resolve.c`, `type_resolution_expr.c`) expands `num` / `arr<?>` placeholders into concrete primitives at each use site.
+- Symbol-table imports (`symbol_table_imports.c`) now resolve the bundled standard-library packages.

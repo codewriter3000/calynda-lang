@@ -195,14 +195,6 @@ const TypeCheckInfo *tc_check_hetero_array_literal(TypeChecker *checker,
     TypeCheckInfo info;
     size_t i;
 
-    if (expression->as.array_literal.elements.count == 0) {
-        tc_set_error_at(checker,
-                        expression->source_span,
-                        NULL,
-                        "Cannot create an empty heterogeneous array literal.");
-        return NULL;
-    }
-
     for (i = 0; i < expression->as.array_literal.elements.count; i++) {
         const TypeCheckInfo *element_info = tc_check_expression(
             checker, expression->as.array_literal.elements.items[i]);

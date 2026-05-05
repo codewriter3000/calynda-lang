@@ -197,3 +197,8 @@ gcc output.o -L./runtime -lcalynda_rt -o program
 - The backend relies on external assembler (GNU as, LLVM)
 - Runtime library is linked separately
 - Future targets can be added by implementing target descriptors
+## Changes in 1.0.0-alpha.6
+
+- The runtime is now produced as two archives: hosted (`calynda_runtime.a`) and freestanding/bare-metal (`calynda_runtime_boot.a`). The boot archive is compiled with `-ffreestanding -fno-builtin -fno-stack-protector` and linked into `boot -> { ... };` programs.
+- Cross-compiled boot archives (`calynda_runtime_boot_aarch64.a`, `calynda_runtime_boot_riscv64.a`) are produced by `make runtime-aarch64` / `make runtime-riscv64`.
+- `machine_layout.c` was updated to align with the new entry-point split; `runtime_abi/runtime_abi.c` exposes the new NLR helpers.

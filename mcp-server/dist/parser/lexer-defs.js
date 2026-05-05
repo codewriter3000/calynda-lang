@@ -137,6 +137,10 @@ function readOperatorToken(ctx, line, col, offset) {
                 }
                 return ctx.makeToken('gtgt', '>>', line, col, offset);
             }
+            if (next === '<') {
+                ctx.advance();
+                return ctx.makeToken('swap', '><', line, col, offset);
+            }
             if (next === '=') {
                 ctx.advance();
                 return ctx.makeToken('gteq', '>=', line, col, offset);

@@ -4,8 +4,8 @@ exports.GRAMMAR_STRUCTURE = void 0;
 exports.GRAMMAR_STRUCTURE = `
 (* ===================================================================== *)
 (* Calynda — EBNF Grammar Snapshot                                        *)
-(* Snapshot version 1.0.0-alpha.2                                         *)
-(* Cloned from compiler/calynda.ebnf on 2026-04-16                        *)
+(* Snapshot version 0.5.0                                                 *)
+(* Cloned from compiler/calynda.ebnf on 2026-04-18                        *)
 (* ===================================================================== *)
 (* ================================================================ *)
 (* 1. PROGRAM STRUCTURE                                             *)
@@ -51,16 +51,19 @@ TopLevelDecl
     | LayoutDecl
     ;
 
-(* Entry point — implicitly returns int32 (exit code).              *)
+(* Entry point — implicitly returns int32 (exit code), or 0 when a  *)
+(* void start body falls through or uses bare returns.              *)
+(* Syntax: start -> { ... }; / start(string[] args) -> { ... };     *)
 StartDecl
-    = "start" "(" ParameterList ")" "->" ( Block | Expression ) ";"
+    = "start" [ "(" [ ParameterList ] ")" ] "->" ( Block | Expression ) ";"
     ;
 
-(* Bare-metal entry point — emits a freestanding _start symbol and  *)
-(* does not promise Linux-only exit behaviour. Cannot coexist with  *)
-(* start() in the same compilation unit.                            *)
+(* Bare-metal entry point — no runtime, no parameters.              *)
+(* Implicitly returns int32 (halt code). Mutually exclusive with    *)
+(* StartDecl.                                                       *)
+(* Syntax: boot -> { ... };                                         *)
 BootDecl
-    = "boot" "(" ")" "->" ( Block | Expression ) ";"
+    = "boot" "->" ( Block | Expression ) ";"
     ;
 
 (* Inline assembly declaration — the assembly body is passed        *)
@@ -128,7 +131,7 @@ UnionVariant
 
 (* Memory layout declaration — defines a named struct-like type for *)
 (* use with ptr<T>, offset, deref, and store operations.            *)
-(* Field types must be primitive in alpha.2.                        *)
+(* Field types must be primitive in 0.5.0.                          *)
 LayoutDecl
     = "layout" Identifier "{" { LayoutField } "}" ";"
     ;
@@ -150,10 +153,8 @@ LayoutField
 Type
     = PrimitiveType [ GenericArgs ] { ArrayDimension }
     | "Thread" { ArrayDimension }                               (* semantically-resolved built-in handle *)
-    | "Future" GenericArgs { ArrayDimension }                   (* future handle from non-void spawn *)
     | "Mutex" { ArrayDimension }                                (* semantically-resolved built-in handle *)
-    | "Atomic" GenericArgs { ArrayDimension }                   (* alpha.2 single-word atomic cell *)
-    | Identifier [ GenericArgs ] { ArrayDimension }            (* named / user-defined type *)
+    | Identifier [ GenericArgs ] { ArrayDimension }            (* named / user-defined type, incl. Future<T> and Atomic<T> *)
     | "arr" GenericArgs                                        (* heterogeneous array *)
     | "ptr" GenericArgs                                        (* typed pointer — manual only *)
     | "ptr" "<" Type "," "checked" ">"                    (* bounds-checked typed pointer *)
@@ -204,6 +205,7 @@ Statement
     | ExitStatement
     | ThrowStatement
     | ManualStatement
+    | SwapStatement
     | ExpressionStatement
     ;
 

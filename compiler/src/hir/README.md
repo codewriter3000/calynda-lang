@@ -107,3 +107,9 @@ hir_program_free(&hir);
 - HIR is easier to analyze than AST due to explicit types and resolved names
 - HIR is the last representation that preserves lambda closures explicitly
 - Future optimizations can be performed at the HIR level
+## Changes in 1.0.0-alpha.6
+
+- HIR lowering now distinguishes value-captured and reference-captured locals. Lambdas observe writes to enclosing scope through the new reference-capture path (`hir_lower_expr*`).
+- `var` parameters lower to opaque-typed locals; reads/writes go through runtime type queries instead of static dispatch.
+- `|var` parameters lower to non-local-return writes that pair with the runtime NLR slot stack (`runtime_nlr.c`).
+- New surface forms (`num`, `arr<?>`, `string` argument to `car`/`cdr`) are normalised here before MIR.

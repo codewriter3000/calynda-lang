@@ -66,6 +66,28 @@ bool tc_checked_type_is_hetero_array(CheckedType type) {
            type.array_depth == 0;
 }
 
+bool tc_checked_type_is_num(CheckedType type) {
+    return type.kind == CHECKED_TYPE_NAMED &&
+           type.name != NULL &&
+           strcmp(type.name, "num") == 0 &&
+           type.array_depth == 0;
+}
+
+AstPrimitiveType tc_primitive_canonical(AstPrimitiveType primitive) {
+    switch (primitive) {
+    case AST_PRIMITIVE_BYTE:   return AST_PRIMITIVE_UINT8;
+    case AST_PRIMITIVE_SBYTE:  return AST_PRIMITIVE_INT8;
+    case AST_PRIMITIVE_SHORT:  return AST_PRIMITIVE_INT16;
+    case AST_PRIMITIVE_INT:    return AST_PRIMITIVE_INT32;
+    case AST_PRIMITIVE_UINT:   return AST_PRIMITIVE_UINT32;
+    case AST_PRIMITIVE_LONG:   return AST_PRIMITIVE_INT64;
+    case AST_PRIMITIVE_ULONG:  return AST_PRIMITIVE_UINT64;
+    case AST_PRIMITIVE_FLOAT:  return AST_PRIMITIVE_FLOAT32;
+    case AST_PRIMITIVE_DOUBLE: return AST_PRIMITIVE_FLOAT64;
+    default:                   return primitive;
+    }
+}
+
 bool tc_checked_type_equals(CheckedType left, CheckedType right) {
     if (left.kind != right.kind) {
         return false;
@@ -84,7 +106,7 @@ bool tc_checked_type_equals(CheckedType left, CheckedType right) {
         return left.generic_arg_count == right.generic_arg_count;
     }
 
-    return left.primitive == right.primitive &&
+    return tc_primitive_canonical(left.primitive) == tc_primitive_canonical(right.primitive) &&
            left.array_depth == right.array_depth;
 }
 
@@ -102,11 +124,13 @@ bool tc_checked_type_is_string(CheckedType type) {
 
 bool tc_checked_type_has_length_member(CheckedType type) {
     return tc_checked_type_is_string(type) ||
-           (type.kind == CHECKED_TYPE_VALUE && type.array_depth > 0);
+           (type.kind == CHECKED_TYPE_VALUE && type.array_depth > 0) ||
+           tc_checked_type_is_hetero_array(type);
 }
 
 bool tc_checked_type_is_numeric(CheckedType type) {
-    return tc_checked_type_is_scalar_value(type) && tc_primitive_is_integral(type.primitive);
+    return tc_checked_type_is_num(type) ||
+           (tc_checked_type_is_scalar_value(type) && tc_primitive_is_integral(type.primitive));
 }
 
 bool tc_checked_type_is_integral(CheckedType type) {
@@ -220,29 +244,4 @@ bool tc_primitive_is_signed(AstPrimitiveType primitive) {
 
     return false;
 }
-
-AstPrimitiveType tc_signed_primitive_for_width(int width) {
-    if (width <= 8) {
-        return AST_PRIMITIVE_INT8;
-    }
-    if (width <= 16) {
-        return AST_PRIMITIVE_INT16;
-    }
-    if (width <= 32) {
-        return AST_PRIMITIVE_INT32;
-    }
-    return AST_PRIMITIVE_INT64;
-}
-
-AstPrimitiveType tc_unsigned_primitive_for_width(int width) {
-    if (width <= 8) {
-        return AST_PRIMITIVE_UINT8;
-    }
-    if (width <= 16) {
-        return AST_PRIMITIVE_UINT16;
-    }
-    if (width <= 32) {
-        return AST_PRIMITIVE_UINT32;
-    }
-    return AST_PRIMITIVE_UINT64;
-}
+#include "type_checker_types_p2.inc"

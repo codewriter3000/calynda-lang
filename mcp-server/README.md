@@ -2,7 +2,17 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that enables AI assistants to deeply understand and work with the [Calynda](../README.md) programming language.
 
-This server now tracks the 1.0.0-alpha.2 language/help surface, including `spawn`, `Thread`, `Future<T>`, `Mutex`, `Atomic<T>`, `thread_local`, strict race-check help text, the freestanding `boot()` contract, and the native plus bytecode backend split.
+This server tracks the **1.0.0-alpha.6** language/help surface. In addition to the previously documented features (`spawn`, `Thread`, `Future<T>`, `Mutex`, `Atomic<T>`, `thread_local`, strict race-check help text, freestanding `boot` contract, native + bytecode backend split, recursive top-level lambdas, operator overloading, default parameter values, swap operator `><`, self tail-call elimination, type-query intrinsics, wildcard imports, external `.car` archives, `string` indexing, `car`/`cdr` on arrays, manual-block return propagation, version reporting via `--version`), it also covers the alpha.6 additions:
+
+- Untyped `var` parameters (with `typeof`/`is*` runtime queries)
+- `|var` early-return parameters (non-local return)
+- The `num` generic numeric primitive type
+- The `arr<?>` wildcard array type
+- Capture-by-reference closures
+- `car(s)` / `cdr(s)` accepting `string`
+- User-input runtime helpers
+- The bundled standard library (`conditional`, `loop`, `math`, `string_utils`, `structure/`)
+- The hosted/freestanding runtime archive split (`calynda_runtime.a` + `calynda_runtime_boot.a`)
 
 ## Overview
 

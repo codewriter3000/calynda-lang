@@ -75,6 +75,7 @@ void test_parse_postfix_increment_decrement(void);
 void test_parse_discard_expression(void);
 void test_parse_varargs_parameter(void);
 void test_parse_default_parameter(void);
+void test_parse_untyped_parameter(void);
 void test_parse_v2_modifiers(void);
 void test_parse_thread_local_binding_modifier(void);
 void test_parse_import_alias(void);
@@ -125,6 +126,7 @@ int main(void) {
     RUN_TEST(test_parse_discard_expression);
     RUN_TEST(test_parse_varargs_parameter);
     RUN_TEST(test_parse_default_parameter);
+    RUN_TEST(test_parse_untyped_parameter);
     RUN_TEST(test_parse_v2_modifiers);
     RUN_TEST(test_parse_thread_local_binding_modifier);
     RUN_TEST(test_parse_import_alias);

@@ -25,6 +25,7 @@ typedef struct {
     const Symbol *symbol;
     CheckedType   type;
     bool          is_final;
+    bool          is_cell;  /* local holds a heap cell ref; reads/writes go through cell helpers */
     size_t        index;
 } MirLocal;
 

@@ -60,6 +60,9 @@ int calynda_run_linker(const char *assembly_path,
                        const TargetDescriptor *target,
                        bool is_boot);
 int calynda_run_child_process(const char *path, char *const argv[]);
+void calynda_print_diagnostic(const char *path, const char *source,
+                               int line, int col_start, int col_end,
+                               const char *kind, const char *message);
 
 /* calynda.c */
 bool has_car_extension(const char *path);

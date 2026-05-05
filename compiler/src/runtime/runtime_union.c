@@ -158,8 +158,7 @@ CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_
     return rt_make_object_word(array_object);
 }
 
-CalyndaRtTypeTag __calynda_rt_hetero_array_get_tag(CalyndaRtWord target, CalyndaRtWord index) {
-    const CalyndaRtObjectHeader *header = calynda_rt_as_object(target);
+CalyndaRtTypeTag __calynda_rt_hetero_array_get_tag(CalyndaRtWord target, CalyndaRtWord index) {    const CalyndaRtObjectHeader *header = calynda_rt_as_object(target);
     const CalyndaRtHeteroArray *arr;
     size_t offset;
 
@@ -183,3 +182,60 @@ CalyndaRtTypeTag __calynda_rt_hetero_array_get_tag(CalyndaRtWord target, Calynda
 
     return arr->type_desc->variant_payload_tags[offset];
 }
+
+static CalyndaRtTypeTag rt_tag_of_word(CalyndaRtWord word) {
+    const CalyndaRtObjectHeader *header = calynda_rt_as_object(word);
+
+    if (!header) {
+        return CALYNDA_RT_TYPE_INT64;
+    }
+    switch (header->kind) {
+    case CALYNDA_RT_OBJECT_STRING:       return CALYNDA_RT_TYPE_STRING;
+    case CALYNDA_RT_OBJECT_ARRAY:        return CALYNDA_RT_TYPE_ARRAY;
+    case CALYNDA_RT_OBJECT_CLOSURE:      return CALYNDA_RT_TYPE_CLOSURE;
+    case CALYNDA_RT_OBJECT_HETERO_ARRAY: return CALYNDA_RT_TYPE_HETERO_ARRAY;
+    case CALYNDA_RT_OBJECT_UNION:        return CALYNDA_RT_TYPE_UNION;
+    default:                             return CALYNDA_RT_TYPE_EXTERNAL;
+    }
+}
+
+CalyndaRtWord __calynda_rt_hetero_array_append(CalyndaRtWord arr_word, CalyndaRtWord element) {
+    const CalyndaRtObjectHeader *header = calynda_rt_as_object(arr_word);
+    const CalyndaRtHeteroArray *old_arr;
+    CalyndaRtTypeDescriptor new_desc;
+    CalyndaRtTypeTag new_gtag;
+    CalyndaRtTypeTag *new_vtags;
+    CalyndaRtWord *new_elems;
+    size_t n;
+    CalyndaRtWord result;
+
+    if (!header || header->kind != CALYNDA_RT_OBJECT_HETERO_ARRAY) {
+        fprintf(stderr, "runtime: __calynda_rt_hetero_array_append expects a hetero array\n");
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
+    }
+
+    old_arr = (const CalyndaRtHeteroArray *)(const void *)header;
+    n = old_arr->count;
+
+    new_elems = calloc(n + 1, sizeof(*new_elems));
+    if (!new_elems) {
+        fprintf(stderr, "runtime: out of memory in hetero_array_append\n");
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
+    }
+    if (n > 0 && old_arr->elements) {
+        memcpy(new_elems, old_arr->elements, n * sizeof(*new_elems));
+    }
+    new_elems[n] = element;
+
+    new_vtags = calloc(n + 1, sizeof(*new_vtags));
+    if (!new_vtags) {
+        free(new_elems);
+        fprintf(stderr, "runtime: out of memory in hetero_array_append\n");
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
+    }
+    if (n > 0 && old_arr->type_desc && old_arr->type_desc->variant_payload_tags) {
+        memcpy(new_vtags, old_arr->type_desc->variant_payload_tags, n * sizeof(*new_vtags));
+    }
+    new_vtags[n] = rt_tag_of_word(element);
+
+#include "runtime_union_p2.inc"

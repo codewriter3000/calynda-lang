@@ -50,6 +50,12 @@ bool mr_lower_expression(MirUnitBuildContext *context,
                 return false;
             }
 
+            if (context->unit->locals[local_index].is_cell) {
+                return mr_emit_cell_read(context, local_index,
+                                         expression->type,
+                                         expression->source_span, value);
+            }
+
             value->kind = MIR_VALUE_LOCAL;
             value->type = expression->type;
             value->as.local_index = local_index;
@@ -80,6 +86,52 @@ bool mr_lower_expression(MirUnitBuildContext *context,
                           NULL,
                           "Internal error: missing current MIR block after lowering binary operands.");
             return false;
+        }
+
+        /* Hetero array append/prepend: arr<?> + T  or  T + arr<?> */
+        if (expression->as.binary.operator == AST_BINARY_OP_ADD &&
+            expression->type.kind == CHECKED_TYPE_NAMED &&
+            expression->type.name != NULL &&
+            strcmp(expression->type.name, "arr") == 0) {
+            const char *helper_name = (
+                expression->as.binary.left->type.kind == CHECKED_TYPE_NAMED &&
+                expression->as.binary.left->type.name != NULL &&
+                strcmp(expression->as.binary.left->type.name, "arr") == 0)
+                ? "__calynda_rt_hetero_array_append"
+                : "__calynda_rt_hetero_array_prepend";
+
+            memset(&instruction, 0, sizeof(instruction));
+            instruction.kind = MIR_INSTR_CALL;
+            instruction.as.call.has_result = true;
+            instruction.as.call.dest_temp = context->unit->next_temp_index++;
+            instruction.as.call.argument_count = 2;
+            instruction.as.call.arguments = calloc(2, sizeof(*instruction.as.call.arguments));
+            if (!instruction.as.call.arguments) {
+                mr_value_free(&left);
+                mr_value_free(&right);
+                mr_set_error(context->build, expression->source_span, NULL,
+                             "Out of memory while lowering MIR hetero array + operator.");
+                return false;
+            }
+            if (!mr_value_from_global(context->build, helper_name, expression->type,
+                                      &instruction.as.call.callee)) {
+                free(instruction.as.call.arguments);
+                mr_value_free(&left);
+                mr_value_free(&right);
+                return false;
+            }
+            instruction.as.call.arguments[0] = left;
+            instruction.as.call.arguments[1] = right;
+            if (!mr_append_instruction(mr_current_block(context), instruction)) {
+                mr_instruction_free(&instruction);
+                mr_set_error(context->build, expression->source_span, NULL,
+                             "Out of memory while lowering MIR hetero array + operator.");
+                return false;
+            }
+            value->kind = MIR_VALUE_TEMP;
+            value->type = expression->type;
+            value->as.temp_index = instruction.as.call.dest_temp;
+            return true;
         }
 
         memset(&instruction, 0, sizeof(instruction));
@@ -158,6 +210,12 @@ bool mr_lower_expression(MirUnitBuildContext *context,
 
     case HIR_EXPR_LAMBDA:
         return mr_lower_lambda_expression(context, expression, value);
+    case HIR_EXPR_NONLOCAL_RETURN:
+        /* HIR_EXPR_NONLOCAL_RETURN should only appear as a call argument;
+         * it is handled specially inside mr_lower_call_expression. */
+        mr_set_error(context->build, expression->source_span, NULL,
+                     "Internal error: HIR_EXPR_NONLOCAL_RETURN outside of call argument position.");
+        return false;
     case HIR_EXPR_ASSIGNMENT:
         return mr_lower_assignment_expression(context, expression, value);
     case HIR_EXPR_TERNARY:

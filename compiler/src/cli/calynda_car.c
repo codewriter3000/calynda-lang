@@ -4,6 +4,7 @@
 #include "car.h"
 #include "target.h"
 
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,6 +17,72 @@ bool import_already_present(const AstProgram *merged,
                               const AstImportDecl *import_decl);
 bool copy_import_decl(AstImportDecl *dst, const AstImportDecl *src);
 static bool append_archive_files(CarArchive *dst, const CarArchive *src);
+
+/* Scan to a specific line in a source string (1-based). */
+static const char *car_diag_find_line(const char *source, int target_line) {
+    int cur = 1;
+    if (target_line <= 0 || !source) return NULL;
+    while (*source) {
+        if (cur == target_line) return source;
+        if (*source++ == '\n') cur++;
+    }
+    return (cur == target_line) ? source : NULL;
+}
+
+/* Find the archive source file most likely to contain an error at line:col.
+ *
+ * Primary heuristic: the correct file will have a non-whitespace character at
+ * exactly col_start on that line (the error token starts there). Files that
+ * have fewer characters on that line (e.g. a closing "};") will be skipped.
+ *
+ * Fallback: file with fewest total lines that still has >= target_line lines. */
+static const char *car_find_source_for_span(const CarArchive *archive,
+                                             char * const *sources,
+                                             size_t source_count,
+                                             int line, int col_start,
+                                             const char **path_out) {
+    size_t i;
+    const char *best_src = NULL;
+    const char *best_path = NULL;
+    int best_lines = INT_MAX;
+
+    *path_out = NULL;
+    if (!sources || line <= 0) return NULL;
+
+    /* First pass: prefer file where col_start has non-whitespace on that line */
+    if (col_start > 0) {
+        for (i = 0; i < source_count; i++) {
+            const char *line_ptr;
+            int line_len;
+            if (!sources[i]) continue;
+            line_ptr = car_diag_find_line(sources[i], line);
+            if (!line_ptr) continue;
+            line_len = 0;
+            while (line_ptr[line_len] && line_ptr[line_len] != '\n') line_len++;
+            if (line_len >= col_start &&
+                    (unsigned char)line_ptr[col_start - 1] > ' ') {
+                *path_out = archive->files[i].path;
+                return sources[i];
+            }
+        }
+    }
+
+    /* Fallback: file with fewest lines that still has >= line lines */
+    for (i = 0; i < source_count; i++) {
+        const char *p;
+        int lines = 1;
+        if (!sources[i]) continue;
+        for (p = sources[i]; *p; p++)
+            if (*p == '\n') lines++;
+        if (lines >= line && lines < best_lines) {
+            best_lines = lines;
+            best_src   = sources[i];
+            best_path  = archive->files[i].path;
+        }
+    }
+    *path_out = best_path;
+    return best_src;
+}
 
 /* ----------------------------------------------------------------
  *  Public API
@@ -49,7 +116,6 @@ int calynda_compile_car_to_machine_program(const CarArchive *archive,
     CodegenProgram codegen_program;
     const SymbolTableError *symbol_error;
     const TypeCheckError *type_error;
-    char diagnostic[256];
 
     if (!archive || !machine_program) {
         return 1;
@@ -116,11 +182,13 @@ int calynda_compile_car_to_machine_program(const CarArchive *archive,
         if (!parser_parse_program(&parsers[i], &programs[i])) {
             parse_error = parser_get_error(&parsers[i]);
             if (parse_error) {
-                fprintf(stderr, "%s:%d:%d: parse error: %s\n",
-                        file->path,
-                        parse_error->token.line,
-                        parse_error->token.column,
-                        parse_error->message);
+                int col_end = parse_error->token.column +
+                              (int)(parse_error->token.length > 0
+                                    ? parse_error->token.length - 1 : 0);
+                calynda_print_diagnostic(file->path, sources[i],
+                                         parse_error->token.line,
+                                         parse_error->token.column, col_end,
+                                         "parse error", parse_error->message);
             }
             exit_code = 1;
             goto cleanup_parse;
@@ -174,107 +242,4 @@ int calynda_compile_car_to_machine_program(const CarArchive *archive,
         }
     }
 
-    /* ---- Phase 3: Normal compilation pipeline on merged program ---- */
-    symbol_table_init(&symbols);
-    type_checker_init(&checker);
-    hir_program_init(&hir_program);
-    mir_program_init(&mir_program);
-    lir_program_init(&lir_program);
-    codegen_program_init(&codegen_program);
-    machine_program_init(machine_program);
-
-    if (!symbol_table_build_with_archive_deps(&symbols, &merged,
-                                              archive_deps,
-                                              archive_dep_count)) {
-        symbol_error = symbol_table_get_error(&symbols);
-        if (symbol_error &&
-            symbol_table_format_error(symbol_error, diagnostic,
-                                      sizeof(diagnostic))) {
-            fprintf(stderr, "car: semantic error: %s\n", diagnostic);
-        } else {
-            fprintf(stderr, "car: semantic error while building symbols\n");
-        }
-        exit_code = 1;
-        goto cleanup_pipeline;
-    }
-    if (!type_checker_check_program(&checker, &merged, &symbols)) {
-        type_error = type_checker_get_error(&checker);
-        if (type_error &&
-            type_checker_format_error(type_error, diagnostic,
-                                      sizeof(diagnostic))) {
-            fprintf(stderr, "car: type error: %s\n", diagnostic);
-        } else {
-            fprintf(stderr, "car: type error while checking program\n");
-        }
-        exit_code = 1;
-        goto cleanup_pipeline;
-    }
-    if (!hir_build_program(&hir_program, &merged, &symbols, &checker) ||
-        !mir_build_program(&mir_program, &hir_program, false) ||
-        !lir_build_program(&lir_program, &mir_program) ||
-        !codegen_build_program(&codegen_program, &lir_program, target) ||
-        !machine_build_program(machine_program, &lir_program,
-                               &codegen_program)) {
-        fprintf(stderr, "car: backend lowering failed\n");
-        exit_code = 1;
-        goto cleanup_pipeline;
-    }
-
-cleanup_pipeline:
-    codegen_program_free(&codegen_program);
-    lir_program_free(&lir_program);
-    mir_program_free(&mir_program);
-    hir_program_free(&hir_program);
-    type_checker_free(&checker);
-    symbol_table_free(&symbols);
-
-cleanup_merged:
-    ast_program_free(&merged);
-
-cleanup_parse:
-    if (programs) {
-        for (i = 0; i < file_count; i++) {
-            if (parsed && parsed[i]) {
-                ast_program_free(&programs[i]);
-            }
-        }
-    }
-    if (parsers) {
-        for (i = 0; i < file_count; i++) {
-            parser_free(&parsers[i]);
-        }
-    }
-    if (sources) {
-        for (i = 0; i < file_count; i++) {
-            free(sources[i]);
-        }
-    }
-    free(sources);
-    free(parsers);
-    free(programs);
-    free(parsed);
-    if (has_combined_archive) {
-        car_archive_free(&combined_archive);
-    }
-
-    return exit_code;
-}
-
-static bool append_archive_files(CarArchive *dst, const CarArchive *src) {
-    size_t i;
-
-    if (!dst || !src) {
-        return false;
-    }
-
-    for (i = 0; i < src->file_count; i++) {
-        if (!car_archive_add_file(dst,
-                                  src->files[i].path,
-                                  src->files[i].content,
-                                  src->files[i].content_length)) {
-            return false;
-        }
-    }
-
-    return true;
-}
+#include "calynda_car_p2.inc"

@@ -182,3 +182,6 @@ CAR operations report errors:
 - Paths use forward slashes (Unix-style)
 - Format version allows future extensions
 - Archives can be read without unpacking to disk
+## Changes in 1.0.0-alpha.6
+
+- `car_read.c` and surrounding modules were updated to keep multi-archive resolution consistent with the new standard-library packages and to surface clearer parse-span diagnostics when an embedded `.cal` source fails to parse.

@@ -85,8 +85,23 @@ function parseParameterList(state) {
 function parseParameter(state) {
     const startPos = state.position();
     const typeAnnotation = parseType(state);
+    let isVarargs = false;
+    if (state.check('ellipsis')) {
+        state.advance();
+        isVarargs = true;
+    }
     const name = state.eat('identifier').value;
-    return { kind: 'Parameter', typeAnnotation, name, start: startPos, end: state.position() };
+    let defaultValue;
+    if (state.check('eq')) {
+        state.advance();
+        defaultValue = (0, parser_expressions_1.parsePostfix)(state);
+    }
+    const param = { kind: 'Parameter', typeAnnotation, name, start: startPos, end: state.position() };
+    if (isVarargs)
+        param.isVarargs = true;
+    if (defaultValue !== undefined)
+        param.defaultValue = defaultValue;
+    return param;
 }
 function parseTernaryExpression(state) {
     const cond = parseLogicalOr(state);

@@ -11,6 +11,7 @@
 
 /* Global static objects (defined in runtime.c) */
 extern CalyndaRtExternCallable STDOUT_PRINT_CALLABLE;
+extern CalyndaRtExternCallable STDIN_INPUT_CALLABLE;
 
 /* runtime.c — registry and object creation */
 bool rt_reserve_items(void **items, size_t *capacity, size_t needed, size_t item_size);
@@ -30,6 +31,7 @@ void rt_reset_process_failure(void);
 _Noreturn void rt_fatal_now(int exit_code);
 _Noreturn void rt_fatalf(int exit_code, const char *format, ...)
     __attribute__((format(printf, 2, 3)));
+void rt_describe_word(CalyndaRtWord word, char *buffer, size_t buffer_size);
 CalyndaRtWord rt_make_object_word(void *pointer);
 CalyndaRtString *rt_new_string_object(const char *bytes, size_t length);
 CalyndaRtArray *rt_new_array_object(size_t element_count, const CalyndaRtWord *elements);

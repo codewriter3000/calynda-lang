@@ -33,3 +33,7 @@ If you want a `.vsix` package:
 ## Notes
 
 The grammar is based on the canonical language definition in `../compiler/calynda.ebnf` plus the tokenizer behavior in `../compiler/src/tokenizer/tokenizer.h`.
+## Changes in 1.0.0-alpha.6
+
+- Highlighting for the new `var` parameter modifier, the `|var` early-return parameter form, and the built-in generic types `num` and `arr<?>` (the latter was already partially supported and is now treated consistently).
+- The grammar continues to track `compiler/calynda.ebnf`; the recent EBNF addition is a new `Parameter` alternative for untyped parameters.

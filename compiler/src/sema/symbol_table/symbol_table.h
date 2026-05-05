@@ -44,6 +44,8 @@ struct Symbol {
     bool            is_static;
     bool            is_internal;
     bool            is_thread_local;
+    bool            is_untyped;     /* SYMBOL_KIND_PARAMETER declared with `var` */
+    bool            is_block;       /* SYMBOL_KIND_PARAMETER declared with `|var` */
     size_t          generic_param_count;
     AstSourceSpan   declaration_span;
     const void     *declaration;

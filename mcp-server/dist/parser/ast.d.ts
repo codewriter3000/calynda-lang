@@ -1,4 +1,4 @@
-export type NodeKind = 'Program' | 'PackageDecl' | 'ImportDecl' | 'StartDecl' | 'BindingDecl' | 'TypeAliasDecl' | 'UnionDecl' | 'LayoutDecl' | 'AsmDecl' | 'BootDecl' | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'ManualStatement' | 'LambdaExpression' | 'AssignmentExpression' | 'TernaryExpression' | 'BinaryExpression' | 'UnaryExpression' | 'PostfixExpression' | 'CallExpression' | 'IndexExpression' | 'MemberExpression' | 'CastExpression' | 'ArrayLiteral' | 'Identifier' | 'IntegerLiteral' | 'FloatLiteral' | 'BoolLiteral' | 'CharLiteral' | 'StringLiteral' | 'TemplateLiteral' | 'NullLiteral' | 'Parameter' | 'ParameterList' | 'ArrayType' | 'PrimitiveType' | 'NamedType' | 'VoidType';
+export type NodeKind = 'Program' | 'PackageDecl' | 'ImportDecl' | 'StartDecl' | 'BindingDecl' | 'TypeAliasDecl' | 'UnionDecl' | 'LayoutDecl' | 'AsmDecl' | 'BootDecl' | 'Block' | 'LocalBindingStatement' | 'ReturnStatement' | 'ExitStatement' | 'ThrowStatement' | 'ExpressionStatement' | 'ManualStatement' | 'SwapStatement' | 'LambdaExpression' | 'AssignmentExpression' | 'TernaryExpression' | 'BinaryExpression' | 'UnaryExpression' | 'PostfixExpression' | 'CallExpression' | 'IndexExpression' | 'MemberExpression' | 'CastExpression' | 'ArrayLiteral' | 'Identifier' | 'IntegerLiteral' | 'FloatLiteral' | 'BoolLiteral' | 'CharLiteral' | 'StringLiteral' | 'TemplateLiteral' | 'NullLiteral' | 'Parameter' | 'ParameterList' | 'ArrayType' | 'PrimitiveType' | 'NamedType' | 'VoidType';
 export interface Position {
     line: number;
     column: number;
@@ -95,15 +95,22 @@ export interface Parameter extends ASTNode {
     kind: 'Parameter';
     typeAnnotation: TypeNode;
     name: string;
+    isVarargs?: boolean;
+    defaultValue?: Expression;
 }
 export interface Block extends ASTNode {
     kind: 'Block';
     statements: Statement[];
 }
-export type Statement = LocalBindingStatement | ReturnStatement | ExitStatement | ThrowStatement | ExpressionStatement | ManualStatement;
+export type Statement = LocalBindingStatement | ReturnStatement | ExitStatement | ThrowStatement | ExpressionStatement | ManualStatement | SwapStatement;
 export interface ManualStatement extends ASTNode {
     kind: 'ManualStatement';
     body: Block;
+}
+export interface SwapStatement extends ASTNode {
+    kind: 'SwapStatement';
+    left: Expression;
+    right: Expression;
 }
 export interface LocalBindingStatement extends ASTNode {
     kind: 'LocalBindingStatement';

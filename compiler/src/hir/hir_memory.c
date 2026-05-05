@@ -208,6 +208,9 @@ void hir_expression_free(HirExpression *expression) {
             free(expression->as.memory_op.arguments);
         }
         break;
+    case HIR_EXPR_NONLOCAL_RETURN:
+        hir_expression_free(expression->as.nonlocal_return_value);
+        break;
     }
 
     if (expression->is_callable) {

@@ -70,6 +70,10 @@ typedef struct {
     bool                        has_warning;
     TypeCheckError              error;
     bool                        has_error;
+    /* Non-local return context: the expected return type of the innermost enclosing
+       lambda/start whose return type is known; used to type-check |var arguments. */
+    CheckedType                 outer_return_type;
+    bool                        has_outer_return_type;
 } TypeChecker;
 
 void type_checker_init(TypeChecker *checker);

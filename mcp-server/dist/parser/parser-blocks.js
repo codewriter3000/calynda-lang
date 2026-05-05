@@ -123,8 +123,14 @@ function parseStatement(state) {
             return binding;
         }
     }
-    // Expression statement
+    // Expression or swap statement: parse left-hand side, then check for ><
     const expr = (0, parser_expressions_1.parseExpression)(state);
+    if (state.check('swap')) {
+        state.advance();
+        const right = (0, parser_expressions_1.parseExpression)(state);
+        state.eat('semicolon');
+        return { kind: 'SwapStatement', left: expr, right, start: startPos, end: state.position() };
+    }
     state.eat('semicolon');
     return { kind: 'ExpressionStatement', expression: expr, start: startPos, end: state.position() };
 }

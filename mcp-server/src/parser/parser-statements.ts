@@ -90,8 +90,21 @@ export function parseParameterList(state: ParserState): AST.Parameter[] {
 function parseParameter(state: ParserState): AST.Parameter {
   const startPos = state.position();
   const typeAnnotation = parseType(state);
+  let isVarargs = false;
+  if (state.check('ellipsis')) {
+    state.advance();
+    isVarargs = true;
+  }
   const name = state.eat('identifier').value;
-  return { kind: 'Parameter', typeAnnotation, name, start: startPos, end: state.position() };
+  let defaultValue: AST.Expression | undefined;
+  if (state.check('eq')) {
+    state.advance();
+    defaultValue = parsePostfix(state);
+  }
+  const param: AST.Parameter = { kind: 'Parameter', typeAnnotation, name, start: startPos, end: state.position() };
+  if (isVarargs) param.isVarargs = true;
+  if (defaultValue !== undefined) param.defaultValue = defaultValue;
+  return param;
 }
 
 export function parseTernaryExpression(state: ParserState): AST.Expression {

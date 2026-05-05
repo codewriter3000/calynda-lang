@@ -73,3 +73,45 @@ void test_build_native_dispatches_overloads_with_widening(void) {
                 "native executable dispatches widening overload to int32 implementation");
     unlink(output_path);
 }
+
+void test_build_native_runs_untyped_parameter_program(void) {
+    static const char source[] =
+        "int32 echo = (var x) -> {\n"
+        "    return 7;\n"
+        "};\n"
+        "start(string[] args) -> {\n"
+        "    echo(42);\n"
+        "    echo(\"hello\");\n"
+        "    return echo(true);\n"
+        "};\n";
+    char output_path[64];
+    char *argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build untyped parameter executable");
+    exit_code = run_process(output_path, argv);
+    ASSERT_TRUE(exit_code == 7,
+                "native executable accepts mixed-type arguments through `var` parameter");
+    unlink(output_path);
+}
+
+void test_build_native_calls_untyped_callable_parameter(void) {
+    static const char source[] =
+        "int32 apply = (var f, int32 x) -> {\n"
+        "    return f(x);\n"
+        "};\n"
+        "start(string[] args) -> {\n"
+        "    return apply((int32 n) -> n * 2, 7);\n"
+        "};\n";
+    char output_path[64];
+    char *argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build callable untyped parameter executable");
+    exit_code = run_process(output_path, argv);
+    ASSERT_TRUE(exit_code == 14,
+                "untyped `var` parameter can be called as a function");
+    unlink(output_path);
+}

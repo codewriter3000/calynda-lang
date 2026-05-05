@@ -80,6 +80,19 @@ bool tc_check_binary_operator(TypeChecker *checker,
             *result_type = tc_promote_numeric_types(left_type, right_type);
             return true;
         }
+        if (tc_checked_type_is_hetero_array(left_type) && right_type.kind != CHECKED_TYPE_VOID) {
+            *result_type = left_type;
+            return true;
+        }
+        if (tc_checked_type_is_hetero_array(right_type) && left_type.kind != CHECKED_TYPE_VOID) {
+            *result_type = right_type;
+            return true;
+        }
+        if ((left_type.kind == CHECKED_TYPE_EXTERNAL || right_type.kind == CHECKED_TYPE_EXTERNAL) &&
+            left_type.kind != CHECKED_TYPE_VOID && right_type.kind != CHECKED_TYPE_VOID) {
+            *result_type = tc_checked_type_external();
+            return true;
+        }
         break;
 
     case AST_BINARY_OP_SUBTRACT:
@@ -89,11 +102,21 @@ bool tc_check_binary_operator(TypeChecker *checker,
             *result_type = tc_promote_numeric_types(left_type, right_type);
             return true;
         }
+        if ((left_type.kind == CHECKED_TYPE_EXTERNAL || right_type.kind == CHECKED_TYPE_EXTERNAL) &&
+            left_type.kind != CHECKED_TYPE_VOID && right_type.kind != CHECKED_TYPE_VOID) {
+            *result_type = tc_checked_type_external();
+            return true;
+        }
         break;
 
     case AST_BINARY_OP_MODULO:
         if (tc_checked_type_is_integral(left_type) && tc_checked_type_is_integral(right_type)) {
             *result_type = tc_promote_numeric_types(left_type, right_type);
+            return true;
+        }
+        if ((left_type.kind == CHECKED_TYPE_EXTERNAL || right_type.kind == CHECKED_TYPE_EXTERNAL) &&
+            left_type.kind != CHECKED_TYPE_VOID && right_type.kind != CHECKED_TYPE_VOID) {
+            *result_type = tc_checked_type_external();
             return true;
         }
         break;
@@ -216,41 +239,4 @@ bool tc_expression_is_assignment_target(TypeChecker *checker,
             const Scope *root_scope = symbol_table_root_scope(checker->symbols);
             const Symbol *symbol = NULL;
 
-            if (!target_info) {
-                return false;
-            }
-            target_type = tc_type_check_source_type(target_info);
-            symbol = root_scope && target_type.name
-                ? scope_lookup_local(root_scope, target_type.name)
-                : NULL;
-            if (!symbol && target_type.name) {
-                symbol = symbol_table_find_import(checker->symbols, target_type.name);
-            }
-            if ((strcmp(expression->as.member.member, "tag") == 0 ||
-                 strcmp(expression->as.member.member, "payload") == 0) &&
-                symbol && symbol->kind == SYMBOL_KIND_UNION) {
-                return false;
-            }
-            if (strcmp(expression->as.member.member, "length") == 0 &&
-                tc_checked_type_has_length_member(target_type)) {
-                return false;
-            }
-            if (target_type.kind == CHECKED_TYPE_EXTERNAL) {
-                return true;
-            }
-            return tc_expression_is_assignment_target(checker, expression->as.member.target,
-                                                      root_symbol);
-        }
-
-    case AST_EXPR_GROUPING:
-        return tc_expression_is_assignment_target(checker,
-                                                  expression->as.grouping.inner,
-                                                  root_symbol);
-
-    case AST_EXPR_DISCARD:
-        return true;
-
-    default:
-        return false;
-    }
-}
+#include "type_checker_ops_p2.inc"

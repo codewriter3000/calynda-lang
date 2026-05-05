@@ -50,8 +50,7 @@ ParameterList
     ;
 
 Parameter
-    = Type "..." Identifier                                    (* varargs — must be last *)
-    | Type Identifier
+    = Type [ "..." ] Identifier [ "=" Expression ]             (* varargs \u2014 must be last; optional default value *)
     ;
 
 (* --- Assignment (right-associative) ----------------------------- *)

@@ -139,6 +139,12 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
         return true;
     case AST_EXPR_SPAWN:
         return st_analyze_expression(table, expression->as.spawn.callable, scope);
+
+    case AST_EXPR_NONLOCAL_RETURN:
+        if (expression->as.nonlocal_return_value) {
+            return st_analyze_expression(table, expression->as.nonlocal_return_value, scope);
+        }
+        return true;
     }
 
     return false;
@@ -166,7 +172,7 @@ bool st_add_parameter_symbols(SymbolTable *table,
 
         symbol = st_symbol_new(table, SYMBOL_KIND_PARAMETER,
                                parameter->name, NULL,
-                               &parameter->type,
+                               parameter->is_untyped ? NULL : &parameter->type,
                                false, false,
                                false, false, false, false,
                                parameter->name_span,
@@ -174,6 +180,8 @@ bool st_add_parameter_symbols(SymbolTable *table,
         if (!symbol) {
             return false;
         }
+        symbol->is_untyped = parameter->is_untyped;
+        symbol->is_block   = parameter->is_block;
 
         if (!st_scope_append_symbol(table, scope, symbol)) {
             st_symbol_free(symbol);
