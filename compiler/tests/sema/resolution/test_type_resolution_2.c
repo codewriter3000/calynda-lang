@@ -117,7 +117,7 @@ void test_type_resolver_resolves_declared_types_and_casts(void) {
                   "cast target primitive");
     ASSERT_TRUE(resolved_type_to_string(*local_type, buffer, sizeof(buffer)),
                 "format resolved local type");
-    ASSERT_EQ_STR("int32[]", buffer_text, "formatted resolved local type");
+    ASSERT_EQ_STR("int32[4]", buffer_text, "formatted resolved local type");
 
     type_resolver_free(&resolver);
     ast_program_free(&program);
