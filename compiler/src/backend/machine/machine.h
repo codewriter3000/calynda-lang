@@ -2,6 +2,7 @@
 #define CALYNDA_MACHINE_H
 
 #include "codegen.h"
+#include "hir.h"
 #include "runtime_abi.h"
 #include "target.h"
 
@@ -13,6 +14,30 @@ typedef struct MachineInstruction MachineInstruction;
 typedef struct MachineBlock MachineBlock;
 typedef struct MachineUnit MachineUnit;
 typedef struct MachineFrameSlot MachineFrameSlot;
+typedef struct MachineStaticArrayElement MachineStaticArrayElement;
+typedef struct MachineStaticArrayObject MachineStaticArrayObject;
+typedef struct MachineStaticArrayBinding MachineStaticArrayBinding;
+
+typedef enum {
+    MACHINE_STATIC_ARRAY_ELEMENT_WORD = 0,
+    MACHINE_STATIC_ARRAY_ELEMENT_OBJECT
+} MachineStaticArrayElementKind;
+
+struct MachineStaticArrayElement {
+    MachineStaticArrayElementKind kind;
+    CalyndaRtWord                 word;
+    size_t                        object_index;
+};
+
+struct MachineStaticArrayObject {
+    MachineStaticArrayElement *elements;
+    size_t                    element_count;
+};
+
+struct MachineStaticArrayBinding {
+    char   *global_name;
+    size_t  object_index;
+};
 
 struct MachineFrameSlot {
     size_t       index;
@@ -66,6 +91,12 @@ typedef struct {
     const TargetDescriptor  *target_desc;
     MachineUnit             *units;
     size_t                   unit_count;
+    MachineStaticArrayObject *static_array_objects;
+    size_t                    static_array_object_count;
+    size_t                    static_array_object_capacity;
+    MachineStaticArrayBinding *static_array_bindings;
+    size_t                    static_array_binding_count;
+    size_t                    static_array_binding_capacity;
     MachineBuildError        error;
     bool                     has_error;
 } MachineProgram;
@@ -75,7 +106,8 @@ void machine_program_free(MachineProgram *program);
 
 bool machine_build_program(MachineProgram *program,
                           const LirProgram *lir_program,
-                          const CodegenProgram *codegen_program);
+                          const CodegenProgram *codegen_program,
+                          const HirProgram *hir_program);
 
 const MachineBuildError *machine_get_error(const MachineProgram *program);
 bool machine_format_error(const MachineBuildError *error,

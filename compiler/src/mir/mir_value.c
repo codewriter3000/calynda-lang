@@ -107,6 +107,9 @@ void mr_lvalue_free(MirLValue *lvalue) {
         mr_value_free(&lvalue->as.member.target);
         free(lvalue->as.member.member);
         break;
+    case MIR_LVALUE_MEMORY_DEREF:
+        mr_value_free(&lvalue->as.memory_deref.target);
+        break;
     case MIR_LVALUE_LOCAL:
         break;
     }

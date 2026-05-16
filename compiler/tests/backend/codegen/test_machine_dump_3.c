@@ -170,7 +170,10 @@ void test_machine_builder_preserves_upstream_error_spans(void) {
                  "build structured LIR error for machine precondition");
     ASSERT_TRUE(!codegen_build_program(&codegen_program, &lir_program, target_get_default()),
                 "codegen rejects invalid machine precondition");
-    ASSERT_TRUE(!machine_build_program(&machine_program, &lir_program, &codegen_program),
+    ASSERT_TRUE(!machine_build_program(&machine_program,
+                                       &lir_program,
+                                       &codegen_program,
+                                       NULL),
                 "machine builder rejects structured upstream errors");
     REQUIRE_TRUE(machine_get_error(&machine_program) != NULL,
                  "machine builder exposes structured build error");

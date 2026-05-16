@@ -2,6 +2,8 @@
     RUN_TEST(test_build_native_runs_runtime_lambda_program); RUN_TEST(test_build_native_auto_calls_zero_arg_template_callable);
     RUN_TEST(test_build_native_runs_boot_program);
     RUN_TEST(test_build_native_runs_boot_program_with_block);
+    RUN_TEST(test_build_native_runs_boot_program_with_fence);
+    RUN_TEST(test_build_native_runs_boot_program_with_cache_builtins);
     RUN_TEST(test_build_native_boot_supports_arrays_strings_sequences);
     RUN_TEST(test_build_native_runs_void_start_program);
     RUN_TEST(test_build_native_runs_manual_malloc_free);
@@ -23,6 +25,7 @@
     RUN_TEST(test_build_native_car_multifile);
     RUN_TEST(test_build_native_malformed_source_reports_span);
     RUN_TEST(test_build_native_runs_recursive_top_level_lambda_program);
+    RUN_TEST(test_build_native_reads_final_global_static_array);
     RUN_TEST(test_build_native_swaps_array_elements);
     RUN_TEST(test_build_native_runs_default_argument_program);
     RUN_TEST(test_build_native_runs_deep_self_tail_recursion_without_stack_growth);

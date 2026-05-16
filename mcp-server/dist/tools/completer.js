@@ -112,6 +112,38 @@ function getCompletions(input) {
             insertText: 'ptr<${1:int32}>',
         });
     }
+    if ('mmio'.startsWith(prefix)) {
+        items.push({
+            label: 'mmio<T>',
+            kind: 'snippet',
+            detail: 'Typed MMIO handle',
+            insertText: 'mmio<${1:uint32}>',
+        });
+    }
+    if ('fence'.startsWith(prefix)) {
+        items.push({
+            label: 'fence()',
+            kind: 'snippet',
+            detail: 'Memory/cache barrier builtin',
+            insertText: 'fence();',
+        });
+    }
+    if ('cacheclean'.startsWith(prefix)) {
+        items.push({
+            label: 'cacheclean()',
+            kind: 'snippet',
+            detail: 'Clean cache for an address, ptr<T>, or mmio<T>',
+            insertText: 'cacheclean(${1:address});',
+        });
+    }
+    if ('cachefinal'.startsWith(prefix)) {
+        items.push({
+            label: 'cachefinal()',
+            kind: 'snippet',
+            detail: 'Finalize a cache-maintenance sequence',
+            insertText: 'cachefinal();',
+        });
+    }
     if ('asm'.startsWith(prefix)) {
         items.push({
             label: 'asm',

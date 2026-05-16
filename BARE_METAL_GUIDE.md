@@ -44,7 +44,9 @@ depend on the hosted Calynda process runtime:
 	normal expressions/statements.
 - Direct calls to named top-level functions.
 - Explicit recursion when it stays on that direct top-level call path.
-- Inline assembly declarations and calling them directly.
+- Inline assembly declarations plus statement-level `asm { ... };` blocks.
+- Typed MMIO handles via `mmio<T>` and `mmio<T>.value`.
+- Cache-maintenance and ordering builtins `fence()`, `cacheclean(address)`, and `cachefinal()`.
 - Bare-metal `_start` emission for `boot` programs.
 
 `boot` also has built-in freestanding sequence support for these homogeneous
@@ -164,7 +166,8 @@ stick to this style:
 - Use primitive scalars and direct function calls.
 - Use homogeneous arrays and strings freely when you stay inside `.length`,
 	indexing, and `car`/`cdr`.
-- Use inline assembly or MMIO wrappers for hardware access.
+- Use statement-level inline assembly or MMIO wrappers for hardware access.
+- Use `fence()` for ordering and `cacheclean(address)` / `cachefinal()` when you need a minimal cache-maintenance surface.
 - Keep state in locals, globals, or hardware registers.
 - Avoid any feature that feels object-like, runtime-backed, boxed, dynamic, or
 	reflection-like.
@@ -174,9 +177,10 @@ Good bare-metal examples:
 - `boot -> 42;`
 - `boot -> { return uart_status(); };`
 - `boot -> { uart_putc(72); uart_putc(73); return 0; };`
+- `boot -> { mmio<uint32> uart = 0x4000_0000; uart.value = 72; fence(); return 0; };`
 - `boot -> { int32[] values = [1, 2, 3]; return car(values) + cdr(values)[0]; };`
 - `boot -> { string text = "hello"; return int32(car(text)) + int32(cdr(text).length); };`
-- direct calls into `asm()` functions or hardware wrapper functions
+- direct calls into `asm()` functions, statement-level `asm { ... };`, or hardware wrapper functions
 
 Bad default bare-metal examples:
 
@@ -189,8 +193,8 @@ Bad default bare-metal examples:
 
 ## Conservative Rule Of Thumb
 
-If the feature stays within primitive code, direct calls, inline assembly, and
-the built-in homogeneous array/string sequence subset, it is a good bare-metal
+If the feature stays within primitive code, direct calls, inline assembly, MMIO,
+and the built-in homogeneous array/string sequence subset, it is a good bare-metal
 fit.
 
 If it needs helper support beyond `.length`, indexing, array literals, or

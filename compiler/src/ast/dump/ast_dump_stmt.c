@@ -82,6 +82,16 @@ bool ast_dump_statement(AstDumpBuilder *builder, const AstStatement *statement,
                                          statement->as.swap.left) &&
                ast_dump_expression_label(builder, indent + 1, "Right",
                                          statement->as.swap.right);
+
+    case AST_STMT_INLINE_ASM: {
+        char len_buf[32];
+
+        snprintf(len_buf, sizeof(len_buf), "%zu", statement->as.inline_asm.body_length);
+        return ast_dump_builder_start_line(builder, indent) &&
+               ast_dump_builder_append(builder, "InlineAsmStmt body_length=") &&
+               ast_dump_builder_append(builder, len_buf) &&
+               ast_dump_builder_finish_line(builder);
+    }
     }
 
     return false;

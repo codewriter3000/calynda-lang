@@ -199,6 +199,7 @@ void test_type_checker_accepts_future_and_atomic_builtins(void) {
         "    future.cancel();\n"
         "    worker.cancel();\n"
         "    worker.join();\n"
+        "    fence();\n"
         "    return counter.load();\n"
         "};\n";
     Parser parser;

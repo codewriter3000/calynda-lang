@@ -54,14 +54,24 @@ static bool tc_check_swap_target(TypeChecker *checker,
 
 bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                     const BlockContext *context,
-                    CheckedType *return_type, AstSourceSpan *return_span) {
+                    CheckedType *return_type, AstSourceSpan *return_span,
+                    const AstType **return_shape_type,
+                    size_t *return_shape_consumed_dimensions) {
     const Scope *block_scope;
     CheckedType current_return_type = tc_checked_type_void();
     AstSourceSpan first_return_span;
+    const AstType *current_return_shape_type = NULL;
+    size_t current_return_shape_consumed_dimensions = 0;
     bool saw_return = false;
     size_t i;
 
     memset(&first_return_span, 0, sizeof(first_return_span));
+    if (return_shape_type) {
+        *return_shape_type = NULL;
+    }
+    if (return_shape_consumed_dimensions) {
+        *return_shape_consumed_dimensions = 0;
+    }
     block_scope = symbol_table_find_scope(checker->symbols, block, SCOPE_KIND_BLOCK);
     if (!block_scope) {
         tc_set_error(checker, "Internal error: missing block scope.");
@@ -96,6 +106,9 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
             {
                 CheckedType statement_return_type;
                 AstSourceSpan statement_span;
+                const AstType *statement_return_shape_type = NULL;
+                size_t statement_return_shape_consumed_dimensions = 0;
+                bool has_statement_return_shape = false;
 
                 if (statement->as.return_expression) {
                     const TypeCheckInfo *info = tc_check_expression(checker,
@@ -106,6 +119,11 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
 
                     statement_return_type = tc_type_check_source_type(info);
                     statement_span = statement->as.return_expression->source_span;
+                    has_statement_return_shape = tc_expression_declared_array_shape(
+                        checker,
+                        statement->as.return_expression,
+                        &statement_return_shape_type,
+                        &statement_return_shape_consumed_dimensions);
                 } else {
                     statement_return_type = tc_checked_type_void();
                     statement_span = statement->source_span;
@@ -113,6 +131,10 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
 
                 if (context && context->has_expected_return_type) {
                     char expected_text[64];
+                    const char *return_context_name =
+                        context->kind == BLOCK_CONTEXT_START
+                            ? "return statement in start body"
+                            : "return statement in lambda body";
 
                     checked_type_to_string(context->expected_return_type,
                                            expected_text,
@@ -128,6 +150,19 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                                         "Return statement in %s must produce %s.",
                                         tc_block_context_name(context->kind),
                                         expected_text);
+                        return false;
+                    }
+
+                    if (statement->as.return_expression &&
+                        context->expected_return_ast_type &&
+                        !tc_validate_sized_array_return_value(
+                            checker,
+                            context->expected_return_ast_type,
+                            0,
+                            statement->as.return_expression,
+                            tc_block_context_related_span(context,
+                                                          statement->as.return_expression->source_span),
+                            return_context_name)) {
                         return false;
                     }
 
@@ -154,6 +189,11 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                 if (!saw_return) {
                     current_return_type = statement_return_type;
                     first_return_span = statement_span;
+                    if (has_statement_return_shape) {
+                        current_return_shape_type = statement_return_shape_type;
+                        current_return_shape_consumed_dimensions =
+                            statement_return_shape_consumed_dimensions;
+                    }
                     saw_return = true;
                 } else {
                     CheckedType merged_type;
@@ -181,6 +221,8 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                     }
 
                     current_return_type = merged_type;
+                    current_return_shape_type = NULL;
+                    current_return_shape_consumed_dimensions = 0;
                 }
             }
             break;
@@ -201,6 +243,8 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
             if (!saw_return) {
                 current_return_type = tc_checked_type_void();
                 first_return_span = statement->source_span;
+                current_return_shape_type = NULL;
+                current_return_shape_consumed_dimensions = 0;
                 saw_return = true;
             } else {
                 CheckedType merged_type;
@@ -223,6 +267,8 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                 }
 
                 current_return_type = merged_type;
+                current_return_shape_type = NULL;
+                current_return_shape_consumed_dimensions = 0;
             }
             break;
 

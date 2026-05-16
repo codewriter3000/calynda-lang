@@ -191,6 +191,11 @@ bytecode_program_free(&bytecode);
 - Bytecode can be serialized and deserialized
 - Future: Add bytecode verifier for safety
 - Future: Support for bytecode-level debugging
+## Changes in 1.0.0-alpha.7
+
+- No new bytecode opcodes were required. The alpha.7 `mmio<T>`, `fence()`, `cacheclean()`, and `cachefinal()` surface lowers through the existing helper-call-oriented model.
+- Fixed-size array enforcement remains a semantic-layer responsibility, so the portable-v1 ISA is unchanged for the new extent checks.
+
 ## Changes in 1.0.0-alpha.6
 
 - Bytecode lowering follows the MIR changes for `var` parameters, capture-by-reference, and `|var` early-return values. No bytecode opcode additions were required — the new behaviour rides on existing call/return and indirect-load/store instructions.

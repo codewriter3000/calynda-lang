@@ -77,7 +77,7 @@ function parseTopLevelDecl(state: ParserState): AST.TopLevelDecl | null {
   }
 
   if (state.check('keyword', 'var') || state.check('type') || state.check('keyword', 'void') ||
-      state.check('keyword', 'arr') || state.check('keyword', 'ptr')) {
+      state.check('keyword', 'arr') || state.check('keyword', 'ptr') || state.check('keyword', 'mmio')) {
     return parseBindingDecl(state, modifiers);
   }
 

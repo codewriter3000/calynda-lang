@@ -1,5 +1,61 @@
 #include "type_checker_internal.h"
 
+static bool tc_assignment_target_declared_array_shape(TypeChecker *checker,
+                                                      const AstExpression *expression,
+                                                      const AstType **declared_type_out,
+                                                      size_t *consumed_dimensions_out) {
+    const AstType *declared_type;
+    size_t consumed_dimensions;
+
+    if (declared_type_out) {
+        *declared_type_out = NULL;
+    }
+    if (consumed_dimensions_out) {
+        *consumed_dimensions_out = 0;
+    }
+    if (!checker || !expression) {
+        return false;
+    }
+
+    switch (expression->kind) {
+    case AST_EXPR_IDENTIFIER:
+        {
+            const Symbol *symbol = symbol_table_resolve_identifier(checker->symbols,
+                                                                   expression);
+
+            if (!symbol || !symbol->declared_type ||
+                symbol->declared_type->dimension_count == 0) {
+                return false;
+            }
+            if (declared_type_out) {
+                *declared_type_out = symbol->declared_type;
+            }
+            return true;
+        }
+
+    case AST_EXPR_INDEX:
+        if (!tc_assignment_target_declared_array_shape(checker,
+                                                       expression->as.index.target,
+                                                       &declared_type,
+                                                       &consumed_dimensions)) {
+            return false;
+        }
+        if (!declared_type || consumed_dimensions >= declared_type->dimension_count) {
+            return false;
+        }
+        if (declared_type_out) {
+            *declared_type_out = declared_type;
+        }
+        if (consumed_dimensions_out) {
+            *consumed_dimensions_out = consumed_dimensions + 1;
+        }
+        return true;
+
+    default:
+        return false;
+    }
+}
+
 const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
                                          const AstExpression *expression) {
     TypeCheckInfo info;
@@ -135,15 +191,18 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
         break;
 
     case AST_EXPR_LAMBDA:
-        return tc_check_lambda_expression(checker, expression, NULL, NULL, false);
+        return tc_check_lambda_expression(checker, expression, NULL, NULL, NULL, false);
 
     case AST_EXPR_ASSIGNMENT:
         {
             const TypeCheckInfo *target_info;
             const TypeCheckInfo *value_info;
             const Symbol *target_symbol = NULL;
+            const AstType *target_declared_type = NULL;
             CheckedType source_type;
             bool assignable;
+            size_t target_consumed_dimensions = 0;
+            bool has_target_declared_array_shape = false;
 
             target_info = tc_check_expression(checker, expression->as.assignment.target);
             if (!target_info) {
@@ -201,6 +260,25 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
             }
 
             source_type = tc_type_check_source_type(value_info);
+            if (expression->as.assignment.operator == AST_ASSIGN_OP_ASSIGN &&
+                target_symbol) {
+                has_target_declared_array_shape = tc_assignment_target_declared_array_shape(
+                    checker,
+                    expression->as.assignment.target,
+                    &target_declared_type,
+                    &target_consumed_dimensions);
+                if (has_target_declared_array_shape &&
+                    !tc_validate_sized_array_assignment(
+                        checker,
+                        target_declared_type,
+                        target_consumed_dimensions,
+                        expression->as.assignment.value,
+                        &target_symbol->declaration_span,
+                        symbol_kind_name(target_symbol->kind),
+                        target_symbol->name ? target_symbol->name : "<anonymous>")) {
+                    return NULL;
+                }
+            }
             if (expression->as.assignment.operator == AST_ASSIGN_OP_ASSIGN) {
                 assignable = (value_info->is_callable && source_type.kind == CHECKED_TYPE_EXTERNAL) ||
                              tc_checked_type_assignable(target_info->type, source_type);
@@ -223,10 +301,16 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
 
             if (!assignable) {
                 char source_text[64];
-                char target_text[64];
+                char target_text[128];
 
                 checked_type_to_string(source_type, source_text, sizeof(source_text));
-                checked_type_to_string(target_info->type, target_text, sizeof(target_text));
+                if (!(has_target_declared_array_shape &&
+                      tc_ast_type_slice_to_string(target_declared_type,
+                                                  target_consumed_dimensions,
+                                                  target_text,
+                                                  sizeof(target_text)))) {
+                    checked_type_to_string(target_info->type, target_text, sizeof(target_text));
+                }
                 tc_set_error_at(checker,
                                 expression->as.assignment.value->source_span,
                                 &expression->as.assignment.target->source_span,

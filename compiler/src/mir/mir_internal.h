@@ -40,7 +40,8 @@ typedef enum {
     MIR_LVALUE_LOCAL = 0,
     MIR_LVALUE_GLOBAL,
     MIR_LVALUE_INDEX,
-    MIR_LVALUE_MEMBER
+    MIR_LVALUE_MEMBER,
+    MIR_LVALUE_MEMORY_DEREF
 } MirLValueKind;
 
 typedef struct {
@@ -58,6 +59,12 @@ typedef struct {
             MirValue target;
             char    *member;
         } member;
+        struct {
+            MirValue target;
+            size_t   element_size;
+            bool     is_checked_ptr;
+            bool     is_mmio;
+        } memory_deref;
     } as;
 } MirLValue;
 

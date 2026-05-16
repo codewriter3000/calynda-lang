@@ -111,6 +111,171 @@ static bool hr_append_lowered_statement(HirBuildContext *context,
     return false;
 }
 
+static void hr_free_inline_asm_unit(HirTopLevelDecl *decl) {
+    if (!decl) {
+        return;
+    }
+
+    free(decl->as.asm_decl.name);
+    free(decl->as.asm_decl.parameter_names);
+    free(decl->as.asm_decl.parameter_types);
+    free(decl->as.asm_decl.body);
+    free(decl);
+}
+
+static HirTopLevelDecl *hr_new_inline_asm_unit(HirBuildContext *context,
+                                               const char *name,
+                                               const AstStatement *statement) {
+    HirTopLevelDecl *decl;
+
+    if (!context || !name || !statement || statement->kind != AST_STMT_INLINE_ASM) {
+        return NULL;
+    }
+
+    decl = hr_top_level_decl_new(HIR_TOP_LEVEL_ASM);
+    if (!decl) {
+        hr_set_error(context,
+                     statement->source_span,
+                     NULL,
+                     "Out of memory while lowering inline asm unit.");
+        return NULL;
+    }
+
+    decl->as.asm_decl.name = ast_copy_text(name);
+    decl->as.asm_decl.symbol = NULL;
+    decl->as.asm_decl.source_span = statement->source_span;
+    decl->as.asm_decl.is_exported = false;
+    decl->as.asm_decl.is_static = false;
+    decl->as.asm_decl.is_internal = true;
+    decl->as.asm_decl.return_type = hr_checked_type_void_value();
+    decl->as.asm_decl.parameter_count = 0;
+    decl->as.asm_decl.parameter_types = NULL;
+    decl->as.asm_decl.parameter_names = NULL;
+    decl->as.asm_decl.body = ast_copy_text_n(statement->as.inline_asm.body,
+                                             statement->as.inline_asm.body_length);
+    decl->as.asm_decl.body_length = statement->as.inline_asm.body_length;
+
+    if (!decl->as.asm_decl.name ||
+        (statement->as.inline_asm.body_length > 0 && !decl->as.asm_decl.body)) {
+        hr_free_inline_asm_unit(decl);
+        hr_set_error(context,
+                     statement->source_span,
+                     NULL,
+                     "Out of memory while lowering inline asm unit.");
+        return NULL;
+    }
+
+    return decl;
+}
+
+static HirExpression *hr_new_inline_asm_call_expression(HirBuildContext *context,
+                                                        const char *name,
+                                                        AstSourceSpan source_span) {
+    HirExpression *callee;
+    HirExpression *call;
+
+    if (!context || !name) {
+        return NULL;
+    }
+
+    callee = hr_expression_new(HIR_EXPR_SYMBOL);
+    if (!callee) {
+        hr_set_error(context,
+                     source_span,
+                     NULL,
+                     "Out of memory while lowering inline asm call.");
+        return NULL;
+    }
+
+    callee->type = hr_checked_type_void_value();
+    callee->is_callable = true;
+    callee->source_span = source_span;
+    callee->as.symbol.symbol = NULL;
+    callee->as.symbol.name = ast_copy_text(name);
+    callee->as.symbol.kind = SYMBOL_KIND_IMPORT;
+    callee->as.symbol.type = hr_checked_type_void_value();
+    callee->as.symbol.source_span = source_span;
+    callee->callable_signature.return_type = hr_checked_type_void_value();
+    callee->callable_signature.parameter_count = 0;
+    callee->callable_signature.has_parameter_types = true;
+    if (!callee->as.symbol.name) {
+        hir_expression_free(callee);
+        hr_set_error(context,
+                     source_span,
+                     NULL,
+                     "Out of memory while lowering inline asm call.");
+        return NULL;
+    }
+
+    call = hr_expression_new(HIR_EXPR_CALL);
+    if (!call) {
+        hir_expression_free(callee);
+        hr_set_error(context,
+                     source_span,
+                     NULL,
+                     "Out of memory while lowering inline asm call.");
+        return NULL;
+    }
+
+    call->type = hr_checked_type_void_value();
+    call->source_span = source_span;
+    call->as.call.callee = callee;
+    return call;
+}
+
+bool hr_lower_inline_asm_statement(HirBuildContext *context,
+                                   HirBlock *block,
+                                   const AstStatement *statement) {
+    char asm_name_buffer[64];
+    HirTopLevelDecl *asm_decl;
+    HirStatement *call_statement;
+
+    if (!context || !block || !statement || statement->kind != AST_STMT_INLINE_ASM) {
+        return false;
+    }
+
+    snprintf(asm_name_buffer,
+             sizeof(asm_name_buffer),
+             "inline_asm_%zu",
+             context->synthetic_local_count++);
+
+    asm_decl = hr_new_inline_asm_unit(context, asm_name_buffer, statement);
+    if (!asm_decl) {
+        return false;
+    }
+    if (!hr_append_top_level_decl(context->program, asm_decl)) {
+        hr_free_inline_asm_unit(asm_decl);
+        hr_set_error(context,
+                     statement->source_span,
+                     NULL,
+                     "Out of memory while adding inline asm unit to HIR program.");
+        return false;
+    }
+
+    call_statement = hr_statement_new(HIR_STMT_EXPRESSION);
+    if (!call_statement) {
+        hr_set_error(context,
+                     statement->source_span,
+                     NULL,
+                     "Out of memory while lowering inline asm statement.");
+        return false;
+    }
+
+    call_statement->source_span = statement->source_span;
+    call_statement->as.expression = hr_new_inline_asm_call_expression(context,
+                                                                      asm_name_buffer,
+                                                                      statement->source_span);
+    if (!call_statement->as.expression) {
+        hir_statement_free(call_statement);
+        return false;
+    }
+
+    return hr_append_lowered_statement(context,
+                                       block,
+                                       call_statement,
+                                       statement->source_span);
+}
+
 bool hr_lower_swap_statement(HirBuildContext *context,
                              HirBlock *block,
                              const AstStatement *statement) {

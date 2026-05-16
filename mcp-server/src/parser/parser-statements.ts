@@ -12,7 +12,7 @@ export function parseType(state: ParserState): AST.TypeNode {
     return voidNode;
   }
 
-  if (state.check('keyword', 'arr') || state.check('keyword', 'ptr')) {
+  if (state.check('keyword', 'arr') || state.check('keyword', 'ptr') || state.check('keyword', 'mmio')) {
     const nameTok = state.advance();
     const genericArgs = parseGenericArgs(state);
     const namedNode: AST.NamedTypeNode = { kind: 'NamedType', name: nameTok.value, genericArgs, start: startPos, end: state.position() };

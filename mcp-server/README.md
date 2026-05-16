@@ -2,7 +2,7 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that enables AI assistants to deeply understand and work with the [Calynda](../README.md) programming language.
 
-This server tracks the **1.0.0-alpha.6** language/help surface. In addition to the previously documented features (`spawn`, `Thread`, `Future<T>`, `Mutex`, `Atomic<T>`, `thread_local`, strict race-check help text, freestanding `boot` contract, native + bytecode backend split, recursive top-level lambdas, operator overloading, default parameter values, swap operator `><`, self tail-call elimination, type-query intrinsics, wildcard imports, external `.car` archives, `string` indexing, `car`/`cdr` on arrays, manual-block return propagation, version reporting via `--version`), it also covers the alpha.6 additions:
+This server tracks the **1.0.0-alpha.7** language/help surface. In addition to the previously documented features (`spawn`, `Thread`, `Future<T>`, `Mutex`, `Atomic<T>`, `thread_local`, strict race-check help text, freestanding `boot` contract, native + bytecode backend split, recursive top-level lambdas, operator overloading, default parameter values, swap operator `><`, self tail-call elimination, type-query intrinsics, wildcard imports, external `.car` archives, `string` indexing, `car`/`cdr` on arrays, manual-block return propagation, version reporting via `--version`), it now covers the current alpha.6 and alpha.7 additions:
 
 - Untyped `var` parameters (with `typeof`/`is*` runtime queries)
 - `|var` early-return parameters (non-local return)
@@ -13,6 +13,11 @@ This server tracks the **1.0.0-alpha.6** language/help surface. In addition to t
 - User-input runtime helpers
 - The bundled standard library (`conditional`, `loop`, `math`, `string_utils`, `structure/`)
 - The hosted/freestanding runtime archive split (`calynda_runtime.a` + `calynda_runtime_boot.a`)
+- `mmio<T>` plus the `mmio<T>.value` access surface
+- `fence()`, `cacheclean(address)`, and `cachefinal()`
+- Fixed-size array extent checking in the documented semantic surface
+- Hosted GC/tooling controls: `--manual-bounds-check`, `--gc marksweep|legacy`, `--gc-plugin path.a`, and the default `calynda_runtime_ms.a` archive
+- Statement-level `asm { ... };` in resources, examples, and syntax explanations
 
 ## Overview
 

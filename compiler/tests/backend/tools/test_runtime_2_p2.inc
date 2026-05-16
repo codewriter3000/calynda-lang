@@ -87,3 +87,34 @@ void test_runtime_atomic_operations(void) {
     loaded = __calynda_rt_atomic_load(atom);
     ASSERT_EQ_WORD(200, loaded, "atomic exchange installs the new value");
 }
+
+void test_runtime_fence_helper_is_callable(void) {
+    __calynda_rt_fence();
+    ASSERT_TRUE(1, "fence helper completes without crashing");
+}
+
+void test_runtime_mmio_helpers_preserve_values(void) {
+    uint32_t scratch = 0;
+    CalyndaRtWord loaded;
+
+    __calynda_mmio_store_sized((CalyndaRtWord)(uintptr_t)&scratch,
+                               (CalyndaRtWord)0x11223344u,
+                               (CalyndaRtWord)sizeof(scratch));
+    loaded = __calynda_mmio_deref_sized((CalyndaRtWord)(uintptr_t)&scratch,
+                                        (CalyndaRtWord)sizeof(scratch));
+
+    ASSERT_EQ_WORD((CalyndaRtWord)0x11223344u,
+                   (CalyndaRtWord)scratch,
+                   "mmio sized store writes the volatile target");
+    ASSERT_EQ_WORD((CalyndaRtWord)0x11223344u,
+                   loaded,
+                   "mmio sized deref reads the volatile target");
+}
+
+void test_runtime_cache_helpers_are_callable(void) {
+    uintptr_t scratch = 0;
+
+    __calynda_rt_cache_clean((CalyndaRtWord)(uintptr_t)&scratch);
+    __calynda_rt_cache_final();
+    ASSERT_TRUE(1, "cache helpers complete without crashing");
+}

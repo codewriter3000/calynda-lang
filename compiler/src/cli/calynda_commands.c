@@ -32,6 +32,12 @@ static bool calynda_option_add_archive(const char *value,
 static bool calynda_option_add_archive_path(const char *value,
                                             CalyndaCompileOptions *options,
                                             FILE *err);
+static bool calynda_option_set_gc(const char *value,
+                                  CalyndaCompileOptions *options,
+                                  FILE *err);
+static bool calynda_option_set_gc_plugin(const char *value,
+                                         CalyndaCompileOptions *options,
+                                         FILE *err);
 static bool calynda_parse_compile_options(int *argc, char ***argv,
                                           CalyndaCompileOptions *options,
                                           FILE *err);
@@ -60,11 +66,15 @@ static const CalyndaOptionSpec k_compile_option_specs[] = {
     { "--strict-race-check", false, calynda_option_enable_strict_race },
     { "--target", true, calynda_option_set_target },
     { "--archive", true, calynda_option_add_archive },
-    { "--archive-path", true, calynda_option_add_archive_path }
+    { "--archive-path", true, calynda_option_add_archive_path },
+    { "--gc", true, calynda_option_set_gc },
+    { "--gc-plugin", true, calynda_option_set_gc_plugin }
 };
 
 static const char *calynda_runtime_archive_name(const TargetDescriptor *target,
                                                 bool is_boot) {
+    CalyndaGcMode gc_mode;
+
     if (is_boot) {
         if (target->kind == TARGET_KIND_AARCH64_AAPCS_ELF) {
             return "calynda_runtime_boot_aarch64.a";
@@ -73,6 +83,17 @@ static const char *calynda_runtime_archive_name(const TargetDescriptor *target,
             return "calynda_runtime_boot_riscv64.a";
         }
         return "calynda_runtime_boot.a";
+    }
+
+    gc_mode = calynda_get_global_gc_mode();
+    if (gc_mode == CALYNDA_GC_MARKSWEEP) {
+        if (target->kind == TARGET_KIND_AARCH64_AAPCS_ELF) {
+            return "calynda_runtime_ms_aarch64.a";
+        }
+        if (target->kind == TARGET_KIND_RISCV64_LP64D_ELF) {
+            return "calynda_runtime_ms_riscv64.a";
+        }
+        return "calynda_runtime_ms.a";
     }
 
     if (target->kind == TARGET_KIND_AARCH64_AAPCS_ELF) {
@@ -108,6 +129,8 @@ void calynda_print_usage(FILE *out, const char *program_name) {
     fprintf(out, "  --target T                                      Target x86_64, aarch64, or riscv64\n");
     fprintf(out, "  --archive path.car                              Add a dependency CAR archive (repeatable)\n");
     fprintf(out, "  --archive-path dir                              Add all .car files from a dependency directory\n");
+    fprintf(out, "  --gc marksweep|legacy                           Select GC backend (default: marksweep)\n");
+    fprintf(out, "  --gc-plugin path.a                              Use a custom GC backend archive\n");
     fprintf(out, "\nBuild, run, and asm accept .cal (single file) or .car (multi-file archive).\n");
     fprintf(out, "bytecode currently accepts .cal only.\n");
 }
@@ -224,24 +247,4 @@ int calynda_command_build(const char *program_name, int argc, char **argv) {
     }
 }
 
-int calynda_command_pack(const char *program_name, int argc, char **argv) {
-    const char *output_path;
-    const char *dir_path;
-
-    if (argc < 1) {
-        calynda_print_usage(stderr, program_name);
-        return 64;
-    }
-
-    dir_path = argv[0];
-    if (argc >= 3 && strcmp(argv[1], "-o") == 0) {
-        output_path = argv[2];
-    } else if (argc == 1) {
-        output_path = "project.car";
-    } else {
-        calynda_print_usage(stderr, program_name);
-        return 64;
-    }
-    return calynda_pack_directory(dir_path, output_path);
-}
 #include "calynda_commands_p2.inc"

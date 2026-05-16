@@ -16,7 +16,9 @@
                 if (!tc_check_block(checker, statement->as.manual.body,
                                     manual_context,
                                     &statement_return_type,
-                                    &statement_span)) {
+                                    &statement_span,
+                                    NULL,
+                                    NULL)) {
                     return false;
                 }
 
@@ -95,6 +97,9 @@
                 }
             }
             break;
+
+        case AST_STMT_INLINE_ASM:
+            break;
         }
     }
 
@@ -131,6 +136,12 @@
     }
     if (return_span) {
         *return_span = first_return_span;
+    }
+    if (return_shape_type) {
+        *return_shape_type = current_return_shape_type;
+    }
+    if (return_shape_consumed_dimensions) {
+        *return_shape_consumed_dimensions = current_return_shape_consumed_dimensions;
     }
 
     return true;

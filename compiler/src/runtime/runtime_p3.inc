@@ -1,9 +1,5 @@
     atomic_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     atomic_object->header.kind = CALYNDA_RT_OBJECT_ATOMIC;
-    if (!rt_register_object_pointer(atomic_object)) {
-        free(atomic_object);
-        return NULL;
-    }
     return atomic_object;
 }
 
@@ -88,19 +84,15 @@ CalyndaRtWord __calynda_issametype(CalyndaRtWord left_value,
 bool calynda_rt_is_object(CalyndaRtWord word) { return calynda_rt_as_object(word) != NULL; }
 
 const CalyndaRtObjectHeader *calynda_rt_as_object(CalyndaRtWord word) {
-    const void *pointer = (const void *)(uintptr_t)word;
-    if (word == 0) {
+    const CalyndaRtObjectHeader *header;
+    if (word == 0 || (word & (sizeof(CalyndaRtWord) - 1)) != 0) {
         return NULL;
     }
-    if (pointer == &__calynda_pkg_stdlib ||
-        pointer == &STDOUT_PRINT_CALLABLE ||
-        pointer == &STDIN_INPUT_CALLABLE) {
-        return (const CalyndaRtObjectHeader *)pointer;
-    }
-    if (!registry_contains_pointer(pointer)) {
+    header = (const CalyndaRtObjectHeader *)(uintptr_t)word;
+    if (header->magic != CALYNDA_RT_OBJECT_MAGIC) {
         return NULL;
     }
-    return (const CalyndaRtObjectHeader *)pointer;
+    return header;
 }
 
 CalyndaRtWord calynda_rt_make_string_copy(const char *bytes) {
@@ -121,5 +113,5 @@ void calynda_rt_register_static_object(const CalyndaRtObjectHeader *object) {
         return;
     }
 
-    rt_register_static_object_pointer((void *)(uintptr_t)object);
+    rt_register_static_managed((void *)(uintptr_t)object);
 }

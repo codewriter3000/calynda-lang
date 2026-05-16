@@ -25,6 +25,11 @@
                                                lvalue->as.member.member,
                                                value,
                                                source_span);
+    case MIR_LVALUE_MEMORY_DEREF:
+        return mr_store_memory_deref_lvalue(context,
+                                            lvalue,
+                                            value,
+                                            source_span);
     }
 
     mr_value_free(&value);

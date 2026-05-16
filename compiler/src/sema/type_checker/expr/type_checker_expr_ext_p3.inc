@@ -147,7 +147,10 @@ const TypeCheckInfo *tc_check_expression_ext(TypeChecker *checker,
                 tc_set_error_at(checker,
                                 expression->as.ternary.else_branch->source_span,
                                 &expression->as.ternary.then_branch->source_span,
-                                "Ternary branches must have compatible types, but got %s and %s.",
+                                (tc_type_check_source_type(then_info).array_depth > 0 &&
+                                 tc_type_check_source_type(else_info).array_depth > 0)
+                                    ? "Ternary branches must have compatible declared array types, but got %s and %s."
+                                    : "Ternary branches must have compatible types, but got %s and %s.",
                                 then_text,
                                 else_text);
                 return NULL;

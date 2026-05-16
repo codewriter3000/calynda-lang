@@ -148,7 +148,7 @@ void test_memory_op_keywords(void) {
     Tokenizer t;
     Token tok;
 
-    tokenizer_init(&t, "malloc calloc realloc free deref addr offset store stackalloc layout checked ptr arr manual");
+    tokenizer_init(&t, "malloc calloc realloc free deref addr offset store stackalloc layout checked ptr mmio arr manual");
     tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_MALLOC, tok.type, "malloc keyword");
     tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_CALLOC, tok.type, "calloc keyword");
     tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_REALLOC, tok.type, "realloc keyword");
@@ -161,6 +161,7 @@ void test_memory_op_keywords(void) {
     tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_LAYOUT, tok.type, "layout keyword");
     tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_CHECKED, tok.type, "checked keyword");
     tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_PTR, tok.type, "ptr keyword");
+    tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_MMIO, tok.type, "mmio keyword");
     tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_ARR, tok.type, "arr keyword");
     tok = tokenizer_next(&t); ASSERT_EQ_INT(TOK_MANUAL, tok.type, "manual keyword");
 }

@@ -1,3 +1,24 @@
+# Calynda 1.0.0-alpha.7
+
+May 16, 2026
+
+## Highlights
+
+- **Typed MMIO and cache-control builtins.** `mmio<T>` now joins `ptr<T>` as a first-class low-level memory surface. `mmio<T>.value` type-checks as `T`, stays assignable through `offset(mmio, n).value`, supports compound assignment and postfix operators, and lowers through dedicated volatile helpers instead of the plain pointer path. The embedded/runtime surface also grows `fence()`, `cacheclean(address)`, and `cachefinal()` for ordering and cache maintenance.
+- **Statement-level inline assembly.** Block bodies can now contain `asm { ... };` statements in addition to top-level `asm(...) -> { ... };` declarations. HIR lowers each statement by synthesizing a hidden zero-argument asm unit and then emitting an ordinary call, so the surface works in `boot` and hosted code without a separate execution model.
+- **Sized-array semantic enforcement.** Declared extents in `T[2]`, `T[2][3]`, and similar forms are now preserved long enough for semantic analysis to reject mismatched initializer sizes, assignments, parameter defaults, lambda returns, call arguments/results, and ternary merges when shape metadata survives.
+- **Static final global arrays lower as static objects.** Immutable module-scope arrays no longer have to be rebuilt at runtime during module initialization. Native lowering now materializes them as static objects directly, reducing startup work and making generated output more deterministic.
+- **CLI/runtime GC controls.** `calynda build`, `calynda run`, and `calynda asm` now accept `--manual-bounds-check`, `--gc marksweep|legacy`, and `--gc-plugin path.a`. Hosted installs now ship both `calynda_runtime.a` and the default mark-and-sweep archive `calynda_runtime_ms.a`, while `boot` continues to link against `calynda_runtime_boot.a`.
+- **Tooling and repository sync.** The compiler tree was split further into focused subdirectories to preserve the 250-line/15-entry rules, and the MCP server, release docs, and Calynda/Calynda QA agents are refreshed to cover the alpha.7 embedded, GC, and array-shape surface.
+
+## Backward compatibility
+
+- `mmio<T>` is additive; existing `ptr<T>` manual-memory programs keep their previous semantics.
+- Sized-array checking is stricter where fixed extents were previously ignored, so programs with mismatched declared shapes may now fail during semantic analysis.
+- The default hosted GC is now mark-and-sweep. Pass `--gc legacy` to preserve the previous append-only registry behavior.
+
+---
+
 # Calynda 1.0.0-alpha.6
 
 May 4th, 2026

@@ -164,6 +164,28 @@ void test_build_native_swaps_array_elements(void) {
     unlink(output_path);
 }
 
+void test_build_native_reads_final_global_static_array(void) {
+    static const char source[] =
+        "final int32[3] values = [1, 2, 4];\n"
+        "start -> {\n"
+        "    return values[0] == 1\n"
+        "        ? (values[1] == 2\n"
+        "            ? (values[2] == 4 ? 0 : 3)\n"
+        "            : 2)\n"
+        "        : 1;\n"
+        "};\n";
+    char output_path[64];
+    char *argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build final global static array executable");
+    exit_code = run_process(output_path, argv);
+    ASSERT_TRUE(exit_code == 0,
+                "final global static arrays lower to native executables without runtime array allocation");
+    unlink(output_path);
+}
+
 void test_build_native_runs_default_argument_program(void) {
     static const char source[] =
         "int32 add = (int32 left, int32 right = left + 1) -> left + right;\n"

@@ -196,6 +196,45 @@ void test_parse_asm_decl_with_modifiers(void) {
 }
 
 
+void test_parse_inline_asm_statement(void) {
+    const char *source =
+        "boot -> {\n"
+        "    asm {\n"
+        "        dsb sy\n"
+        "        isb\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    const AstTopLevelDecl *decl;
+    const AstStatement *stmt;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse inline asm statement");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for inline asm statement");
+    ASSERT_EQ_INT(1, (int)program.top_level_count, "one top-level decl");
+
+    decl = program.top_level_decls[0];
+    ASSERT_EQ_INT(AST_TOP_LEVEL_START, (int)decl->kind, "decl is boot/start");
+    ASSERT_TRUE(decl->as.start_decl.is_boot, "decl is boot");
+    ASSERT_EQ_INT(2, (int)decl->as.start_decl.body.as.block->statement_count,
+                  "boot body has inline asm and return");
+
+    stmt = decl->as.start_decl.body.as.block->statements[0];
+    ASSERT_EQ_INT(AST_STMT_INLINE_ASM, (int)stmt->kind, "first stmt is inline asm");
+    ASSERT_TRUE(stmt->as.inline_asm.body != NULL, "inline asm body exists");
+    ASSERT_TRUE(stmt->as.inline_asm.body_length > 0, "inline asm body has text");
+    ASSERT_TRUE(strstr(stmt->as.inline_asm.body, "dsb sy") != NULL,
+                "inline asm body keeps first instruction");
+    ASSERT_TRUE(strstr(stmt->as.inline_asm.body, "isb") != NULL,
+                "inline asm body keeps second instruction");
+
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+
 void test_parse_bare_start_decl(void) {
     const char *source =
         "start -> {\n"

@@ -133,6 +133,12 @@ mir_program_free(&mir);
 - MIR uses a flat array of locals + temporaries (not full SSA)
 - MIR is target-independent; no machine-specific details yet
 - MIR captures all semantic information needed for code generation
+## Changes in 1.0.0-alpha.7
+
+- MIR lowering routes `mmio<T>` loads/stores and `.value` operations through dedicated volatile helpers; `fence`, `cacheclean`, and `cachefinal` lower as runtime-backed builtins.
+- Static final global arrays now lower as static objects instead of being rebuilt inside `__mir_module_init`.
+- Inline asm statements appear in MIR as calls to synthesized asm units, keeping the normal control-flow model intact.
+
 ## Changes in 1.0.0-alpha.6
 
 - `mir_capture` and `mir_capture_analysis*` were extended to materialise capture-by-reference: captured locals are addressed indirectly through a closure record so writes are visible to the enclosing scope.

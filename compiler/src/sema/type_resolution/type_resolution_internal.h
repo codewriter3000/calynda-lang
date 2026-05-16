@@ -36,6 +36,12 @@ const AstTypeAliasDecl *tr_find_alias_decl(const TypeResolver *resolver,
                                            const char *name);
 ResolvedType tr_resolved_type_with_extra_arrays(ResolvedType type,
                                                 size_t extra_array_depth);
+bool tr_build_array_extents(TypeResolver *resolver,
+                            const ArrayExtent *base_extents,
+                            size_t base_extent_count,
+                            const AstArrayDimension *extra_dimensions,
+                            size_t extra_dimension_count,
+                            ArrayExtent **array_extents_out);
 
 /* type_resolution_resolve.c */
 bool tr_resolve_declared_type(TypeResolver *resolver,

@@ -42,7 +42,9 @@
                             start_decl->body.as.block,
                             &context,
                             &body_type,
-                            &body_span)) {
+                            &body_span,
+                            NULL,
+                            NULL)) {
             return false;
         }
     } else {

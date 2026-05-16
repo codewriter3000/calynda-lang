@@ -23,6 +23,7 @@ typedef struct {
     CheckedTypeKind  kind;
     AstPrimitiveType primitive;
     size_t           array_depth;
+    const ArrayExtent *array_extents;
     const char      *name;             /* for CHECKED_TYPE_NAMED / TYPE_PARAM */
     size_t           generic_arg_count; /* for CHECKED_TYPE_NAMED */
     bool             is_bounds_checked; /* for ptr<T, checked> */
@@ -33,6 +34,10 @@ typedef struct {
     bool                    is_callable;
     CheckedType             callable_return_type;
     const AstParameterList *parameters;
+    const AstType          *array_shape_type;
+    size_t                  array_shape_consumed_dimensions;
+    const AstType          *callable_return_array_shape_type;
+    size_t                  callable_return_array_shape_consumed_dimensions;
     bool                    has_first_generic_arg;
     CheckedType             first_generic_arg_type;
 } TypeCheckInfo;
@@ -66,6 +71,9 @@ typedef struct {
     TypeCheckSymbolEntry       *symbol_entries;
     size_t                      symbol_count;
     size_t                      symbol_capacity;
+    ArrayExtent               **owned_array_extent_blocks;
+    size_t                      owned_array_extent_block_count;
+    size_t                      owned_array_extent_block_capacity;
     TypeCheckError              warning;
     bool                        has_warning;
     TypeCheckError              error;
@@ -74,6 +82,7 @@ typedef struct {
        lambda/start whose return type is known; used to type-check |var arguments. */
     CheckedType                 outer_return_type;
     bool                        has_outer_return_type;
+    const AstType              *outer_return_ast_type;
 } TypeChecker;
 
 void type_checker_init(TypeChecker *checker);

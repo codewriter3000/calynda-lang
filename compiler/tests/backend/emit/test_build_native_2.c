@@ -194,6 +194,45 @@ void test_build_native_runs_boot_program_with_block(void) {
     unlink(output_path);
 }
 
+void test_build_native_runs_boot_program_with_fence(void) {
+    static const char source[] =
+        "boot -> {\n"
+        "    fence();\n"
+        "    return 9;\n"
+        "};\n";
+    char output_path[64];
+    char *run_argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build boot fence native executable");
+    exit_code = run_process(output_path, run_argv);
+    ASSERT_EQ_INT(9, exit_code, "boot fence native executable links and returns normally");
+    unlink(output_path);
+}
+
+void test_build_native_runs_boot_program_with_cache_builtins(void) {
+    static const char source[] =
+        "boot -> {\n"
+        "    mmio<uint32> reg = 0;\n"
+        "    cacheclean(reg);\n"
+        "    cacheclean(64);\n"
+        "    cachefinal();\n"
+        "    return 11;\n"
+        "};\n";
+    char output_path[64];
+    char *run_argv[] = { output_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(build_native_executable(source, output_path, sizeof(output_path)),
+                 "build boot cache builtin native executable");
+    exit_code = run_process(output_path, run_argv);
+    ASSERT_EQ_INT(11,
+                  exit_code,
+                  "boot cache builtin native executable links and returns normally");
+    unlink(output_path);
+}
+
 void test_build_native_boot_supports_arrays_strings_sequences(void) {
     static const char source[] =
         "boot -> {\n"

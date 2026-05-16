@@ -1,11 +1,36 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.analyze = analyze;
+const BUILTIN_CALL_SYMBOLS = [
+    ['malloc', { kind: 'unknown' }],
+    ['calloc', { kind: 'unknown' }],
+    ['realloc', { kind: 'unknown' }],
+    ['free', { kind: 'unknown' }],
+    ['deref', { kind: 'unknown' }],
+    ['store', { kind: 'unknown' }],
+    ['offset', { kind: 'unknown' }],
+    ['addr', { kind: 'unknown' }],
+    ['cleanup', { kind: 'unknown' }],
+    ['stackalloc', { kind: 'unknown' }],
+    ['typeof', { kind: 'unknown' }],
+    ['isint', { kind: 'unknown' }],
+    ['isfloat', { kind: 'unknown' }],
+    ['isbool', { kind: 'unknown' }],
+    ['isstring', { kind: 'unknown' }],
+    ['isarray', { kind: 'unknown' }],
+    ['issametype', { kind: 'unknown' }],
+    ['car', { kind: 'unknown' }],
+    ['cdr', { kind: 'unknown' }],
+    ['fence', { kind: 'unknown' }],
+    ['cacheclean', { kind: 'unknown' }],
+    ['cachefinal', { kind: 'unknown' }],
+];
 const BUILTIN_SYMBOLS = [
     ['Thread', { kind: 'named', name: 'Thread', genericArgs: [] }],
     ['Future', { kind: 'named', name: 'Future', genericArgs: [] }],
     ['Mutex', { kind: 'named', name: 'Mutex', genericArgs: [] }],
     ['Atomic', { kind: 'named', name: 'Atomic', genericArgs: [] }],
+    ...BUILTIN_CALL_SYMBOLS,
 ];
 class SemanticAnalyzer {
     diagnostics = [];

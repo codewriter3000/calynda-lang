@@ -1,32 +1,155 @@
 #include "type_checker_internal.h"
 
-static CheckedType tc_checked_type_from_generic_ast(const AstType *type) {
+static bool tc_checked_type_is_pointer_like_named(CheckedType type) {
+    if (type.kind != CHECKED_TYPE_NAMED || type.name == NULL) {
+        return false;
+    }
+
+    return strcmp(type.name, "ptr") == 0 || strcmp(type.name, "mmio") == 0;
+}
+
+static bool tc_parse_array_size_literal(const char *text,
+                                        unsigned long long *value_out) {
+    char *end = NULL;
+    unsigned long long value;
+
+    if (!text || text[0] == '\0') {
+        return false;
+    }
+
+    errno = 0;
+    value = strtoull(text, &end, 10);
+    if (errno != 0 || !end || *end != '\0') {
+        return false;
+    }
+
+    if (value_out) {
+        *value_out = value;
+    }
+    return true;
+}
+
+static bool tc_copy_ast_array_extents(TypeChecker *checker,
+                                      const AstType *type,
+                                      CheckedType *checked_type) {
+    ArrayExtent *array_extents;
+    size_t i;
+
+    if (!checker || !type || !checked_type) {
+        return false;
+    }
+
+    if (checked_type->array_depth == 0) {
+        checked_type->array_extents = NULL;
+        return true;
+    }
+
+    if (!tc_allocate_owned_array_extents(checker,
+                                         checked_type->array_depth,
+                                         &array_extents)) {
+        return false;
+    }
+
+    for (i = 0; i < checked_type->array_depth; i++) {
+        if (type->dimensions[i].has_size) {
+            unsigned long long size_value = 0;
+
+            if (!tc_parse_array_size_literal(type->dimensions[i].size_literal, &size_value) ||
+                size_value == 0) {
+                tc_set_error(checker,
+                             "Internal error: invalid checked array extent '%s'.",
+                             type->dimensions[i].size_literal
+                                 ? type->dimensions[i].size_literal
+                                 : "<missing>");
+                return false;
+            }
+
+            array_extents[i].has_size = true;
+            array_extents[i].size = size_value;
+        }
+    }
+
+    checked_type->array_extents = array_extents;
+    return true;
+}
+
+static CheckedType tc_checked_type_from_generic_ast(TypeChecker *checker,
+                                                    const AstType *type) {
+    CheckedType result;
+
     if (!type) {
         return tc_checked_type_invalid();
     }
 
     switch (type->kind) {
     case AST_TYPE_VOID:
-        return tc_checked_type_void();
+        result = tc_checked_type_void();
+        break;
     case AST_TYPE_PRIMITIVE:
-        return tc_checked_type_value(type->primitive, type->dimension_count);
+        result = tc_checked_type_value(type->primitive, type->dimension_count);
+        break;
     case AST_TYPE_ARR:
-        return tc_checked_type_named("arr", type->generic_args.count, type->dimension_count);
+        result = tc_checked_type_named("arr",
+                                       type->generic_args.count,
+                                       type->dimension_count);
+        break;
     case AST_TYPE_PTR:
-        return tc_checked_type_named("ptr", 1, type->dimension_count);
+        result = tc_checked_type_named("ptr", 1, type->dimension_count);
+        break;
     case AST_TYPE_NAMED:
-        return tc_checked_type_named(type->name, type->generic_args.count, type->dimension_count);
+        result = tc_checked_type_named(type->name,
+                                       type->generic_args.count,
+                                       type->dimension_count);
+        break;
     case AST_TYPE_THREAD:
-        return tc_checked_type_named("Thread", 0, type->dimension_count);
+        result = tc_checked_type_named("Thread", 0, type->dimension_count);
+        break;
     case AST_TYPE_MUTEX:
-        return tc_checked_type_named("Mutex", 0, type->dimension_count);
+        result = tc_checked_type_named("Mutex", 0, type->dimension_count);
+        break;
     case AST_TYPE_FUTURE:
-        return tc_checked_type_named("Future", 1, type->dimension_count);
+        result = tc_checked_type_named("Future", 1, type->dimension_count);
+        break;
     case AST_TYPE_ATOMIC:
-        return tc_checked_type_named("Atomic", 1, type->dimension_count);
+        result = tc_checked_type_named("Atomic", 1, type->dimension_count);
+        break;
+    default:
+        return tc_checked_type_invalid();
     }
 
-    return tc_checked_type_invalid();
+    if (result.array_depth > 0 &&
+        !tc_copy_ast_array_extents(checker, type, &result)) {
+        return tc_checked_type_invalid();
+    }
+
+    return result;
+}
+
+static bool tc_checked_type_array_extents_assignable(CheckedType target,
+                                                     CheckedType source) {
+    size_t i;
+
+    if (target.array_depth != source.array_depth) {
+        return false;
+    }
+
+    for (i = 0; i < target.array_depth; i++) {
+        bool target_has_size = false;
+        bool source_has_size = false;
+        unsigned long long target_size = 0;
+        unsigned long long source_size = 0;
+
+        if (!tc_checked_type_array_extent(target, i, &target_has_size, &target_size) ||
+            !tc_checked_type_array_extent(source, i, &source_has_size, &source_size)) {
+            return false;
+        }
+
+        if (target_has_size && (!source_has_size || target_size != source_size)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 CheckedType tc_promote_numeric_types(CheckedType left, CheckedType right) {
@@ -71,15 +194,23 @@ CheckedType tc_promote_numeric_types(CheckedType left, CheckedType right) {
 }
 
 CheckedType tc_checked_type_from_resolved_type(ResolvedType type) {
+    CheckedType checked;
+
     switch (type.kind) {
     case RESOLVED_TYPE_INVALID:
         return tc_checked_type_invalid();
     case RESOLVED_TYPE_VOID:
         return tc_checked_type_void();
     case RESOLVED_TYPE_VALUE:
-        return tc_checked_type_value(type.primitive, type.array_depth);
+        checked = tc_checked_type_value(type.primitive, type.array_depth);
+        checked.array_extents = type.array_extents;
+        return checked;
     case RESOLVED_TYPE_NAMED:
-        return tc_checked_type_named(type.name, type.generic_arg_count, type.array_depth);
+        checked = tc_checked_type_named(type.name,
+                                        type.generic_arg_count,
+                                        type.array_depth);
+        checked.array_extents = type.array_extents;
+        return checked;
     }
 
     return tc_checked_type_invalid();
@@ -101,7 +232,7 @@ CheckedType tc_checked_type_from_ast_type(TypeChecker *checker, const AstType *t
          * walked by the resolver, so they legitimately have no resolver entry.
          * Fall back to structural conversion in that case.
          */
-        result = tc_checked_type_from_generic_ast(type);
+        result = tc_checked_type_from_generic_ast(checker, type);
     } else {
         result = tc_checked_type_from_resolved_type(*resolved_type);
     }
@@ -187,8 +318,27 @@ bool tc_checked_type_assignable(CheckedType target, CheckedType source) {
             return false;
         }
 
+        if (!tc_checked_type_array_extents_assignable(target, source)) {
+            return false;
+        }
+
         if (target.array_depth == 0 &&
             tc_checked_type_is_numeric(target) && tc_checked_type_is_numeric(source)) {
+            return true;
+        }
+
+        return tc_primitive_canonical(target.primitive) ==
+               tc_primitive_canonical(source.primitive);
+    }
+
+    if (target.kind == CHECKED_TYPE_NAMED && source.kind == CHECKED_TYPE_NAMED &&
+        target.generic_arg_count == source.generic_arg_count &&
+        target.array_depth == source.array_depth &&
+        tc_checked_type_array_extents_assignable(target, source)) {
+        if (!target.name || !source.name) {
+            return target.name == source.name;
+        }
+        if (strcmp(target.name, source.name) == 0) {
             return true;
         }
     }
@@ -207,12 +357,10 @@ bool tc_checked_type_assignable(CheckedType target, CheckedType source) {
         }
     }
 
-    /* ptr<T> is a typed int64 alias — int64 is assignable to ptr<T> and back */
+    /* ptr<T>/mmio<T> are typed integral aliases — integers and pointer-like values can cross-assign */
     {
-        bool src_ptr = source.kind == CHECKED_TYPE_NAMED && source.name != NULL &&
-                       strcmp(source.name, "ptr") == 0;
-        bool tgt_ptr = target.kind == CHECKED_TYPE_NAMED && target.name != NULL &&
-                       strcmp(target.name, "ptr") == 0;
+        bool src_ptr = tc_checked_type_is_pointer_like_named(source);
+        bool tgt_ptr = tc_checked_type_is_pointer_like_named(target);
         bool src_i64 = source.kind == CHECKED_TYPE_VALUE && source.array_depth == 0 &&
                        tc_checked_type_is_integral(source);
         bool tgt_i64 = target.kind == CHECKED_TYPE_VALUE && target.array_depth == 0 &&

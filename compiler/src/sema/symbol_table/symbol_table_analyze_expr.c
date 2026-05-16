@@ -51,6 +51,9 @@ bool st_analyze_expression(SymbolTable *table, const AstExpression *expression,
                  strcmp(expression->as.identifier, "Thread") == 0 ||
                  strcmp(expression->as.identifier, "Future") == 0 ||
                  strcmp(expression->as.identifier, "Atomic") == 0 ||
+                 strcmp(expression->as.identifier, "cacheclean") == 0 ||
+                 strcmp(expression->as.identifier, "cachefinal") == 0 ||
+                 strcmp(expression->as.identifier, "fence") == 0 ||
                  strcmp(expression->as.identifier, "car") == 0 ||
                  strcmp(expression->as.identifier, "cdr") == 0 ||
                  strcmp(expression->as.identifier, "typeof") == 0 ||

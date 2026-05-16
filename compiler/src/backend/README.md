@@ -197,6 +197,12 @@ gcc output.o -L./runtime -lcalynda_rt -o program
 - The backend relies on external assembler (GNU as, LLVM)
 - Runtime library is linked separately
 - Future targets can be added by implementing target descriptors
+## Changes in 1.0.0-alpha.7
+
+- Hosted native linking now defaults to the mark-and-sweep runtime archive (`calynda_runtime_ms.a`) while preserving `calynda_runtime.a` for `--gc legacy` and custom archives for `--gc-plugin`.
+- The backend/runtime ABI gained dedicated barrier/cache helper routing plus volatile MMIO helper emission for `mmio<T>` and `.value`.
+- Static final global arrays now emit as static objects instead of being rebuilt through module-init runtime calls.
+
 ## Changes in 1.0.0-alpha.6
 
 - The runtime is now produced as two archives: hosted (`calynda_runtime.a`) and freestanding/bare-metal (`calynda_runtime_boot.a`). The boot archive is compiled with `-ffreestanding -fno-builtin -fno-stack-protector` and linked into `boot -> { ... };` programs.

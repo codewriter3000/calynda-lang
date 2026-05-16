@@ -189,6 +189,22 @@
         return hir_expression;
 
     case AST_EXPR_MEMBER:
+        if (expression->as.member.member != NULL) {
+            const TypeCheckInfo *target_info = type_checker_get_expression_info(
+                context->checker,
+                expression->as.member.target);
+
+            if (target_info &&
+                target_info->type.kind == CHECKED_TYPE_NAMED &&
+                target_info->type.array_depth == 0 &&
+                target_info->type.name != NULL &&
+                strcmp(target_info->type.name, "mmio") == 0 &&
+                strcmp(expression->as.member.member, "value") == 0) {
+                hir_expression_free(hir_expression);
+                return hr_lower_mmio_value_expression(context, expression, info);
+            }
+        }
+
         hir_expression->as.member.target = hr_lower_expression(context,
                                                                expression->as.member.target);
         hir_expression->as.member.member = ast_copy_text(expression->as.member.member);

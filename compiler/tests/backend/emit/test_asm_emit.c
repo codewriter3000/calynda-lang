@@ -99,7 +99,10 @@ bool build_assembly_from_source_with_target(const char *source,
         !mir_build_program(&mir_program, &hir_program, false) ||
         !lir_build_program(&lir_program, &mir_program) ||
         !codegen_build_program(&codegen_program, &lir_program, target) ||
-        !machine_build_program(&machine_program, &lir_program, &codegen_program)) {
+        !machine_build_program(&machine_program,
+                               &lir_program,
+                               &codegen_program,
+                               &hir_program)) {
         goto cleanup;
     }
 
@@ -157,12 +160,14 @@ bool compile_assembly_text(const char *assembly) {
 
 void test_asm_emit_compiles_minimal_direct_program(void);
 void test_asm_emit_compiles_runtime_backed_program(void);
+void test_asm_emit_lowers_final_global_arrays_into_static_rodata(void);
 void test_asm_emit_lowers_string_literals_into_runtime_objects(void);
 void test_asm_emit_aarch64_minimal_program(void);
 void test_asm_emit_aarch64_runtime_backed_program(void);
 void test_asm_emit_aarch64_register_usage(void);
 void test_asm_emit_asm_decl_emits_raw_body(void);
 void test_asm_emit_asm_decl_no_params(void);
+void test_asm_emit_inline_asm_statement_emits_hidden_unit(void);
 void test_asm_emit_boot_emits_start_label(void);
 void test_asm_emit_boot_aarch64_emits_start_label(void);
 void test_asm_emit_boot_rejects_unknown_imported_member(void);
@@ -183,6 +188,7 @@ int main(void) {
 
     RUN_TEST(test_asm_emit_compiles_minimal_direct_program);
     RUN_TEST(test_asm_emit_compiles_runtime_backed_program);
+    RUN_TEST(test_asm_emit_lowers_final_global_arrays_into_static_rodata);
     RUN_TEST(test_asm_emit_lowers_string_literals_into_runtime_objects);
 
     printf("\n  ARM64 tests...\n");
@@ -193,6 +199,7 @@ int main(void) {
     printf("\n  Asm decl tests...\n");
     RUN_TEST(test_asm_emit_asm_decl_emits_raw_body);
     RUN_TEST(test_asm_emit_asm_decl_no_params);
+    RUN_TEST(test_asm_emit_inline_asm_statement_emits_hidden_unit);
 
     printf("\n  Boot entry tests...\n");
     RUN_TEST(test_asm_emit_boot_emits_start_label);

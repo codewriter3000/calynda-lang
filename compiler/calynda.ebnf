@@ -157,6 +157,7 @@ Type
     | Identifier [ GenericArgs ] { ArrayDimension }            (* named / user-defined type *)
     | "arr" GenericArgs                                        (* heterogeneous array *)
     | "ptr" GenericArgs                                        (* typed pointer — manual only *)
+    | "mmio" GenericArgs                                       (* volatile MMIO wrapper over typed pointers *)
     | "ptr" "<" Type "," "checked" ">"                      (* bounds-checked typed pointer *)
     | "void"
     ;
@@ -204,6 +205,7 @@ Block
 Statement
     = LocalBindingStatement
     | ManualStatement
+    | InlineAsmStatement
     | ReturnStatement
     | ExitStatement
     | ThrowStatement
@@ -218,6 +220,12 @@ Statement
 (* Syntax: manual checked { int64 p = malloc(64); }; (* bc mode *)*)
 ManualStatement
     = "manual" [ "checked" ] Block ";"
+    ;
+
+(* Statement-level raw assembly. In 0.5.0 it lowers to a hidden zero-arg *)
+(* asm unit plus a call, reusing the existing asm binding pipeline.       *)
+InlineAsmStatement
+    = "asm" AsmBody ";"
     ;
 
 (* Local variable declaration — same syntax as top-level binding    *)

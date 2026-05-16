@@ -55,6 +55,7 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
         initializer_info = tc_check_lambda_expression(checker,
                                                       initializer,
                                                       &target_type,
+                                                      declared_type,
                                                       &symbol->declaration_span,
                                                       false);
     } else if (tc_checked_type_is_hetero_array(target_type) &&
@@ -83,10 +84,24 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
     if (checker->has_error) {
         return false;
     }
+    if (!tc_validate_sized_array_assignment(checker,
+                                            declared_type,
+                                            0,
+                                            initializer,
+                                            &symbol->declaration_span,
+                                            symbol_kind_name(symbol->kind),
+                                            symbol->name ? symbol->name : "<anonymous>")) {
+        return false;
+    }
     if (!(initializer_info->is_callable && source_type.kind == CHECKED_TYPE_EXTERNAL) &&
         !tc_checked_type_assignable(target_type, source_type)) {
         checked_type_to_string(source_type, source_text, sizeof(source_text));
-        checked_type_to_string(target_type, target_text, sizeof(target_text));
+        if (!tc_ast_type_slice_to_string(declared_type,
+                                         0,
+                                         target_text,
+                                         sizeof(target_text))) {
+            checked_type_to_string(target_type, target_text, sizeof(target_text));
+        }
         tc_set_error_at(checker,
                         initializer ? initializer->source_span : symbol->declaration_span,
                         &symbol->declaration_span,
@@ -122,11 +137,19 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
 
     *info = *initializer_info;
     info->type = target_type;
+    if (!initializer_info->is_callable && declared_type->dimension_count > 0) {
+        info->array_shape_type = declared_type;
+        info->array_shape_consumed_dimensions = 0;
+    }
     if (has_target_generic_arg) {
         tc_type_check_info_set_first_generic_arg(info, target_generic_arg);
     }
     if (initializer_info->is_callable) {
         info->callable_return_type = target_type;
+        if (declared_type->dimension_count > 0) {
+            info->callable_return_array_shape_type = declared_type;
+            info->callable_return_array_shape_consumed_dimensions = 0;
+        }
     }
 
     return true;

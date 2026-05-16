@@ -1,6 +1,6 @@
 cleanup:
     free((void *)elements);
-    rt_cleanup_registered_objects();
+    rt_gc_shutdown();
     rt_failure_context_pop(&failure);
 
     process_failure = rt_process_failure_code();

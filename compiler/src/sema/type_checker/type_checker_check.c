@@ -183,7 +183,16 @@ bool checked_type_to_string(CheckedType type, char *buffer, size_t buffer_size) 
             return false;
         }
         for (i = 0; i < type.array_depth; i++) {
-            written += snprintf(buffer + written, buffer_size - (size_t)written, "[]");
+            bool has_size = false;
+            unsigned long long size = 0;
+
+            if (!tc_checked_type_array_extent(type, i, &has_size, &size)) {
+                return false;
+            }
+            written += snprintf(buffer + written,
+                                buffer_size - (size_t)written,
+                                has_size ? "[%llu]" : "[]",
+                                size);
             if (written < 0 || (size_t)written >= buffer_size) {
                 return false;
             }
@@ -203,7 +212,16 @@ bool checked_type_to_string(CheckedType type, char *buffer, size_t buffer_size) 
             }
         }
         for (i = 0; i < type.array_depth; i++) {
-            written += snprintf(buffer + written, buffer_size - (size_t)written, "[]");
+            bool has_size = false;
+            unsigned long long size = 0;
+
+            if (!tc_checked_type_array_extent(type, i, &has_size, &size)) {
+                return false;
+            }
+            written += snprintf(buffer + written,
+                                buffer_size - (size_t)written,
+                                has_size ? "[%llu]" : "[]",
+                                size);
             if (written < 0 || (size_t)written >= buffer_size) {
                 return false;
             }
@@ -218,4 +236,542 @@ bool checked_type_to_string(CheckedType type, char *buffer, size_t buffer_size) 
     }
 
     return false;
+}
+
+static bool tc_append_format(char *buffer,
+                             size_t buffer_size,
+                             size_t *written,
+                             const char *format,
+                             ...) {
+    va_list args;
+    int appended;
+
+    if (!buffer || !written || *written >= buffer_size) {
+        return false;
+    }
+
+    va_start(args, format);
+    appended = vsnprintf(buffer + *written,
+                         buffer_size - *written,
+                         format,
+                         args);
+    va_end(args);
+
+    if (appended < 0 || (size_t)appended >= buffer_size - *written) {
+        return false;
+    }
+
+    *written += (size_t)appended;
+    return true;
+}
+
+static bool tc_ast_type_slice_to_string_impl(const AstType *type,
+                                             size_t consumed_dimensions,
+                                             char *buffer,
+                                             size_t buffer_size,
+                                             size_t *written) {
+    size_t i;
+
+    if (!type) {
+        return tc_append_format(buffer, buffer_size, written, "?");
+    }
+
+    switch (type->kind) {
+    case AST_TYPE_VOID:
+        if (!tc_append_format(buffer, buffer_size, written, "void")) {
+            return false;
+        }
+        break;
+
+    case AST_TYPE_PRIMITIVE:
+        if (!tc_append_format(buffer,
+                              buffer_size,
+                              written,
+                              "%s",
+                              tc_primitive_type_name(type->primitive))) {
+            return false;
+        }
+        break;
+
+    case AST_TYPE_ARR:
+        if (!tc_append_format(buffer, buffer_size, written, "arr")) {
+            return false;
+        }
+        break;
+
+    case AST_TYPE_PTR:
+        if (!tc_append_format(buffer, buffer_size, written, "ptr")) {
+            return false;
+        }
+        break;
+
+    case AST_TYPE_NAMED:
+        if (!tc_append_format(buffer,
+                              buffer_size,
+                              written,
+                              "%s",
+                              type->name ? type->name : "?")) {
+            return false;
+        }
+        break;
+
+    case AST_TYPE_THREAD:
+        if (!tc_append_format(buffer, buffer_size, written, "Thread")) {
+            return false;
+        }
+        break;
+
+    case AST_TYPE_MUTEX:
+        if (!tc_append_format(buffer, buffer_size, written, "Mutex")) {
+            return false;
+        }
+        break;
+
+    case AST_TYPE_FUTURE:
+        if (!tc_append_format(buffer, buffer_size, written, "Future")) {
+            return false;
+        }
+        break;
+
+    case AST_TYPE_ATOMIC:
+        if (!tc_append_format(buffer, buffer_size, written, "Atomic")) {
+            return false;
+        }
+        break;
+    }
+
+    if (type->generic_args.count > 0) {
+        if (!tc_append_format(buffer, buffer_size, written, "<")) {
+            return false;
+        }
+        for (i = 0; i < type->generic_args.count; i++) {
+            if (i > 0 && !tc_append_format(buffer, buffer_size, written, ", ")) {
+                return false;
+            }
+            if (type->generic_args.items[i].kind == AST_GENERIC_ARG_WILDCARD) {
+                if (!tc_append_format(buffer, buffer_size, written, "?")) {
+                    return false;
+                }
+                continue;
+            }
+            if (!tc_ast_type_slice_to_string_impl(type->generic_args.items[i].type,
+                                                  0,
+                                                  buffer,
+                                                  buffer_size,
+                                                  written)) {
+                return false;
+            }
+        }
+        if (!tc_append_format(buffer, buffer_size, written, ">")) {
+            return false;
+        }
+    }
+
+    if (consumed_dimensions > type->dimension_count) {
+        return false;
+    }
+
+    for (i = consumed_dimensions; i < type->dimension_count; i++) {
+        if (type->dimensions[i].has_size && type->dimensions[i].size_literal) {
+            if (!tc_append_format(buffer,
+                                  buffer_size,
+                                  written,
+                                  "[%s]",
+                                  type->dimensions[i].size_literal)) {
+                return false;
+            }
+        } else if (!tc_append_format(buffer, buffer_size, written, "[]")) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool tc_ast_type_slice_to_string(const AstType *type,
+                                 size_t consumed_dimensions,
+                                 char *buffer,
+                                 size_t buffer_size) {
+    size_t written = 0;
+
+    if (!buffer || buffer_size == 0) {
+        return false;
+    }
+
+    buffer[0] = '\0';
+    return tc_ast_type_slice_to_string_impl(type,
+                                            consumed_dimensions,
+                                            buffer,
+                                            buffer_size,
+                                            &written);
+}
+
+static bool tc_parse_array_size_value(const char *text,
+                                      unsigned long long *value_out) {
+    char *end = NULL;
+    unsigned long long value;
+
+    if (!text || text[0] == '\0') {
+        return false;
+    }
+
+    value = strtoull(text, &end, 10);
+    if (!end || *end != '\0' || value == 0) {
+        return false;
+    }
+
+    if (value_out) {
+        *value_out = value;
+    }
+    return true;
+}
+
+typedef enum {
+    TC_SIZED_ARRAY_DIAG_ASSIGNMENT = 0,
+    TC_SIZED_ARRAY_DIAG_ARGUMENT,
+    TC_SIZED_ARRAY_DIAG_DEFAULT_VALUE,
+    TC_SIZED_ARRAY_DIAG_RETURN_VALUE
+} TcSizedArrayDiagnosticKind;
+
+bool tc_expression_declared_array_shape(TypeChecker *checker,
+                                        const AstExpression *expression,
+                                        const AstType **declared_type_out,
+                                        size_t *consumed_dimensions_out) {
+    const TypeCheckInfo *info;
+    const AstType *declared_type;
+    size_t consumed_dimensions;
+
+    if (declared_type_out) {
+        *declared_type_out = NULL;
+    }
+    if (consumed_dimensions_out) {
+        *consumed_dimensions_out = 0;
+    }
+    if (!checker || !expression) {
+        return false;
+    }
+
+    info = type_checker_get_expression_info(checker, expression);
+    if (info && info->array_shape_type &&
+        info->array_shape_consumed_dimensions < info->array_shape_type->dimension_count) {
+        if (declared_type_out) {
+            *declared_type_out = info->array_shape_type;
+        }
+        if (consumed_dimensions_out) {
+            *consumed_dimensions_out = info->array_shape_consumed_dimensions;
+        }
+        return true;
+    }
+
+    switch (expression->kind) {
+    case AST_EXPR_IDENTIFIER:
+        {
+            const Symbol *symbol = symbol_table_resolve_identifier(checker->symbols,
+                                                                   expression);
+
+            if (!symbol || !symbol->declared_type ||
+                symbol->declared_type->dimension_count == 0) {
+                return false;
+            }
+            if (declared_type_out) {
+                *declared_type_out = symbol->declared_type;
+            }
+            return true;
+        }
+
+    case AST_EXPR_INDEX:
+        if (!tc_expression_declared_array_shape(checker,
+                                                expression->as.index.target,
+                                                &declared_type,
+                                                &consumed_dimensions)) {
+            return false;
+        }
+        if (!declared_type || consumed_dimensions >= declared_type->dimension_count) {
+            return false;
+        }
+        if (declared_type_out) {
+            *declared_type_out = declared_type;
+        }
+        if (consumed_dimensions_out) {
+            *consumed_dimensions_out = consumed_dimensions + 1;
+        }
+        return true;
+
+    case AST_EXPR_GROUPING:
+        return tc_expression_declared_array_shape(checker,
+                                                  expression->as.grouping.inner,
+                                                  declared_type_out,
+                                                  consumed_dimensions_out);
+
+    case AST_EXPR_CAST:
+        return tc_expression_declared_array_shape(checker,
+                                                  expression->as.cast.expression,
+                                                  declared_type_out,
+                                                  consumed_dimensions_out);
+
+    default:
+        return false;
+    }
+}
+
+static bool tc_validate_sized_array_checked_compatibility(TypeChecker *checker,
+                                                          const AstType *target_type,
+                                                          size_t target_consumed_dimensions,
+                                                          const AstExpression *source_expression,
+                                                          CheckedType source_type,
+                                                          const AstSourceSpan *related_span,
+                                                          TcSizedArrayDiagnosticKind diagnostic_kind,
+                                                          const char *subject_kind,
+                                                          const char *subject_name) {
+    size_t i;
+
+    if (!checker || !target_type || !source_expression ||
+        target_consumed_dimensions >= target_type->dimension_count ||
+        source_type.array_depth == 0) {
+        return true;
+    }
+
+    for (i = 0; i < source_type.array_depth &&
+                target_consumed_dimensions + i < target_type->dimension_count;
+         i++) {
+        const AstArrayDimension *target_dimension =
+            &target_type->dimensions[target_consumed_dimensions + i];
+        unsigned long long target_size;
+        unsigned long long source_size;
+        bool source_has_size = false;
+        char target_text[128];
+        char source_text[128];
+        CheckedType source_slice;
+
+        if (!target_dimension->has_size) {
+            continue;
+        }
+
+        if (!tc_parse_array_size_value(target_dimension->size_literal, &target_size)) {
+            continue;
+        }
+        if (!tc_checked_type_array_extent(source_type, i, &source_has_size, &source_size) ||
+            (source_has_size && target_size == source_size)) {
+            continue;
+        }
+
+        if (!tc_ast_type_slice_to_string(target_type,
+                                         target_consumed_dimensions + i,
+                                         target_text,
+                                         sizeof(target_text))) {
+            strncpy(target_text, "<array>", sizeof(target_text) - 1);
+            target_text[sizeof(target_text) - 1] = '\0';
+        }
+
+        if (source_expression->kind == AST_EXPR_ARRAY_LITERAL && source_has_size) {
+            size_t actual_count = (size_t)source_size;
+
+            switch (diagnostic_kind) {
+            case TC_SIZED_ARRAY_DIAG_ARGUMENT:
+                tc_set_error_at(checker,
+                                source_expression->source_span,
+                                related_span,
+                                "Array literal passed to parameter '%s' has %zu element%s, but target type %s requires %llu.",
+                                subject_name ? subject_name : "<anonymous>",
+                                actual_count,
+                                actual_count == 1 ? "" : "s",
+                                target_text,
+                                target_size);
+                break;
+
+            case TC_SIZED_ARRAY_DIAG_RETURN_VALUE:
+                tc_set_error_at(checker,
+                                source_expression->source_span,
+                                related_span,
+                                "Array literal returned from %s has %zu element%s, but target type %s requires %llu.",
+                                subject_kind ? subject_kind : "return value",
+                                actual_count,
+                                actual_count == 1 ? "" : "s",
+                                target_text,
+                                target_size);
+                break;
+
+            case TC_SIZED_ARRAY_DIAG_DEFAULT_VALUE:
+                tc_set_error_at(checker,
+                                source_expression->source_span,
+                                related_span,
+                                "Array literal default value for parameter '%s' has %zu element%s, but target type %s requires %llu.",
+                                subject_name ? subject_name : "<anonymous>",
+                                actual_count,
+                                actual_count == 1 ? "" : "s",
+                                target_text,
+                                target_size);
+                break;
+
+            case TC_SIZED_ARRAY_DIAG_ASSIGNMENT:
+            default:
+                tc_set_error_at(checker,
+                                source_expression->source_span,
+                                related_span,
+                                "Array literal assigned to %s '%s' has %zu element%s, but target type %s requires %llu.",
+                                subject_kind ? subject_kind : "symbol",
+                                subject_name ? subject_name : "<anonymous>",
+                                actual_count,
+                                actual_count == 1 ? "" : "s",
+                                target_text,
+                                target_size);
+                break;
+            }
+
+            return false;
+        }
+
+        source_slice = tc_checked_type_consume_array_prefix(source_type, i);
+        if (!checked_type_to_string(source_slice, source_text, sizeof(source_text))) {
+            strncpy(source_text, "<array>", sizeof(source_text) - 1);
+            source_text[sizeof(source_text) - 1] = '\0';
+        }
+
+        switch (diagnostic_kind) {
+        case TC_SIZED_ARRAY_DIAG_ARGUMENT:
+            tc_set_error_at(checker,
+                            source_expression->source_span,
+                            related_span,
+                            "Cannot pass array of declared type %s to parameter '%s' of type %s.",
+                            source_text,
+                            subject_name ? subject_name : "<anonymous>",
+                            target_text);
+            break;
+
+        case TC_SIZED_ARRAY_DIAG_RETURN_VALUE:
+            tc_set_error_at(checker,
+                            source_expression->source_span,
+                            related_span,
+                            "Cannot return array of declared type %s from %s expecting %s.",
+                            source_text,
+                            subject_kind ? subject_kind : "return value",
+                            target_text);
+            break;
+
+        case TC_SIZED_ARRAY_DIAG_DEFAULT_VALUE:
+            tc_set_error_at(checker,
+                            source_expression->source_span,
+                            related_span,
+                            "Cannot use array of declared type %s as the default value for parameter '%s' of type %s.",
+                            source_text,
+                            subject_name ? subject_name : "<anonymous>",
+                            target_text);
+            break;
+
+        case TC_SIZED_ARRAY_DIAG_ASSIGNMENT:
+        default:
+            tc_set_error_at(checker,
+                            source_expression->source_span,
+                            related_span,
+                            "Cannot assign array of declared type %s to %s '%s' of type %s.",
+                            source_text,
+                            subject_kind ? subject_kind : "symbol",
+                            subject_name ? subject_name : "<anonymous>",
+                            target_text);
+            break;
+        }
+        return false;
+    }
+
+    return true;
+}
+
+static bool tc_validate_sized_array_flow(TypeChecker *checker,
+                                         const AstType *target_type,
+                                         size_t consumed_dimensions,
+                                         const AstExpression *source_expression,
+                                         const AstSourceSpan *related_span,
+                                         TcSizedArrayDiagnosticKind diagnostic_kind,
+                                         const char *subject_kind,
+                                         const char *subject_name) {
+    const TypeCheckInfo *source_info;
+    CheckedType source_type;
+
+    if (!target_type || consumed_dimensions >= target_type->dimension_count) {
+        return true;
+    }
+
+    source_info = type_checker_get_expression_info(checker, source_expression);
+    if (!source_info) {
+        source_info = tc_check_expression(checker, source_expression);
+    }
+    if (!source_info) {
+        return false;
+    }
+
+    source_type = tc_type_check_source_type(source_info);
+    return tc_validate_sized_array_checked_compatibility(checker,
+                                                         target_type,
+                                                         consumed_dimensions,
+                                                         source_expression,
+                                                         source_type,
+                                                         related_span,
+                                                         diagnostic_kind,
+                                                         subject_kind,
+                                                         subject_name);
+}
+
+bool tc_validate_sized_array_assignment(TypeChecker *checker,
+                                        const AstType *target_type,
+                                        size_t consumed_dimensions,
+                                        const AstExpression *source_expression,
+                                        const AstSourceSpan *related_span,
+                                        const char *subject_kind,
+                                        const char *subject_name) {
+    return tc_validate_sized_array_flow(checker,
+                                        target_type,
+                                        consumed_dimensions,
+                                        source_expression,
+                                        related_span,
+                                        TC_SIZED_ARRAY_DIAG_ASSIGNMENT,
+                                        subject_kind,
+                                        subject_name);
+}
+
+bool tc_validate_sized_array_argument(TypeChecker *checker,
+                                      const AstType *target_type,
+                                      size_t consumed_dimensions,
+                                      const AstExpression *source_expression,
+                                      const AstSourceSpan *related_span,
+                                      const char *parameter_name) {
+    return tc_validate_sized_array_flow(checker,
+                                        target_type,
+                                        consumed_dimensions,
+                                        source_expression,
+                                        related_span,
+                                        TC_SIZED_ARRAY_DIAG_ARGUMENT,
+                                        NULL,
+                                        parameter_name);
+}
+
+bool tc_validate_sized_array_default_value(TypeChecker *checker,
+                                           const AstType *target_type,
+                                           size_t consumed_dimensions,
+                                           const AstExpression *source_expression,
+                                           const AstSourceSpan *related_span,
+                                           const char *parameter_name) {
+    return tc_validate_sized_array_flow(checker,
+                                        target_type,
+                                        consumed_dimensions,
+                                        source_expression,
+                                        related_span,
+                                        TC_SIZED_ARRAY_DIAG_DEFAULT_VALUE,
+                                        NULL,
+                                        parameter_name);
+}
+
+bool tc_validate_sized_array_return_value(TypeChecker *checker,
+                                          const AstType *target_type,
+                                          size_t consumed_dimensions,
+                                          const AstExpression *source_expression,
+                                          const AstSourceSpan *related_span,
+                                          const char *return_context_name) {
+    return tc_validate_sized_array_flow(checker,
+                                        target_type,
+                                        consumed_dimensions,
+                                        source_expression,
+                                        related_span,
+                                        TC_SIZED_ARRAY_DIAG_RETURN_VALUE,
+                                        return_context_name,
+                                        NULL);
 }

@@ -2,38 +2,24 @@
 
 #include <stdarg.h>
 
-typedef struct {
-    void *pointer;
-    bool  owned;
-} RuntimeObjectEntry;
-
-typedef struct {
-    RuntimeObjectEntry *items;
-    size_t              count;
-    size_t              capacity;
-} RuntimeObjectRegistry;
-static RuntimeObjectRegistry OBJECT_REGISTRY;
 static _Thread_local RtFailureContext *ACTIVE_FAILURE_CONTEXT = NULL;
 static atomic_int PROCESS_FAILURE_CODE = 0;
 CalyndaRtExternCallable STDOUT_PRINT_CALLABLE = {
-    { CALYNDA_RT_OBJECT_MAGIC, CALYNDA_RT_OBJECT_EXTERN_CALLABLE },
+    { CALYNDA_RT_OBJECT_MAGIC, CALYNDA_RT_OBJECT_EXTERN_CALLABLE, 0 },
     CALYNDA_RT_EXTERN_CALL_STDOUT_PRINT,
     "print"
 };
 
 CalyndaRtExternCallable STDIN_INPUT_CALLABLE = {
-    { CALYNDA_RT_OBJECT_MAGIC, CALYNDA_RT_OBJECT_EXTERN_CALLABLE },
+    { CALYNDA_RT_OBJECT_MAGIC, CALYNDA_RT_OBJECT_EXTERN_CALLABLE, 0 },
     CALYNDA_RT_EXTERN_CALL_STDIN_INPUT,
     "input"
 };
 
 CalyndaRtPackage __calynda_pkg_stdlib = {
-    { CALYNDA_RT_OBJECT_MAGIC, CALYNDA_RT_OBJECT_PACKAGE },
+    { CALYNDA_RT_OBJECT_MAGIC, CALYNDA_RT_OBJECT_PACKAGE, 0 },
     "stdlib"
 };
-static bool registry_contains_pointer(const void *pointer);
-static bool registry_append_pointer(void *pointer, bool owned);
-static void registry_free_owned_object(void *pointer);
 static char *copy_text_n(const char *text, size_t length);
 static const char *rt_require_type_text(CalyndaRtWord word);
 static size_t rt_type_text_base_length(const char *type_text);
@@ -59,37 +45,7 @@ bool rt_reserve_items(void **items, size_t *capacity, size_t needed, size_t item
     return true;
 }
 
-static bool registry_contains_pointer(const void *pointer) {
-    size_t i;
-    for (i = 0; i < OBJECT_REGISTRY.count; i++) {
-        if (OBJECT_REGISTRY.items[i].pointer == pointer) {
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool registry_append_pointer(void *pointer, bool owned) {
-    if (!pointer || registry_contains_pointer(pointer)) {
-        return true;
-    }
-    if (!rt_reserve_items((void **)&OBJECT_REGISTRY.items,
-                          &OBJECT_REGISTRY.capacity,
-                          OBJECT_REGISTRY.count + 1,
-                          sizeof(*OBJECT_REGISTRY.items))) {
-        return false;
-    }
-    OBJECT_REGISTRY.items[OBJECT_REGISTRY.count].pointer = pointer;
-    OBJECT_REGISTRY.items[OBJECT_REGISTRY.count].owned = owned;
-    OBJECT_REGISTRY.count++;
-    return true;
-}
-bool rt_register_object_pointer(void *pointer) { return registry_append_pointer(pointer, true); }
-bool rt_register_static_object_pointer(void *pointer) {
-    return registry_append_pointer(pointer, false);
-}
-
-static void registry_free_owned_object(void *pointer) {
+void rt_free_managed_object(void *pointer) {
     const CalyndaRtObjectHeader *header = (const CalyndaRtObjectHeader *)pointer;
     const CalyndaRtHeteroArray *hetero_array;
     if (!header || header->magic != CALYNDA_RT_OBJECT_MAGIC) {
@@ -140,16 +96,6 @@ static void registry_free_owned_object(void *pointer) {
     free(pointer);
 }
 
-void rt_cleanup_registered_objects(void) {
-    size_t i;
-    for (i = 0; i < OBJECT_REGISTRY.count; i++) {
-        if (OBJECT_REGISTRY.items[i].owned) {
-            registry_free_owned_object(OBJECT_REGISTRY.items[i].pointer);
-        }
-    }
-    free(OBJECT_REGISTRY.items);
-    memset(&OBJECT_REGISTRY, 0, sizeof(OBJECT_REGISTRY));
-}
 CalyndaRtWord rt_make_object_word(void *pointer) { return (CalyndaRtWord)(uintptr_t)pointer; }
 
 void rt_failure_context_push(RtFailureContext *context) {

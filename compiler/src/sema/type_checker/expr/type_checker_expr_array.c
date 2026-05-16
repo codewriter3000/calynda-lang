@@ -57,7 +57,19 @@ bool tc_check_array_literal(TypeChecker *checker,
         return false;
     }
 
-    *info = tc_type_check_info_make(
-        tc_checked_type_value(element_type.primitive, element_type.array_depth + 1));
+    {
+        CheckedType array_type;
+
+        if (!tc_checked_type_prepend_array_extent(checker,
+                                                  element_type,
+                                                  true,
+                                                  (unsigned long long)
+                                                      expression->as.array_literal.elements.count,
+                                                  &array_type)) {
+            return false;
+        }
+
+        *info = tc_type_check_info_make(array_type);
+    }
     return true;
 }

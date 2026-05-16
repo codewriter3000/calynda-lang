@@ -14,6 +14,20 @@
                 break;
             }
 
+            if (tc_check_builtin_fence_call(checker, expression, &info)) {
+                if (checker->has_error) {
+                    return NULL;
+                }
+                break;
+            }
+
+            if (tc_check_builtin_cache_call(checker, expression, &info)) {
+                if (checker->has_error) {
+                    return NULL;
+                }
+                break;
+            }
+
             if (tc_check_builtin_concurrency_call(checker, expression, &info)) {
                 if (checker->has_error) {
                     return NULL;
@@ -121,6 +135,7 @@
                         argument_info = tc_check_lambda_expression(
                             checker, arg_expr,
                             &checker->outer_return_type,
+                            checker->outer_return_ast_type,
                             &callee_info->parameters->items[param_index].name_span,
                             true);
                         if (!argument_info) {
@@ -156,6 +171,16 @@
                     CheckedType argument_type = tc_type_check_source_type(argument_info);
 
                     if (checker->has_error) {
+                        return NULL;
+                    }
+
+                    if (!tc_validate_sized_array_argument(
+                            checker,
+                            &callee_info->parameters->items[param_index].type,
+                            0,
+                            arg_expr,
+                            &callee_info->parameters->items[param_index].name_span,
+                            callee_info->parameters->items[param_index].name)) {
                         return NULL;
                     }
 

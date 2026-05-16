@@ -62,22 +62,12 @@ CalyndaRtWord __calynda_rt_union_new(const CalyndaRtTypeDescriptor *type_desc,
                                      CalyndaRtWord payload) {
     CalyndaRtUnion *union_object;
 
-    union_object = calloc(1, sizeof(*union_object));
-    if (!union_object) {
-        fprintf(stderr, "runtime: out of memory while creating union value\n");
-        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
-    }
-
+    union_object = rt_alloc_managed(sizeof(*union_object));
     union_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     union_object->header.kind = CALYNDA_RT_OBJECT_UNION;
     union_object->type_desc = type_desc;
     union_object->tag = variant_tag;
     union_object->payload = payload;
-    if (!rt_register_object_pointer(union_object)) {
-        free(union_object);
-        fprintf(stderr, "runtime: out of memory while registering union object\n");
-        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
-    }
 
     return rt_make_object_word(union_object);
 }
@@ -119,17 +109,11 @@ CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_
                                             const CalyndaRtWord *elements) {
     CalyndaRtHeteroArray *array_object;
 
-    array_object = calloc(1, sizeof(*array_object));
-    if (!array_object) {
-        fprintf(stderr, "runtime: out of memory while creating hetero array\n");
-        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
-    }
-
+    array_object = rt_alloc_managed(sizeof(*array_object));
     array_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     array_object->header.kind = CALYNDA_RT_OBJECT_HETERO_ARRAY;
     array_object->type_desc = rt_copy_hetero_array_descriptor(type_desc, element_count);
     if (!array_object->type_desc) {
-        free(array_object);
         fprintf(stderr, "runtime: out of memory while creating hetero array metadata\n");
         rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
@@ -137,22 +121,13 @@ CalyndaRtWord __calynda_rt_hetero_array_new(const CalyndaRtTypeDescriptor *type_
     if (element_count > 0) {
         array_object->elements = calloc(element_count, sizeof(*array_object->elements));
         if (!array_object->elements) {
-            free(array_object->elements);
             rt_free_hetero_array_descriptor(array_object->type_desc);
-            free(array_object);
             fprintf(stderr, "runtime: out of memory while creating hetero array elements\n");
             rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
         }
         if (elements) {
             memcpy(array_object->elements, elements, element_count * sizeof(*elements));
         }
-    }
-    if (!rt_register_object_pointer(array_object)) {
-        free(array_object->elements);
-        rt_free_hetero_array_descriptor(array_object->type_desc);
-        free(array_object);
-        fprintf(stderr, "runtime: out of memory while registering hetero array\n");
-        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_OOM);
     }
 
     return rt_make_object_word(array_object);

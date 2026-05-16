@@ -232,6 +232,43 @@ void test_type_resolver_resolves_ptr_generic_type(void) {
     parser_free(&parser);
 }
 
+void test_type_resolver_resolves_mmio_generic_type(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    mmio<uint32> reg = 0;\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    TypeResolver resolver;
+    const AstStartDecl *start_decl;
+    const AstStatement *binding_stmt;
+    const ResolvedType *resolved;
+
+    type_resolver_init(&resolver);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse mmio<uint32> local binding");
+    REQUIRE_TRUE(type_resolver_resolve_program(&resolver, &program),
+                 "mmio<uint32> passes type resolution");
+
+    start_decl = &program.top_level_decls[0]->as.start_decl;
+    binding_stmt = start_decl->body.as.block->statements[0];
+    resolved = type_resolver_get_type(&resolver,
+                                      &binding_stmt->as.local_binding.declared_type);
+    REQUIRE_TRUE(resolved != NULL, "mmio<uint32> resolved type exists");
+    ASSERT_EQ_INT(RESOLVED_TYPE_NAMED, resolved->kind,
+                  "mmio<uint32> resolves as RESOLVED_TYPE_NAMED");
+    ASSERT_TRUE(resolved->name != NULL && strcmp(resolved->name, "mmio") == 0,
+                "mmio<uint32> resolved name is mmio");
+    ASSERT_EQ_INT(1, (int)resolved->generic_arg_count,
+                  "mmio<uint32> has exactly one generic argument");
+
+    type_resolver_free(&resolver);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
 void test_type_resolver_resolves_future_and_atomic_types(void) {
     static const char source[] =
         "Future<int32> futureValue = makeFuture();\n"

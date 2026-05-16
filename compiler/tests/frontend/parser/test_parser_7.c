@@ -197,3 +197,45 @@ void test_parse_ptr_type_in_manual(void) {
 }
 
 
+void test_parse_mmio_type_in_manual(void) {
+    const char *source =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        mmio<uint32> reg = 0;\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    const AstStartDecl *start_decl;
+    const AstStatement *manual_stmt;
+    const AstBlock *body;
+    const AstType *decl_type;
+
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program), "parse mmio type in manual");
+    ASSERT_TRUE(parser_get_error(&parser) == NULL, "no parse error for mmio type");
+
+    start_decl = &program.top_level_decls[0]->as.start_decl;
+    manual_stmt = start_decl->body.as.block->statements[0];
+    body = manual_stmt->as.manual.body;
+    REQUIRE_TRUE(body != NULL, "mmio manual body is not null");
+    ASSERT_EQ_INT(1, (int)body->statement_count, "mmio manual body has 1 statement");
+
+    decl_type = &body->statements[0]->as.local_binding.declared_type;
+    ASSERT_EQ_INT(AST_TYPE_NAMED, decl_type->kind, "declared type is named");
+    ASSERT_EQ_STR("mmio", decl_type->name, "declared type name is mmio");
+    ASSERT_EQ_INT(1, (int)decl_type->generic_args.count, "mmio has 1 generic arg");
+    ASSERT_EQ_INT(AST_GENERIC_ARG_TYPE, decl_type->generic_args.items[0].kind,
+                  "mmio generic arg is a type");
+    ASSERT_EQ_INT(AST_TYPE_PRIMITIVE, decl_type->generic_args.items[0].type->kind,
+                  "mmio generic arg is primitive");
+    ASSERT_EQ_INT(AST_PRIMITIVE_UINT32,
+                  decl_type->generic_args.items[0].type->primitive,
+                  "mmio generic arg is uint32");
+
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+

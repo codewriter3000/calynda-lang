@@ -135,6 +135,13 @@ HirStatement *hr_lower_statement(HirBuildContext *context,
                      "Internal error: swap statements should be expanded before direct HIR lowering.");
         hir_statement_free(hir_statement);
         return NULL;
+    case AST_STMT_INLINE_ASM:
+        hr_set_error(context,
+                     statement->source_span,
+                     NULL,
+                     "Internal error: inline asm statements should be expanded before direct HIR lowering.");
+        hir_statement_free(hir_statement);
+        return NULL;
     }
 
     return hir_statement;

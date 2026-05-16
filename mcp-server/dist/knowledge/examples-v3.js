@@ -13,10 +13,35 @@ exports.EXAMPLES_V3 = [
 };`,
     },
     {
+        name: 'inline-asm-statement',
+        description: 'Statement-level inline assembly inside a boot block',
+        tags: ['asm', 'inline-asm', 'embedded', 'alpha-7'],
+        code: `boot -> {
+    asm {
+        dsb sy
+        isb
+    };
+    return 0;
+};`,
+    },
+    {
         name: 'boot-entry',
         description: 'Freestanding bare-metal entry point that bypasses the Calynda runtime without promising Linux-only exit behavior',
         tags: ['boot', 'v3', 'embedded'],
         code: `boot -> 0;`,
+    },
+    {
+        name: 'mmio-register',
+        description: 'Typed MMIO register access with barriers and cache maintenance',
+        tags: ['mmio', 'embedded', 'boot', 'alpha-7'],
+        code: `boot -> {
+    mmio<uint32> reg = 0x4000_0000;
+    reg.value = 1;
+    fence();
+    cacheclean(reg);
+    cachefinal();
+    return 0;
+};`,
     },
     {
         name: 'future-value',
@@ -133,6 +158,25 @@ start(string[] args) -> {
 start(string[] args) -> {
     return add(3);
 };`,
+    },
+    {
+        name: 'sized-array',
+        description: 'Fixed-size array declarations with extent-aware semantic checks',
+        tags: ['array', 'sized-array', 'alpha-7'],
+        code: `int32 sum4 = (int32[4] values) -> values[0] + values[1] + values[2] + values[3];
+
+start -> {
+    int32[4] values = [1, 2, 3, 4];
+    return sum4(values);
+};`,
+    },
+    {
+        name: 'gc-flags',
+        description: 'Selecting the hosted GC backend from the CLI',
+        tags: ['gc', 'cli', 'alpha-7'],
+        code: `// Default hosted runtime: calynda build main.cal
+// Legacy GC: calynda build --gc legacy main.cal
+// Custom GC archive: calynda build --gc-plugin libcustom_gc.a main.cal`,
     },
 ];
 //# sourceMappingURL=examples-v3.js.map

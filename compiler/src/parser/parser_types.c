@@ -62,9 +62,22 @@ bool parser_parse_type(Parser *parser, AstType *type) {
         return true;
     }
 
-    if (parser_match(parser, TOK_ARR) || parser_match(parser, TOK_PTR)) {
-        parsed_type.kind = (parser_previous_token(parser)->type == TOK_PTR)
-                               ? AST_TYPE_PTR : AST_TYPE_ARR;
+    if (parser_match(parser, TOK_ARR) || parser_match(parser, TOK_PTR) ||
+        parser_match(parser, TOK_MMIO)) {
+        TokenType builtin_type = parser_previous_token(parser)->type;
+
+        if (builtin_type == TOK_PTR) {
+            parsed_type.kind = AST_TYPE_PTR;
+        } else if (builtin_type == TOK_ARR) {
+            parsed_type.kind = AST_TYPE_ARR;
+        } else {
+            ast_type_init_named(&parsed_type, "mmio");
+            if (!parsed_type.name) {
+                parser_set_oom_error(parser);
+                return false;
+            }
+        }
+
         if (!parser_parse_generic_args(parser, &parsed_type)) {
             ast_type_free(&parsed_type);
             return false;

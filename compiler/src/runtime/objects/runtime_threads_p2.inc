@@ -44,3 +44,27 @@ CalyndaRtWord __calynda_rt_atomic_exchange(CalyndaRtWord atomic_handle,
                                     new_value,
                                     memory_order_seq_cst);
 }
+
+void __calynda_rt_fence(void) {
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+}
+
+void __calynda_rt_cache_clean(CalyndaRtWord address) {
+    uintptr_t raw_address = (uintptr_t)address;
+
+#if defined(__aarch64__)
+    __asm__ volatile("dc cvau, %0" : : "r"(raw_address) : "memory");
+#else
+    (void)raw_address;
+#endif
+}
+
+void __calynda_rt_cache_final(void) {
+#if defined(__aarch64__)
+    __asm__ volatile("dsb ish\n\tisb" : : : "memory");
+#elif defined(__riscv)
+    __asm__ volatile("fence.i" : : : "memory");
+#else
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+#endif
+}

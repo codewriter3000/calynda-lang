@@ -217,15 +217,15 @@
       "patterns": [
         {
           "name": "keyword.control.calynda",
-          "match": "\\b(?:package|import|start|boot|return|exit|throw|union|manual|checked|layout|asm|malloc|calloc|realloc|free|deref|store|offset|addr|cleanup|stackalloc)\\b"
+          "match": "\\b(?:package|import|start|boot|return|exit|throw|union|manual|checked|layout|asm|malloc|calloc|realloc|free|deref|store|offset|addr|cleanup|stackalloc|fence|cacheclean|cachefinal)\\b"
         },
         {
           "name": "storage.modifier.calynda",
-          "match": "\\b(?:export|public|private|final|static|internal|var)\\b"
+          "match": "\\b(?:export|public|private|final|static|internal|thread_local|var)\\b"
         },
         {
           "name": "keyword.other.calynda",
-          "match": "\\b(?:as|arr|ptr)\\b"
+          "match": "\\b(?:as|type|arr|ptr|mmio)\\b"
         },
         {
           "name": "variable.language.discard.calynda",
@@ -237,7 +237,7 @@
       "patterns": [
         {
           "name": "storage.type.primitive.calynda",
-          "match": "\\b(?:void|int8|int16|int32|int64|uint8|uint16|uint32|uint64|float32|float64|bool|char|string|byte|sbyte|short|int|long|ulong|uint|float|double)\\b"
+          "match": "\\b(?:void|int8|int16|int32|int64|uint8|uint16|uint32|uint64|float32|float64|bool|char|string|byte|sbyte|short|int|long|ulong|uint|float|double|num)\\b"
         },
         {
           "comment": "User-defined type name (PascalCase identifier followed by optional generic args)",

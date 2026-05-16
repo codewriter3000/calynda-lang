@@ -3,6 +3,7 @@
 
 #include "type_checker.h"
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,7 @@ typedef struct {
     bool             has_expected_return_type;
     bool             enforce_expected_return_type;
     CheckedType      expected_return_type;
+    const AstType   *expected_return_ast_type;
     AstSourceSpan    owner_span;
     AstSourceSpan    related_span;
     bool             has_related_span;
@@ -41,6 +43,20 @@ CheckedType tc_checked_type_named(const char *name, size_t generic_arg_count,
                                   size_t array_depth);
 CheckedType tc_checked_type_type_param(const char *name);
 CheckedType tc_checked_type_function(size_t param_count);
+bool tc_allocate_owned_array_extents(TypeChecker *checker,
+                                     size_t count,
+                                     ArrayExtent **array_extents_out);
+bool tc_checked_type_array_extent(CheckedType type,
+                                  size_t index,
+                                  bool *has_size_out,
+                                  unsigned long long *size_out);
+CheckedType tc_checked_type_consume_array_prefix(CheckedType type,
+                                                 size_t consumed_dimensions);
+bool tc_checked_type_prepend_array_extent(TypeChecker *checker,
+                                          CheckedType element_type,
+                                          bool has_size,
+                                          unsigned long long size,
+                                          CheckedType *array_type_out);
 bool tc_checked_type_is_hetero_array(CheckedType type);
 bool tc_checked_type_is_num(CheckedType type);
 bool tc_checked_type_equals(CheckedType left, CheckedType right);
@@ -58,6 +74,39 @@ AstPrimitiveType tc_primitive_canonical(AstPrimitiveType primitive);
 bool tc_primitive_is_signed(AstPrimitiveType primitive);
 AstPrimitiveType tc_signed_primitive_for_width(int width);
 AstPrimitiveType tc_unsigned_primitive_for_width(int width);
+bool tc_ast_type_slice_to_string(const AstType *type,
+                                 size_t consumed_dimensions,
+                                 char *buffer,
+                                 size_t buffer_size);
+bool tc_expression_declared_array_shape(TypeChecker *checker,
+                                        const AstExpression *expression,
+                                        const AstType **declared_type_out,
+                                        size_t *consumed_dimensions_out);
+bool tc_validate_sized_array_assignment(TypeChecker *checker,
+                                        const AstType *target_type,
+                                        size_t consumed_dimensions,
+                                        const AstExpression *source_expression,
+                                        const AstSourceSpan *related_span,
+                                        const char *subject_kind,
+                                        const char *subject_name);
+bool tc_validate_sized_array_argument(TypeChecker *checker,
+                                      const AstType *target_type,
+                                      size_t consumed_dimensions,
+                                      const AstExpression *source_expression,
+                                      const AstSourceSpan *related_span,
+                                      const char *parameter_name);
+bool tc_validate_sized_array_default_value(TypeChecker *checker,
+                                           const AstType *target_type,
+                                           size_t consumed_dimensions,
+                                           const AstExpression *source_expression,
+                                           const AstSourceSpan *related_span,
+                                           const char *parameter_name);
+bool tc_validate_sized_array_return_value(TypeChecker *checker,
+                                          const AstType *target_type,
+                                          size_t consumed_dimensions,
+                                          const AstExpression *source_expression,
+                                          const AstSourceSpan *related_span,
+                                          const char *return_context_name);
 
 /* type_checker_convert.c */
 CheckedType tc_promote_numeric_types(CheckedType left, CheckedType right);
@@ -135,6 +184,7 @@ bool tc_check_parameter_defaults(TypeChecker *checker,
 const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
                                                 const AstExpression *expression,
                                                 const CheckedType *expected_return_type,
+                                                const AstType *expected_return_ast_type,
                                                 const AstSourceSpan *related_span,
                                                 bool is_nlr_block);
 bool tc_check_start_decl(TypeChecker *checker, const AstStartDecl *start_decl);
@@ -142,7 +192,9 @@ bool tc_check_start_decl(TypeChecker *checker, const AstStartDecl *start_decl);
 /* type_checker_block.c */
 bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                     const BlockContext *context,
-                    CheckedType *return_type, AstSourceSpan *return_span);
+                    CheckedType *return_type, AstSourceSpan *return_span,
+                    const AstType **return_shape_type,
+                    size_t *return_shape_consumed_dimensions);
 
 /* type_checker_ops.c */
 bool tc_check_binary_operator(TypeChecker *checker,

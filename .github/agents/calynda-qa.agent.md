@@ -16,10 +16,10 @@ You are the QA lead for the Calynda compiler project. Your job is to drive the p
 ## Repository Snapshot
 
 **Build entrypoint**: `cd compiler && ./run_tests.sh` (runs `make clean && make test`).  
-**Current test inventory**: 75+ test source files, 1405+ assertions across 19 suites, all passing.  
+**Current test inventory**: multiple test source files across frontend, sema, IR, backend, CLI, runtime, CAR, and cross-target suites; use the current `./run_tests.sh` output for exact suite and assertion counts before sign-off.  
 **Compiler pipeline**: Source → Tokenizer → Parser → AST → SymbolTable → TypeResolution → TypeChecker → HIR → MIR → LIR → Codegen → Machine → AsmEmit → native executable (or → BytecodeProgram).  
 **Backends**: x86_64 SysV ELF (primary), AArch64 AAPCS64 ELF, RISC-V RV64GC ELF, portable-v1 bytecode.  
-**Source language**: `.cal` files; Java-like syntax; all functions are lambdas; `start(string[] args)` entry point; no if/else or loops; ternary for conditionals; tagged unions with reified generics; `manual`/`manual checked` scopes for unsafe memory; `ptr<T>` typed pointers; CAR source archives.
+**Source language**: `.cal` files; Java-like syntax; all functions are lambdas; `start(string[] args)` entry point; no if/else or loops; ternary for conditionals; tagged unions with reified generics; `manual`/`manual checked` scopes for unsafe memory; `ptr<T>` / `mmio<T>` low-level typed memory; statement-level inline asm; fixed-size array extent checks; CAR source archives.
 
 ---
 
@@ -37,11 +37,11 @@ Work through every stage in pipeline order.
 
 ### Tokenizer (`compiler/src/tokenizer/`)
 Existing: `tests/frontend/tokenizer/test_tokenizer*.c` (4 files).  
-Gap-check against: every `TOK_*` token kind, Unicode identifiers, all operator tokens (`~&`, `~^`, `++`, `--`, compound-assign variants), template literal nesting (deep braces, nested templates), line/column tracking across CRLF input, unterminated strings, invalid escapes, very long tokens.
+Gap-check against: every `TOK_*` token kind, Unicode identifiers, all operator tokens (`~&`, `~^`, `++`, `--`, compound-assign variants), template literal nesting (deep braces, nested templates), statement-level `asm { ... }` raw-body capture, `mmio` keyword tokenization, line/column tracking across CRLF input, unterminated strings, invalid escapes, very long tokens.
 
 ### Parser (`compiler/src/parser/`)
 Existing: `tests/frontend/parser/test_parser*.c` (8 files).  
-Gap-check against: every production in `calynda.ebnf` and `calynda_v2.ebnf`; all import styles (plain, alias, wildcard, selective); all modifier combinations; varargs; generic type arguments including nested `>>`-splitting; array type dimensions; union declarations with multiple variants and type parameters; `manual`/`manual checked` blocks; error-recovery on malformed input (ensure no crash, that an error is reported, and that the error span is reasonable).
+Gap-check against: every production in `calynda.ebnf` and `calynda_v2.ebnf`; all import styles (plain, alias, wildcard, selective); all modifier combinations; varargs; generic type arguments including nested `>>`-splitting; fixed-size array type dimensions; union declarations with multiple variants and type parameters; `manual`/`manual checked` blocks; `mmio<T>` type syntax; statement-level `asm { ... };`; error-recovery on malformed input (ensure no crash, that an error is reported, and that the error span is reasonable).
 
 ### AST (`compiler/src/ast/`)
 Existing: `tests/frontend/ast/test_ast*.c` (6 files), `test_ast_dump*.c` (2 files).  
@@ -53,19 +53,19 @@ Gap-check against: union variant symbols; type-parameter scopes; `SYMBOL_KIND_UN
 
 ### Type Resolution (`compiler/src/sema/`)
 Existing: `tests/sema/resolution/test_type_resolution*.c` (3 files).  
-Gap-check against: `ptr<T>` type resolution; `arr<T>` resolution; multi-dimensional array types; named/generic types (AST_TYPE_NAMED); void in cast position; void as array element type; union type names as declared types.
+Gap-check against: `ptr<T>` / `mmio<T>` type resolution; `arr<T>` resolution; multi-dimensional and fixed-size array types; named/generic types (AST_TYPE_NAMED); void in cast position; void as array element type; union type names as declared types.
 
 ### Type Checker (`compiler/src/sema/`)
 Existing: `tests/sema/checker/test_type_checker*.c` (13 files).  
-Gap-check against: union construction and exhaustive tag checking; `ptr<T>` coercion to/from integral types; `deref`/`offset`/`store`/`addr`/`free` with typed pointers; `stackalloc` in `manual`/`manual checked` scope; post-increment/decrement type preservation; pre-increment/decrement; `~&`/`~^` operators; varargs call-site arity/type checking; zero-argument callable interpolation rejection on void return; `internal` visibility with aliased callables; all compound-assignment operators; array index out-of-declared-dimension diagnostics; start-return-type enforcement with non-int32 expressions.
+Gap-check against: union construction and exhaustive tag checking; `ptr<T>` / `mmio<T>` coercion or address compatibility rules; `deref`/`offset`/`store`/`addr`/`free` with typed pointers; `mmio<T>.value`, `fence()`, `cacheclean(...)`, `cachefinal()`; `stackalloc` in `manual`/`manual checked` scope; post-increment/decrement type preservation; pre-increment/decrement; `~&`/`~^` operators; varargs call-site arity/type checking; zero-argument callable interpolation rejection on void return; `internal` visibility with aliased callables; all compound-assignment operators; fixed-size array compatibility diagnostics; start-return-type enforcement with non-int32 expressions.
 
 ### HIR (`compiler/src/hir/`)
 Existing: `tests/ir/test_hir_dump*.c` (5 files).  
-Gap-check against: union HIR nodes; `ptr<T>` HIR lowering; `manual`/`manual checked` block lowering; `stackalloc` deferred free injection; pre/post-increment normalisation; varargs HIR representation; callable-metadata propagation through aliased locals; `is_exported`/`is_static` propagation.
+Gap-check against: union HIR nodes; `ptr<T>` / `mmio<T>` HIR lowering; statement-level inline asm lowering; `manual`/`manual checked` block lowering; `stackalloc` deferred free injection; pre/post-increment normalisation; varargs HIR representation; callable-metadata propagation through aliased locals; `is_exported`/`is_static` propagation.
 
 ### MIR (`compiler/src/mir/`)
 Existing: `tests/ir/test_mir_dump*.c` (9 files).  
-Gap-check against: union_new with generic descriptor tags; union_get_tag / union_get_payload; `__calynda_deref_sized`/`__calynda_offset_stride`/`__calynda_store_sized` for non-word-sized ptr ops; module-init ordering for multiple globals; nested closure capturing a closure-captured variable (double capture); throw inside ternary; compound assignment on global; template with multiple interpolations including zero-arg callable auto-call.
+Gap-check against: union_new with generic descriptor tags; union_get_tag / union_get_payload; `__calynda_deref_sized`/`__calynda_offset_stride`/`__calynda_store_sized` for non-word-sized ptr ops; MMIO volatile helpers and `.value` lowering; `fence()` / `cacheclean()` / `cachefinal()` helper routing; static final global array lowering; module-init ordering for multiple globals; nested closure capturing a closure-captured variable (double capture); throw inside ternary; compound assignment on global; template with multiple interpolations including zero-arg callable auto-call.
 
 ### LIR (`compiler/src/lir/`)
 Existing: `tests/ir/test_lir_dump*.c` (4 files).  
@@ -85,11 +85,11 @@ Gap-check against: union runtime values (tag read, payload box/unbox); `manual c
 
 ### Native Build & Execution (`compiler/src/cli/`)
 Existing: `tests/backend/emit/test_build_native*.c` (4 files).  
-Gap-check against: end-to-end programs that exercise — (a) all primitive types, (b) closures with double capture, (c) union construction and tag dispatch via `.tag`/`.payload`, (d) `manual` memory allocation and free, (e) `manual checked` with out-of-bounds access triggering abort, (f) `ptr<T>` arithmetic over a stack-allocated buffer, (g) template literals with multiple zero-arg callable interpolations, (h) varargs passthrough, (i) multi-file CAR compilation, (j) all three `--target` flags producing assembler that at minimum assembles without error.
+Gap-check against: end-to-end programs that exercise — (a) all primitive types, (b) closures with double capture, (c) union construction and tag dispatch via `.tag`/`.payload`, (d) `manual` memory allocation and free, (e) `manual checked` with out-of-bounds access triggering abort, (f) `ptr<T>` arithmetic over a stack-allocated buffer, (g) `mmio<T>.value` plus `fence()` / `cacheclean()` / `cachefinal()`, (h) template literals with multiple zero-arg callable interpolations, (i) varargs passthrough, (j) multi-file CAR compilation, (k) all three `--target` flags producing assembler that at minimum assembles without error.
 
 ### CLI (`compiler/src/cli/`)
 Existing: `tests/backend/tools/test_calynda_cli*.c` (2 files).  
-Gap-check against: every subcommand (`asm`, `bytecode`, `build`, `run`, `pack`); `--target` flag with valid and invalid values; missing source file; malformed source; help/usage output; `dump_ast --expr` mode; `dump_semantics` output when type checking fails.
+Gap-check against: every subcommand (`asm`, `bytecode`, `build`, `run`, `pack`); `--target`, `--manual-bounds-check`, `--gc`, and `--gc-plugin` with valid and invalid values; missing source file; malformed source; help/usage output; `dump_ast --expr` mode; `dump_semantics` output when type checking fails.
 
 ### CAR (`compiler/src/car/`)
 Existing: `tests/backend/tools/test_car*.c` (3 files).  
@@ -101,7 +101,7 @@ Gap-check against: all 18 instructions emitted at least once; all 4 terminators;
 
 ### MCP Server (`mcp-server/`)
 Existing: no automated tests.  
-Gap-check against: TypeScript compilation (`tsc --noEmit`); `analyze_calynda_code` tool with valid and invalid input; `validate_calynda_types` with union types and generic args; `complete_calynda_code` smoke test; grammar resource reflects 0.4.0 feature set; all tool handlers return structured responses without throwing.
+Gap-check against: TypeScript compilation (`tsc --noEmit`); `analyze_calynda_code` tool with valid and invalid input; `validate_calynda_types` with union types, generic args, and `mmio<T>`; `complete_calynda_code` smoke test; grammar/resource output reflects the alpha.7 feature set; all tool handlers return structured responses without throwing.
 
 ---
 

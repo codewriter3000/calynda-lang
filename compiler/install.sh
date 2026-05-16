@@ -117,10 +117,12 @@ require_command gcc
 BUILD_DIR=$SCRIPT_DIR/build
 SOURCE_BIN=$BUILD_DIR/calynda
 SOURCE_RUNTIME=$BUILD_DIR/calynda_runtime.a
+SOURCE_RUNTIME_MS=$BUILD_DIR/calynda_runtime_ms.a
 SOURCE_BOOT_RUNTIME=$BUILD_DIR/calynda_runtime_boot.a
 INSTALL_ROOT=$LIB_DIR/calynda
 INSTALL_BIN=$INSTALL_ROOT/calynda
 INSTALL_RUNTIME=$INSTALL_ROOT/calynda_runtime.a
+INSTALL_RUNTIME_MS=$INSTALL_ROOT/calynda_runtime_ms.a
 INSTALL_BOOT_RUNTIME=$INSTALL_ROOT/calynda_runtime_boot.a
 LAUNCHER_PATH=$BIN_DIR/calynda
 
@@ -137,6 +139,11 @@ if [ ! -f "$SOURCE_RUNTIME" ]; then
     exit 1
 fi
 
+if [ ! -f "$SOURCE_RUNTIME_MS" ]; then
+    printf 'error: build did not produce %s\n' "$SOURCE_RUNTIME_MS" >&2
+    exit 1
+fi
+
 if [ ! -f "$SOURCE_BOOT_RUNTIME" ]; then
     printf 'error: build did not produce %s\n' "$SOURCE_BOOT_RUNTIME" >&2
     exit 1
@@ -146,6 +153,7 @@ printf '==> Installing files\n'
 install -d "$BIN_DIR" "$INSTALL_ROOT"
 install -m 755 "$SOURCE_BIN" "$INSTALL_BIN"
 install -m 644 "$SOURCE_RUNTIME" "$INSTALL_RUNTIME"
+install -m 644 "$SOURCE_RUNTIME_MS" "$INSTALL_RUNTIME_MS"
 install -m 644 "$SOURCE_BOOT_RUNTIME" "$INSTALL_BOOT_RUNTIME"
 
 cat > "$LAUNCHER_PATH" <<EOF
@@ -158,6 +166,7 @@ printf '\nInstalled Calynda:\n'
 printf '  launcher: %s\n' "$LAUNCHER_PATH"
 printf '  binary:   %s\n' "$INSTALL_BIN"
 printf '  runtime:  %s\n' "$INSTALL_RUNTIME"
+printf '  gc-ms rt: %s\n' "$INSTALL_RUNTIME_MS"
 printf '  boot rt:  %s\n' "$INSTALL_BOOT_RUNTIME"
 
 case ":${PATH}:" in

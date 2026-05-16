@@ -188,8 +188,8 @@ const TypeCheckInfo *tc_check_expression_more(TypeChecker *checker,
             }
 
             if (target_type.kind == CHECKED_TYPE_VALUE && target_type.array_depth > 0) {
-                info = tc_type_check_info_make(tc_checked_type_value(target_type.primitive,
-                                                                     target_type.array_depth - 1));
+                info = tc_type_check_info_make(
+                    tc_checked_type_consume_array_prefix(target_type, 1));
                 break;
             }
 

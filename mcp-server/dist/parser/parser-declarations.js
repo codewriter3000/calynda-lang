@@ -71,7 +71,7 @@ function parseTopLevelDecl(state) {
         modifiers.push(state.advance().value);
     }
     if (state.check('keyword', 'var') || state.check('type') || state.check('keyword', 'void') ||
-        state.check('keyword', 'arr') || state.check('keyword', 'ptr')) {
+        state.check('keyword', 'arr') || state.check('keyword', 'ptr') || state.check('keyword', 'mmio')) {
         return parseBindingDecl(state, modifiers);
     }
     if (state.check('keyword', 'type')) {

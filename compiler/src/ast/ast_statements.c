@@ -73,6 +73,10 @@ void ast_statement_free(AstStatement *statement) {
         ast_expression_free(statement->as.swap.left);
         ast_expression_free(statement->as.swap.right);
         break;
+    case AST_STMT_INLINE_ASM:
+        free(statement->as.inline_asm.body);
+        memset(&statement->as.inline_asm, 0, sizeof(statement->as.inline_asm));
+        break;
     }
 
     free(statement);

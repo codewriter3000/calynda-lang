@@ -111,44 +111,27 @@ CalyndaRtString *rt_new_string_object(const char *bytes, size_t length) {
     if (!copied_bytes) {
         return NULL;
     }
-    string_object = calloc(1, sizeof(*string_object));
-    if (!string_object) {
-        free(copied_bytes);
-        return NULL;
-    }
+    string_object = rt_alloc_managed(sizeof(*string_object));
     string_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     string_object->header.kind = CALYNDA_RT_OBJECT_STRING;
     string_object->length = length;
     string_object->bytes = copied_bytes;
-    if (!rt_register_object_pointer(string_object)) {
-        free(copied_bytes);
-        free(string_object);
-        return NULL;
-    }
     return string_object;
 }
 
 CalyndaRtArray *rt_new_array_object(size_t element_count, const CalyndaRtWord *elements) {
     CalyndaRtArray *array_object;
-    array_object = calloc(1, sizeof(*array_object));
-    if (!array_object) {
-        return NULL;
-    }
+    array_object = rt_alloc_managed(sizeof(*array_object));
     array_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     array_object->header.kind = CALYNDA_RT_OBJECT_ARRAY;
     array_object->count = element_count;
     if (element_count > 0) {
         array_object->elements = calloc(element_count, sizeof(*array_object->elements));
         if (!array_object->elements) {
-            free(array_object);
-            return NULL;
+            rt_fatalf(CALYNDA_RT_EXIT_RUNTIME_OOM,
+                      "runtime: out of memory allocating array elements\n");
         }
         memcpy(array_object->elements, elements, element_count * sizeof(*elements));
-    }
-    if (!rt_register_object_pointer(array_object)) {
-        free(array_object->elements);
-        free(array_object);
-        return NULL;
     }
     return array_object;
 }
@@ -157,10 +140,7 @@ CalyndaRtClosure *rt_new_closure_object(CalyndaRtClosureEntry code_ptr,
                                         size_t capture_count,
                                         const CalyndaRtWord *captures) {
     CalyndaRtClosure *closure_object;
-    closure_object = calloc(1, sizeof(*closure_object));
-    if (!closure_object) {
-        return NULL;
-    }
+    closure_object = rt_alloc_managed(sizeof(*closure_object));
     closure_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     closure_object->header.kind = CALYNDA_RT_OBJECT_CLOSURE;
     closure_object->entry = code_ptr;
@@ -168,76 +148,42 @@ CalyndaRtClosure *rt_new_closure_object(CalyndaRtClosureEntry code_ptr,
     if (capture_count > 0) {
         closure_object->captures = calloc(capture_count, sizeof(*closure_object->captures));
         if (!closure_object->captures) {
-            free(closure_object);
-            return NULL;
+            rt_fatalf(CALYNDA_RT_EXIT_RUNTIME_OOM,
+                      "runtime: out of memory allocating closure captures\n");
         }
         memcpy(closure_object->captures,
                captures,
                capture_count * sizeof(*closure_object->captures));
     }
-    if (!rt_register_object_pointer(closure_object)) {
-        free(closure_object->captures);
-        free(closure_object);
-        return NULL;
-    }
     return closure_object;
 }
 
 CalyndaRtThread *rt_new_thread_object(void) {
-    CalyndaRtThread *thread_object = calloc(1, sizeof(*thread_object));
-
-    if (!thread_object) {
-        return NULL;
-    }
+    CalyndaRtThread *thread_object = rt_alloc_managed(sizeof(*thread_object));
     thread_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     thread_object->header.kind = CALYNDA_RT_OBJECT_THREAD;
-    if (!rt_register_object_pointer(thread_object)) {
-        free(thread_object);
-        return NULL;
-    }
     return thread_object;
 }
 
 CalyndaRtMutex *rt_new_mutex_object(void) {
-    CalyndaRtMutex *mutex_object = calloc(1, sizeof(*mutex_object));
-
-    if (!mutex_object) {
-        return NULL;
-    }
+    CalyndaRtMutex *mutex_object = rt_alloc_managed(sizeof(*mutex_object));
     mutex_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     mutex_object->header.kind = CALYNDA_RT_OBJECT_MUTEX;
     if (pthread_mutex_init(&mutex_object->mutex, NULL) != 0) {
-        free(mutex_object);
-        return NULL;
-    }
-    if (!rt_register_object_pointer(mutex_object)) {
-        pthread_mutex_destroy(&mutex_object->mutex);
-        free(mutex_object);
-        return NULL;
+        fprintf(stderr, "runtime: failed to initialise mutex\n");
+        rt_fatal_now(CALYNDA_RT_EXIT_RUNTIME_ERROR);
     }
     return mutex_object;
 }
 
 CalyndaRtFuture *rt_new_future_object(CalyndaRtWord callable) {
-    CalyndaRtFuture *future_object = calloc(1, sizeof(*future_object));
-
-    if (!future_object) {
-        return NULL;
-    }
+    CalyndaRtFuture *future_object = rt_alloc_managed(sizeof(*future_object));
     future_object->header.magic = CALYNDA_RT_OBJECT_MAGIC;
     future_object->header.kind = CALYNDA_RT_OBJECT_FUTURE;
     future_object->callable = callable;
-    if (!rt_register_object_pointer(future_object)) {
-        free(future_object);
-        return NULL;
-    }
     return future_object;
 }
 
 CalyndaRtAtomic *rt_new_atomic_object(void) {
-    CalyndaRtAtomic *atomic_object = calloc(1, sizeof(*atomic_object));
-
-    if (!atomic_object) {
-        return NULL;
-    }
+    CalyndaRtAtomic *atomic_object = rt_alloc_managed(sizeof(*atomic_object));
 #include "runtime_p3.inc"

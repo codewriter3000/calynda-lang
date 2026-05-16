@@ -157,6 +157,7 @@ typedef struct {
     size_t           argument_count;
     size_t           element_size; /* sizeof(T) for ptr<T>; 0 = word-size (untyped) */
     bool             is_checked_ptr; /* true when first arg is ptr<T, checked> */
+    bool             is_mmio; /* true when first arg is mmio<T> and accesses must stay volatile */
 } HirMemoryOpExpression;
 
 typedef enum {

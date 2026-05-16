@@ -159,7 +159,10 @@
         exit_code = 1;
         goto cleanup_pipeline;
     }
-    if (!machine_build_program(machine_program, &lir_program, &codegen_program)) {
+    if (!machine_build_program(machine_program,
+                               &lir_program,
+                               &codegen_program,
+                               &hir_program)) {
         const MachineBuildError *machine_error = machine_get_error(machine_program);
         if (machine_error) {
             const char *err_path;

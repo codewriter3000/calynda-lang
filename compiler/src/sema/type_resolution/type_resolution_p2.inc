@@ -10,13 +10,7 @@
                 return false;
             }
         }
-        for (i = 0; i < type.array_depth; i++) {
-            written += snprintf(buffer + written, buffer_size - (size_t)written, "[]");
-            if (written < 0 || (size_t)written >= buffer_size) {
-                return false;
-            }
-        }
-        return true;
+        return tr_append_array_extents_to_string(type, buffer, buffer_size, &written);
     }
 
     return false;

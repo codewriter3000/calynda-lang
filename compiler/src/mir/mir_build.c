@@ -1,5 +1,124 @@
 #include "mir_internal.h"
 
+static AstPrimitiveType mr_static_array_canonical_primitive(AstPrimitiveType primitive) {
+    switch (primitive) {
+    case AST_PRIMITIVE_BYTE:   return AST_PRIMITIVE_UINT8;
+    case AST_PRIMITIVE_SBYTE:  return AST_PRIMITIVE_INT8;
+    case AST_PRIMITIVE_SHORT:  return AST_PRIMITIVE_INT16;
+    case AST_PRIMITIVE_INT:    return AST_PRIMITIVE_INT32;
+    case AST_PRIMITIVE_UINT:   return AST_PRIMITIVE_UINT32;
+    case AST_PRIMITIVE_LONG:   return AST_PRIMITIVE_INT64;
+    case AST_PRIMITIVE_ULONG:  return AST_PRIMITIVE_UINT64;
+    default:                   return primitive;
+    }
+}
+
+static bool mr_static_array_primitive_is_integral(AstPrimitiveType primitive) {
+    switch (mr_static_array_canonical_primitive(primitive)) {
+    case AST_PRIMITIVE_INT8:
+    case AST_PRIMITIVE_INT16:
+    case AST_PRIMITIVE_INT32:
+    case AST_PRIMITIVE_INT64:
+    case AST_PRIMITIVE_UINT8:
+    case AST_PRIMITIVE_UINT16:
+    case AST_PRIMITIVE_UINT32:
+    case AST_PRIMITIVE_UINT64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool mr_static_array_primitive_is_signed(AstPrimitiveType primitive) {
+    switch (mr_static_array_canonical_primitive(primitive)) {
+    case AST_PRIMITIVE_INT8:
+    case AST_PRIMITIVE_INT16:
+    case AST_PRIMITIVE_INT32:
+    case AST_PRIMITIVE_INT64:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool mr_is_static_scalar_expression(const HirExpression *expression) {
+    AstPrimitiveType primitive;
+
+    if (!expression) {
+        return false;
+    }
+
+    if (expression->kind == HIR_EXPR_UNARY) {
+        if (expression->as.unary.operator == AST_UNARY_OP_PLUS) {
+            return mr_is_static_scalar_expression(expression->as.unary.operand);
+        }
+        if (expression->as.unary.operator == AST_UNARY_OP_NEGATE) {
+            return expression->type.kind == CHECKED_TYPE_VALUE &&
+                   expression->type.array_depth == 0 &&
+                   expression->as.unary.operand != NULL &&
+                   expression->as.unary.operand->kind == HIR_EXPR_LITERAL &&
+                   expression->as.unary.operand->as.literal.kind == AST_LITERAL_INTEGER &&
+                   mr_static_array_primitive_is_integral(expression->type.primitive) &&
+                   mr_static_array_primitive_is_signed(expression->type.primitive);
+        }
+        return false;
+    }
+
+    if (expression->kind != HIR_EXPR_LITERAL ||
+        expression->type.kind != CHECKED_TYPE_VALUE ||
+        expression->type.array_depth != 0) {
+        return false;
+    }
+
+    primitive = mr_static_array_canonical_primitive(expression->type.primitive);
+    switch (expression->as.literal.kind) {
+    case AST_LITERAL_BOOL:
+        return primitive == AST_PRIMITIVE_BOOL;
+    case AST_LITERAL_INTEGER:
+        return mr_static_array_primitive_is_integral(primitive);
+    default:
+        return false;
+    }
+}
+
+static bool mr_is_static_array_literal_expression(const HirExpression *expression) {
+    size_t i;
+
+    if (!expression ||
+        expression->kind != HIR_EXPR_ARRAY_LITERAL ||
+        expression->type.kind != CHECKED_TYPE_VALUE ||
+        expression->type.array_depth == 0) {
+        return false;
+    }
+
+    for (i = 0; i < expression->as.array_literal.element_count; i++) {
+        const HirExpression *element = expression->as.array_literal.elements[i];
+
+        if (!element) {
+            return false;
+        }
+
+        if (element->type.kind == CHECKED_TYPE_VALUE &&
+            element->type.array_depth > 0) {
+            if (!mr_is_static_array_literal_expression(element)) {
+                return false;
+            }
+        } else if (!mr_is_static_scalar_expression(element)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool mr_top_level_binding_uses_static_array_data(const HirTopLevelDecl *decl) {
+    return decl != NULL &&
+           decl->kind == HIR_TOP_LEVEL_BINDING &&
+           decl->as.binding.is_final &&
+           decl->as.binding.initializer != NULL &&
+           mr_is_static_array_literal_expression(decl->as.binding.initializer);
+}
+
 bool mr_lower_module_init_unit(MirBuildContext *context,
                                bool *created_module_init_unit) {
     MirUnit unit;
@@ -21,7 +140,8 @@ bool mr_lower_module_init_unit(MirBuildContext *context,
         const HirTopLevelDecl *decl = context->hir_program->top_level_decls[i];
 
         if (decl->kind == HIR_TOP_LEVEL_BINDING &&
-            !mr_top_level_binding_uses_lambda_unit(decl)) {
+            !mr_top_level_binding_uses_lambda_unit(decl) &&
+            !mr_top_level_binding_uses_static_array_data(decl)) {
             has_initializers = true;
             break;
         }
@@ -56,7 +176,8 @@ bool mr_lower_module_init_unit(MirBuildContext *context,
         MirValue value;
 
         if (decl->kind != HIR_TOP_LEVEL_BINDING ||
-            mr_top_level_binding_uses_lambda_unit(decl)) {
+            mr_top_level_binding_uses_lambda_unit(decl) ||
+            mr_top_level_binding_uses_static_array_data(decl)) {
             continue;
         }
 

@@ -145,6 +145,209 @@ void test_mir_dump_ptr_checked_type_uses_bc_deref(void) {
     parser_free(&parser);
 }
 
+void test_mir_dump_mmio_type_uses_typed_memory_helpers(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        mmio<uint32> reg = 0;\n"
+        "        store(offset(reg, 2), 99);\n"
+        "        uint32 v = deref(offset(reg, 2));\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &ast_program),
+                 "parse mmio<T> source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &ast_program),
+                 "build symbols for mmio<T> source");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &ast_program, &symbols),
+                 "type check mmio<T> source");
+    REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
+                 "lower HIR for mmio<T> source");
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
+                 "lower MIR for mmio<T> source");
+
+    dump = mir_dump_program_to_string(&mir_program);
+    REQUIRE_TRUE(dump != NULL, "mmio<T> MIR dump string is not NULL");
+
+    ASSERT_CONTAINS("__calynda_offset_stride", dump,
+                    "mmio<T> offset uses typed stride helper");
+    ASSERT_CONTAINS("__calynda_mmio_store_sized", dump,
+                    "mmio<T> store uses volatile sized helper");
+    ASSERT_CONTAINS("__calynda_mmio_deref_sized", dump,
+                    "mmio<T> deref uses volatile sized helper");
+
+    free(dump);
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+}
+
+void test_mir_dump_mmio_value_member_uses_typed_rmw_helpers(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        mmio<uint32> reg = 0;\n"
+        "        offset(reg, 2).value = 99;\n"
+        "        offset(reg, 2).value += 1;\n"
+        "        offset(reg, 2).value++;\n"
+        "        uint32 v = offset(reg, 2).value;\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &ast_program),
+                 "parse mmio<T>.value source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &ast_program),
+                 "build symbols for mmio<T>.value source");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &ast_program, &symbols),
+                 "type check mmio<T>.value source");
+    REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
+                 "lower HIR for mmio<T>.value source");
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
+                 "lower MIR for mmio<T>.value source");
+
+    dump = mir_dump_program_to_string(&mir_program);
+    REQUIRE_TRUE(dump != NULL, "mmio<T>.value MIR dump string is not NULL");
+
+    ASSERT_CONTAINS("__calynda_offset_stride", dump,
+                    "mmio<T>.value offset uses typed stride helper");
+    ASSERT_CONTAINS("__calynda_mmio_store_sized", dump,
+                    "mmio<T>.value writes use volatile sized store helper");
+    ASSERT_CONTAINS("__calynda_mmio_deref_sized", dump,
+                    "mmio<T>.value reads use volatile sized deref helper");
+
+    free(dump);
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+}
+
+void test_mir_dump_fence_builtin_lowers_to_runtime_helper(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    fence();\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &ast_program),
+                 "parse fence builtin source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &ast_program),
+                 "build symbols for fence builtin source");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &ast_program, &symbols),
+                 "type check fence builtin source");
+    REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
+                 "lower HIR for fence builtin source");
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
+                 "lower MIR for fence builtin source");
+
+    dump = mir_dump_program_to_string(&mir_program);
+    REQUIRE_TRUE(dump != NULL, "fence builtin MIR dump string is not NULL");
+
+    ASSERT_CONTAINS("call global(__calynda_rt_fence)()", dump,
+                    "fence() lowers to a zero-argument runtime helper call");
+
+    free(dump);
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+}
+
+void test_mir_dump_cache_builtins_lower_to_runtime_helpers(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    mmio<uint32> reg = 0;\n"
+        "    cacheclean(reg);\n"
+        "    cacheclean(64);\n"
+        "    cachefinal();\n"
+        "    return 0;\n"
+        "};\n";
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &ast_program),
+                 "parse cache builtin source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &ast_program),
+                 "build symbols for cache builtin source");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &ast_program, &symbols),
+                 "type check cache builtin source");
+    REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
+                 "lower HIR for cache builtin source");
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
+                 "lower MIR for cache builtin source");
+
+    dump = mir_dump_program_to_string(&mir_program);
+    REQUIRE_TRUE(dump != NULL, "cache builtin MIR dump string is not NULL");
+
+    ASSERT_CONTAINS("call global(__calynda_rt_cache_clean)", dump,
+                    "cacheclean() lowers to runtime helper call");
+    ASSERT_CONTAINS("call global(__calynda_rt_cache_final)()", dump,
+                    "cachefinal() lowers to zero-argument runtime helper call");
+
+    free(dump);
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+}
+
 void test_mir_dump_plain_manual_block_uses_plain_functions(void) {
     static const char source[] =
         "start(string[] args) -> {\n"

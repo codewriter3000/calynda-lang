@@ -192,6 +192,7 @@ CheckedType hr_checked_type_from_resolved_type(ResolvedType type) {
         checked.kind = CHECKED_TYPE_VALUE;
         checked.primitive = type.primitive;
         checked.array_depth = type.array_depth;
+        checked.array_extents = type.array_extents;
         break;
     case RESOLVED_TYPE_INVALID:
     default:

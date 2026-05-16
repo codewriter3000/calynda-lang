@@ -26,6 +26,9 @@ void          __calynda_rt_atomic_store(CalyndaRtWord atomic_handle,
                                         CalyndaRtWord value);
 CalyndaRtWord __calynda_rt_atomic_exchange(CalyndaRtWord atomic_handle,
                                            CalyndaRtWord new_value);
+void          __calynda_rt_fence(void);
+void          __calynda_rt_cache_clean(CalyndaRtWord address);
+void          __calynda_rt_cache_final(void);
 
 CalyndaRtWord __calynda_typeof(CalyndaRtWord value, CalyndaRtWord type_text);
 CalyndaRtWord __calynda_isint(CalyndaRtWord value, CalyndaRtWord type_text);
@@ -41,13 +44,18 @@ CalyndaRtWord __calynda_issametype(CalyndaRtWord left_value,
 /* Manual memory pointer operations */
 CalyndaRtWord __calynda_deref(CalyndaRtWord ptr);
 CalyndaRtWord __calynda_deref_sized(CalyndaRtWord ptr, CalyndaRtWord size);
+CalyndaRtWord __calynda_mmio_deref(CalyndaRtWord ptr);
+CalyndaRtWord __calynda_mmio_deref_sized(CalyndaRtWord ptr, CalyndaRtWord size);
 CalyndaRtWord __calynda_addr(CalyndaRtWord value);
 CalyndaRtWord __calynda_offset(CalyndaRtWord ptr, CalyndaRtWord count);
 CalyndaRtWord __calynda_offset_stride(CalyndaRtWord ptr, CalyndaRtWord count,
                                       CalyndaRtWord stride);
 void          __calynda_store(CalyndaRtWord ptr, CalyndaRtWord value);
+void          __calynda_mmio_store(CalyndaRtWord ptr, CalyndaRtWord value);
 void          __calynda_store_sized(CalyndaRtWord ptr, CalyndaRtWord value,
                                     CalyndaRtWord size);
+void          __calynda_mmio_store_sized(CalyndaRtWord ptr, CalyndaRtWord value,
+                                         CalyndaRtWord size);
 /* stackalloc() returns scratch storage whose lifetime ends with the enclosing
     manual scope once compiler-inserted cleanup runs. */
 CalyndaRtWord __calynda_stackalloc(CalyndaRtWord size);

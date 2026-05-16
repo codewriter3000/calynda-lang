@@ -42,6 +42,7 @@ const char *token_type_name(TokenType type) {
     case TOK_MANUAL:         return "MANUAL";
     case TOK_ARR:            return "ARR";
     case TOK_PTR:            return "PTR";
+    case TOK_MMIO:           return "MMIO";
     case TOK_MALLOC:         return "MALLOC";
     case TOK_CALLOC:         return "CALLOC";
     case TOK_REALLOC:        return "REALLOC";

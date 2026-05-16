@@ -19,6 +19,14 @@ function getKeywordsResource() {
     for (const [keyword, description] of Object.entries(keywords_1.KEYWORD_DOCS)) {
         lines.push(`- \`${keyword}\`: ${description}`);
     }
+    lines.push('', '## Built-in Calls');
+    for (const [name, description] of Object.entries(keywords_1.BUILTIN_CALL_DOCS)) {
+        lines.push(`- \`${name}\`: ${description}`);
+    }
+    lines.push('', '## Parameter Forms');
+    for (const form of keywords_1.PARAMETER_FORMS) {
+        lines.push(`- \`${form.syntax}\` — ${form.description}`);
+    }
     lines.push('', '## Declaration Syntax');
     for (const decl of keywords_1.DECLARATION_DOCS) {
         lines.push(`- **${decl.name}**: \`${decl.syntax}\` — ${decl.description}`);

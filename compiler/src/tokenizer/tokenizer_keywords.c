@@ -35,6 +35,7 @@ static const Keyword keywords[] = {
     {"manual",   TOK_MANUAL},
     {"arr",      TOK_ARR},
     {"ptr",      TOK_PTR},
+    {"mmio",     TOK_MMIO},
     {"malloc",   TOK_MALLOC},
     {"calloc",   TOK_CALLOC},
     {"realloc",  TOK_REALLOC},

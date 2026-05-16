@@ -1,3 +1,28 @@
+    if (!codegen_build_program(&codegen_program, &lir_program, target)) {
+        const CodegenBuildError *codegen_error = codegen_get_error(&codegen_program);
+
+        if (codegen_error) {
+            calynda_print_diagnostic(path, source,
+                                     codegen_error->primary_span.start_line,
+                                     codegen_error->primary_span.start_column,
+                                     codegen_error->primary_span.end_column,
+                                     "codegen error", codegen_error->message);
+            if (codegen_error->has_related_span)
+                fprintf(stderr, "   note: related location at %d:%d.\n",
+                        codegen_error->related_span.start_line,
+                        codegen_error->related_span.start_column);
+        } else {
+            fprintf(stderr, "%s: codegen lowering failed\n", path);
+        }
+        exit_code = 1;
+        goto cleanup;
+    }
+    if (!machine_build_program(machine_program,
+                               &lir_program,
+                               &codegen_program,
+                               &hir_program)) {
+        const MachineBuildError *machine_error = machine_get_error(machine_program);
+
         if (machine_error) {
             calynda_print_diagnostic(path, source,
                                      machine_error->primary_span.start_line,

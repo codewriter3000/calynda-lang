@@ -125,6 +125,11 @@ typedef struct {
 } AstManualStatement;
 
 typedef struct {
+    char   *body;
+    size_t  body_length;
+} AstInlineAsmStatement;
+
+typedef struct {
     AstExpression *left;
     AstExpression *right;
 } AstSwapStatement;
@@ -136,7 +141,8 @@ typedef enum {
     AST_STMT_THROW,
     AST_STMT_EXPRESSION,
     AST_STMT_MANUAL,
-    AST_STMT_SWAP
+    AST_STMT_SWAP,
+    AST_STMT_INLINE_ASM
 } AstStatementKind;
 
 struct AstStatement {
@@ -149,6 +155,7 @@ struct AstStatement {
         AstExpression            *expression;
         AstManualStatement       manual;
         AstSwapStatement         swap;
+        AstInlineAsmStatement    inline_asm;
     } as;
 };
 

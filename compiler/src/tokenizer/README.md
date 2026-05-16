@@ -86,6 +86,12 @@ while ((tok = tokenizer_next(&t)).type != TOK_EOF) {
 - Source positions are tracked for error reporting
 - The tokenizer is designed to be fast and memory-efficient
 - It operates directly on the source string without copying (zero-copy design)
+## Changes in 1.0.0-alpha.7
+
+- `mmio` is now tokenized as a dedicated keyword alongside the existing manual-memory / low-level surface.
+- The raw `asm { ... }` body capture path now serves statement-level inline asm blocks as well as top-level asm declarations.
+- No other tokenizer phases changed; sized-array checking and cache/MMIO semantics are enforced later in the pipeline.
+
 ## Changes in 1.0.0-alpha.6
 
 - No tokenizer changes for this release. New keywords were not introduced — `var` is reused as a parameter modifier and `num` / `arr<?>` are recognised by the existing identifier/type-name infrastructure.

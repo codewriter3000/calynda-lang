@@ -2,6 +2,7 @@
 #define RUNTIME_INTERNAL_H
 
 #include "runtime.h"
+#include "runtime_gc.h"
 
 #include <inttypes.h>
 #include <setjmp.h>
@@ -13,11 +14,9 @@
 extern CalyndaRtExternCallable STDOUT_PRINT_CALLABLE;
 extern CalyndaRtExternCallable STDIN_INPUT_CALLABLE;
 
-/* runtime.c — registry and object creation */
+/* runtime.c — object lifecycle helpers */
 bool rt_reserve_items(void **items, size_t *capacity, size_t needed, size_t item_size);
-bool rt_register_object_pointer(void *pointer);
-bool rt_register_static_object_pointer(void *pointer);
-void rt_cleanup_registered_objects(void);
+void rt_free_managed_object(void *pointer);
 typedef struct RtFailureContext {
     jmp_buf jump;
     int exit_code;

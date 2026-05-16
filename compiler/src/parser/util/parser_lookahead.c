@@ -32,7 +32,7 @@ bool is_primitive_type_token(TokenType type) {
 
 bool is_type_start_token(TokenType type) {
     return type == TOK_VOID || type == TOK_IDENTIFIER || type == TOK_ARR ||
-            type == TOK_PTR || is_primitive_type_token(type);
+            type == TOK_PTR || type == TOK_MMIO || is_primitive_type_token(type);
 }
 
 static bool scan_default_parameter_expression_pattern(const Parser *parser, size_t *index) {
@@ -122,7 +122,7 @@ bool scan_type_pattern(const Parser *parser, size_t *index) {
         return true;
     }
 
-    if (t == TOK_ARR || t == TOK_PTR) {
+    if (t == TOK_ARR || t == TOK_PTR || t == TOK_MMIO) {
         (*index)++;
         if (parser_token_at(parser, *index)->type != TOK_LT) {
             return false;

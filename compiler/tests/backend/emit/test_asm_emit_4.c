@@ -76,7 +76,10 @@ static bool build_invalid_machine_program(MachineProgram *machine_program,
         mir_program.error.message[sizeof(mir_program.error.message) - 1] = '\0';
         if (!lir_build_program(&lir_program, &mir_program) &&
             !codegen_build_program(&codegen_program, &lir_program, target_get_default())) {
-            ok = !machine_build_program(machine_program, &lir_program, &codegen_program);
+            ok = !machine_build_program(machine_program,
+                                        &lir_program,
+                                        &codegen_program,
+                                        &hir_program);
         }
     }
 

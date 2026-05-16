@@ -198,6 +198,15 @@ static bool tr_resolve_declared_type_impl(TypeResolver *resolver,
 
             adjusted_type = tr_resolved_type_with_extra_arrays(*alias_resolved_type,
                                                                type->dimension_count);
+            if (type->dimension_count > 0 &&
+                !tr_build_array_extents(resolver,
+                                        alias_resolved_type->array_extents,
+                                        alias_resolved_type->array_depth,
+                                        type->dimensions,
+                                        type->dimension_count,
+                                        (ArrayExtent **)&adjusted_type.array_extents)) {
+                return false;
+            }
             return tr_append_type_entry(resolver, type, adjusted_type);
         }
 
@@ -207,13 +216,23 @@ static bool tr_resolve_declared_type_impl(TypeResolver *resolver,
     } else if (type->kind == AST_TYPE_ARR) {
         resolved_type = tr_resolved_type_named("arr",
                                                type->generic_args.count,
-                                               0);
+                                               type->dimension_count);
     } else if (type->kind == AST_TYPE_PTR) {
         resolved_type = tr_resolved_type_named("ptr",
                                                type->generic_args.count,
-                                               0);
+                                               type->dimension_count);
     } else {
         resolved_type = tr_resolved_type_value(type->primitive, type->dimension_count);
+    }
+
+    if (resolved_type.array_depth > 0 &&
+        !tr_build_array_extents(resolver,
+                                NULL,
+                                0,
+                                type->dimensions,
+                                type->dimension_count,
+                                (ArrayExtent **)&resolved_type.array_extents)) {
+        return false;
     }
 
     return tr_append_type_entry(resolver, type, resolved_type);

@@ -23,6 +23,17 @@
     RUN_TEST(test_type_checker_rejects_assignment_to_final_index_target);
     RUN_TEST(test_type_checker_rejects_incompatible_compound_assignment);
     RUN_TEST(test_type_checker_accepts_swap_between_array_elements);
+    RUN_TEST(test_type_checker_rejects_sized_array_literal_length_mismatch);
+    RUN_TEST(test_type_checker_accepts_matching_sized_multidimensional_literal);
+    RUN_TEST(test_type_checker_rejects_sized_array_slice_assignment_mismatch);
+    RUN_TEST(test_type_checker_rejects_sized_array_call_argument_mismatch);
+    RUN_TEST(test_type_checker_rejects_sized_array_default_value_mismatch);
+    RUN_TEST(test_type_checker_rejects_sized_array_lambda_body_mismatch);
+    RUN_TEST(test_type_checker_rejects_sized_array_return_statement_mismatch);
+    RUN_TEST(test_type_checker_rejects_sized_array_call_result_mismatch);
+    RUN_TEST(test_type_checker_rejects_sized_array_block_call_result_mismatch);
+    RUN_TEST(test_type_checker_rejects_sized_array_ternary_result_mismatch);
+    RUN_TEST(test_type_checker_rejects_sized_array_ternary_branch_mismatch);
     RUN_TEST(test_type_checker_rejects_swap_with_mismatched_types);
     RUN_TEST(test_type_checker_rejects_postfix_increment_on_non_numeric);
     RUN_TEST(test_type_checker_allows_discard_assignment);
@@ -55,6 +66,8 @@
     RUN_TEST(test_type_checker_accepts_calloc_memory_op);
     RUN_TEST(test_type_checker_accepts_manual_pointer_ops);
     RUN_TEST(test_type_checker_accepts_typed_ptr_deref_offset_store);
+    RUN_TEST(test_type_checker_accepts_mmio_deref_offset_store);
+    RUN_TEST(test_type_checker_accepts_mmio_value_member_rmw);
     RUN_TEST(test_type_checker_accepts_typed_ptr_int8_ops);
     RUN_TEST(test_type_checker_accepts_string_index_as_char);
     RUN_TEST(test_type_checker_accepts_string_and_array_length_members);
@@ -78,6 +91,9 @@
     RUN_TEST(test_type_checker_rejects_car_on_non_sequence);
     RUN_TEST(test_type_checker_accepts_type_query_builtins);
     RUN_TEST(test_type_checker_rejects_bad_type_query_arity);
+    RUN_TEST(test_type_checker_rejects_fence_with_arguments);
+    RUN_TEST(test_type_checker_accepts_cache_builtins);
+    RUN_TEST(test_type_checker_rejects_cacheclean_non_address_argument);
     RUN_TEST(test_type_checker_accepts_recursive_top_level_lambda_binding);
     RUN_TEST(test_type_checker_accepts_recursive_top_level_manual_lambda_binding);
     RUN_TEST(test_type_checker_rejects_recursive_non_lambda_top_level_binding);

@@ -216,6 +216,7 @@ int calynda_rt_start_process(CalyndaRtProgramStartEntry entry, int argc, char **
         return CALYNDA_RT_EXIT_RUNTIME_ERROR;
     }
 
+    rt_gc_init();
     rt_reset_process_failure();
     rt_failure_context_push(&failure);
     if (setjmp(failure.jump) == 0) {

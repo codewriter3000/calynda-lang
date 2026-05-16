@@ -1,7 +1,7 @@
 export const KEYWORDS = [
   'package', 'import', 'public', 'private', 'final', 'var', 'start', 'boot',
   'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-  'export', 'as', 'internal', 'static', 'thread_local', 'type', 'union', 'manual', 'arr', 'ptr', 'layout',
+  'export', 'as', 'internal', 'static', 'thread_local', 'type', 'union', 'manual', 'arr', 'ptr', 'mmio', 'layout',
   'spawn', 'checked', 'asm', 'malloc', 'calloc', 'realloc', 'free', 'deref', 'store',
   'offset', 'addr', 'cleanup', 'stackalloc',
 ] as const;
@@ -27,6 +27,7 @@ export const KEYWORD_DOCS = {
   thread_local: 'Declares thread-local storage. In alpha.2 this is limited to storage with cross-thread identity, not ordinary stack locals.',
   type: 'Declares a type alias. Syntax: `type Name = ExistingType;`',
   var: 'Two roles: (1) inferred local binding `var x = expr;`; (2) **alpha.6** untyped parameter `(var name) -> ...` whose value is opaque at compile time and inspected at run time via `typeof`, `isint`, `isstring`, etc. Untyped parameters cannot be varargs and must follow any typed parameters.',
+  mmio: 'Typed memory-mapped I/O handle. `mmio<T>` behaves like a volatile device address: `.value` reads/writes as `T`, `offset` preserves typed strides, and cache/barrier helpers accept it where an address is required.',
   num: 'Built-in generic numeric primitive (alpha.6). A binding written against `num` resolves to whichever numeric primitive (int8…int64, uint8…uint64, float32, float64) the call site requires. Participates in numeric widening.',
 } as const;
 
@@ -37,6 +38,13 @@ export const ALPHA6_INTRINSICS = {
   issametype: '`issametype(x, y)` returns `bool` — true iff x and y share a runtime type tag.',
   car: '`car(arr)` returns the first element of a non-empty array. **alpha.6** also accepts `string`, returning the first byte as `char`. Aborts at runtime on empty input.',
   cdr: '`cdr(arr)` returns a new array containing every element except the first. **alpha.6** also accepts `string`, returning a new `string` with the first byte removed. Aborts at runtime on empty input.',
+} as const;
+
+export const BUILTIN_CALL_DOCS = {
+  ...ALPHA6_INTRINSICS,
+  fence: '`fence()` returns `void` and emits the runtime/device barrier helper. It accepts no arguments.',
+  cacheclean: '`cacheclean(address)` returns `void` and accepts an integral address, `ptr<T>`, or `mmio<T>` handle.',
+  cachefinal: '`cachefinal()` returns `void`, accepts no arguments, and finalizes a cache-maintenance sequence.',
 } as const;
 
 // alpha.6 lambda parameter forms
@@ -62,6 +70,8 @@ export const ALPHA6_PARAM_FORMS = [
     description: 'Early-return parameter (alpha.6). Writing through the parameter performs a non-local return out of the enclosing call.',
   },
 ] as const;
+
+export const PARAMETER_FORMS = ALPHA6_PARAM_FORMS;
 
 export const DECLARATION_DOCS = [
   {

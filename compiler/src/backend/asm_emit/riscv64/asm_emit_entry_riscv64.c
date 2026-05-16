@@ -14,6 +14,7 @@ bool ae_emit_program_entry_glue_riscv64(AsmEmitContext *context, FILE *out) {
     const MachineUnit *start_unit = NULL;
     AsmUnitSymbol *start_symbol = NULL;
     size_t string_index;
+    size_t static_array_index;
     size_t unit_index;
 
     if (!context || !context->program || !out) {
@@ -85,6 +86,18 @@ bool ae_emit_program_entry_glue_riscv64(AsmEmitContext *context, FILE *out) {
                            "    call calynda_rt_register_static_object\n",
                            context->string_literals[string_index].object_label)) {
                 return false;
+            }
+        }
+        if (context->program) {
+            for (static_array_index = 0;
+                 static_array_index < context->program->static_array_binding_count;
+                 static_array_index++) {
+                if (!ae_emit_line(out,
+                                  "    la a0, .Larr_obj_%zu\n"
+                                  "    call calynda_rt_register_static_object\n",
+                                  context->program->static_array_bindings[static_array_index].object_index)) {
+                    return false;
+                }
             }
         }
 

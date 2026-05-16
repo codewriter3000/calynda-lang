@@ -121,6 +121,45 @@ AstStatement *parse_statement(Parser *parser) {
         return statement;
     }
 
+    if (parser_check(parser, TOK_ASM)) {
+        AstStatement *statement = ast_statement_new(AST_STMT_INLINE_ASM);
+        const Token *body_token;
+
+        if (!statement) {
+            parser_set_oom_error(parser);
+            return NULL;
+        }
+
+        statement->source_span = parser_source_span(parser_current_token(parser));
+        parser_advance(parser);
+
+        body_token = parser_current_token(parser);
+        if (body_token->type != TOK_ASM_BODY) {
+            parser_set_error(parser, *body_token,
+                             "Expected asm body block '{ ... }'.");
+            ast_statement_free(statement);
+            return NULL;
+        }
+
+        statement->as.inline_asm.body = ast_copy_text_n(body_token->start,
+                                                        body_token->length);
+        statement->as.inline_asm.body_length = body_token->length;
+        if (!statement->as.inline_asm.body) {
+            parser_set_oom_error(parser);
+            ast_statement_free(statement);
+            return NULL;
+        }
+
+        parser_advance(parser);
+        if (!parser_consume(parser, TOK_SEMICOLON,
+                            "Expected ';' after inline asm statement.")) {
+            ast_statement_free(statement);
+            return NULL;
+        }
+
+        return statement;
+    }
+
     if (parser_check(parser, TOK_INTERNAL) ||
         parser_check(parser, TOK_FINAL) || parser_check(parser, TOK_VAR) ||
         (is_type_start_token(parser_current_token(parser)->type) &&

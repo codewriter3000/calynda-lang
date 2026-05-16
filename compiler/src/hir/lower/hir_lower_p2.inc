@@ -56,6 +56,14 @@ HirBlock *hr_lower_block(HirBuildContext *context, const AstBlock *block) {
             continue;
         }
 
+        if (block->statements[i]->kind == AST_STMT_INLINE_ASM) {
+            if (!hr_lower_inline_asm_statement(context, hir_block, block->statements[i])) {
+                hir_block_free(hir_block);
+                return NULL;
+            }
+            continue;
+        }
+
         {
             HirStatement *statement = hr_lower_statement(context, block->statements[i], scope);
 

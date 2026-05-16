@@ -17,6 +17,13 @@
                 tc_checked_type_has_length_member(target_type)) {
                 return false;
             }
+            if (strcmp(expression->as.member.member, "value") == 0 &&
+                target_type.kind == CHECKED_TYPE_NAMED &&
+                target_type.array_depth == 0 &&
+                target_type.name != NULL &&
+                strcmp(target_type.name, "mmio") == 0) {
+                return true;
+            }
             if (target_type.kind == CHECKED_TYPE_EXTERNAL) {
                 return true;
             }

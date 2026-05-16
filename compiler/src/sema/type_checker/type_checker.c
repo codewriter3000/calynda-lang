@@ -11,13 +11,19 @@ void type_checker_init(TypeChecker *checker) {
 }
 
 void type_checker_free(TypeChecker *checker) {
+    size_t i;
+
     if (!checker) {
         return;
     }
 
     type_resolver_free(&checker->resolver);
+    for (i = 0; i < checker->owned_array_extent_block_count; i++) {
+        free(checker->owned_array_extent_blocks[i]);
+    }
     free(checker->expression_entries);
     free(checker->symbol_entries);
+    free(checker->owned_array_extent_blocks);
     memset(checker, 0, sizeof(*checker));
 }
 

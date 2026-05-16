@@ -8,7 +8,7 @@ function startsTypeAnnotation(state) {
     const tok = state.peek();
     return tok.type === 'type' || tok.type === 'identifier' ||
         (tok.type === 'keyword' &&
-            (tok.value === 'void' || tok.value === 'arr' || tok.value === 'ptr'));
+            (tok.value === 'void' || tok.value === 'arr' || tok.value === 'ptr' || tok.value === 'mmio'));
 }
 function parseMaybeLocalBinding(state, startPos) {
     const originalPos = state.pos;

@@ -17,9 +17,16 @@ typedef enum {
     CALYNDA_EMIT_MODE_BYTECODE
 } CalyndaEmitMode;
 
+typedef enum {
+    CALYNDA_GC_MARKSWEEP = 0, /* default: conservative mark-and-sweep */
+    CALYNDA_GC_LEGACY         /* append-only registry, no collection */
+} CalyndaGcMode;
+
 typedef struct {
     bool manual_bounds_check;
     bool strict_race_check;
+    CalyndaGcMode gc_mode;
+    const char *gc_plugin_path; /* NULL unless --gc-plugin was passed */
     const TargetDescriptor *target;
     char **archive_paths;
     size_t archive_count;
@@ -39,6 +46,8 @@ void calynda_compile_options_free(CalyndaCompileOptions *options);
 void calynda_apply_compile_options(const CalyndaCompileOptions *options);
 void calynda_set_global_bounds_check(bool enabled);
 void calynda_set_global_strict_race_check(bool enabled);
+CalyndaGcMode calynda_get_global_gc_mode(void);
+const char *calynda_get_gc_plugin_path(void);
 
 /* calynda_car.c */
 int calynda_compile_car_to_machine_program(const CarArchive *archive,

@@ -77,6 +77,15 @@
                 }
                 if (checker->has_outer_return_type) {
                     CheckedType val_type = tc_type_check_source_type(val_info);
+                    if (checker->outer_return_ast_type &&
+                        !tc_validate_sized_array_return_value(checker,
+                                                              checker->outer_return_ast_type,
+                                                              0,
+                                                              expression->as.nonlocal_return_value,
+                                                              NULL,
+                                                              "non-local return value")) {
+                        return NULL;
+                    }
                     if (!tc_checked_type_assignable(checker->outer_return_type, val_type)) {
                         char expected_text[64];
                         char actual_text[64];

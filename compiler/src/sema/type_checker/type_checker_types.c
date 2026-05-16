@@ -1,5 +1,177 @@
 #include "type_checker_internal.h"
 
+static bool tc_register_owned_array_extent_block(TypeChecker *checker,
+                                                 ArrayExtent *array_extents) {
+    if (!checker || !array_extents) {
+        return false;
+    }
+
+    if (!tc_reserve_items((void **)&checker->owned_array_extent_blocks,
+                          &checker->owned_array_extent_block_capacity,
+                          checker->owned_array_extent_block_count + 1,
+                          sizeof(*checker->owned_array_extent_blocks))) {
+        tc_set_error(checker,
+                     "Out of memory while storing checked array extent metadata.");
+        return false;
+    }
+
+    checker->owned_array_extent_blocks[checker->owned_array_extent_block_count++] =
+        array_extents;
+    return true;
+}
+
+bool tc_allocate_owned_array_extents(TypeChecker *checker,
+                                     size_t count,
+                                     ArrayExtent **array_extents_out) {
+    ArrayExtent *array_extents;
+
+    if (!checker || !array_extents_out) {
+        return false;
+    }
+
+    *array_extents_out = NULL;
+    if (count == 0) {
+        return true;
+    }
+
+    array_extents = calloc(count, sizeof(*array_extents));
+    if (!array_extents) {
+        tc_set_error(checker,
+                     "Out of memory while allocating checked array extent metadata.");
+        return false;
+    }
+
+    if (!tc_register_owned_array_extent_block(checker, array_extents)) {
+        free(array_extents);
+        return false;
+    }
+
+    *array_extents_out = array_extents;
+    return true;
+}
+
+bool tc_checked_type_array_extent(CheckedType type,
+                                  size_t index,
+                                  bool *has_size_out,
+                                  unsigned long long *size_out) {
+    if (index >= type.array_depth) {
+        return false;
+    }
+
+    if (has_size_out) {
+        *has_size_out = false;
+    }
+    if (size_out) {
+        *size_out = 0;
+    }
+
+    if (!type.array_extents) {
+        return true;
+    }
+
+    if (has_size_out) {
+        *has_size_out = type.array_extents[index].has_size;
+    }
+    if (size_out) {
+        *size_out = type.array_extents[index].size;
+    }
+    return true;
+}
+
+CheckedType tc_checked_type_consume_array_prefix(CheckedType type,
+                                                 size_t consumed_dimensions) {
+    if (consumed_dimensions == 0) {
+        return type;
+    }
+
+    if (consumed_dimensions >= type.array_depth) {
+        type.array_depth = 0;
+        type.array_extents = NULL;
+        return type;
+    }
+
+    type.array_depth -= consumed_dimensions;
+    if (type.array_extents) {
+        type.array_extents += consumed_dimensions;
+    }
+    return type;
+}
+
+bool tc_checked_type_prepend_array_extent(TypeChecker *checker,
+                                          CheckedType element_type,
+                                          bool has_size,
+                                          unsigned long long size,
+                                          CheckedType *array_type_out) {
+    ArrayExtent *array_extents;
+    CheckedType array_type;
+    size_t i;
+
+    if (!checker || !array_type_out) {
+        return false;
+    }
+
+    array_type = element_type;
+    array_type.array_depth = element_type.array_depth + 1;
+
+    if (!tc_allocate_owned_array_extents(checker,
+                                         array_type.array_depth,
+                                         &array_extents)) {
+        return false;
+    }
+
+    array_extents[0].has_size = has_size;
+    array_extents[0].size = size;
+    for (i = 0; i < element_type.array_depth; i++) {
+        bool element_has_size = false;
+        unsigned long long element_size = 0;
+
+        if (!tc_checked_type_array_extent(element_type,
+                                          i,
+                                          &element_has_size,
+                                          &element_size)) {
+            tc_set_error(checker,
+                         "Internal error: invalid checked array extent metadata.");
+            return false;
+        }
+
+        array_extents[i + 1].has_size = element_has_size;
+        array_extents[i + 1].size = element_size;
+    }
+
+    array_type.array_extents = array_extents;
+    *array_type_out = array_type;
+    return true;
+}
+
+static bool tc_checked_type_array_extents_equal(CheckedType left, CheckedType right) {
+    size_t i;
+
+    if (left.array_depth != right.array_depth) {
+        return false;
+    }
+
+    for (i = 0; i < left.array_depth; i++) {
+        bool left_has_size = false;
+        bool right_has_size = false;
+        unsigned long long left_size = 0;
+        unsigned long long right_size = 0;
+
+        if (!tc_checked_type_array_extent(left, i, &left_has_size, &left_size) ||
+            !tc_checked_type_array_extent(right, i, &right_has_size, &right_size)) {
+            return false;
+        }
+
+        if (left_has_size != right_has_size) {
+            return false;
+        }
+        if (left_has_size && left_size != right_size) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 CheckedType tc_checked_type_invalid(void) {
     CheckedType type;
 
@@ -99,7 +271,7 @@ bool tc_checked_type_equals(CheckedType left, CheckedType right) {
         }
         return strcmp(left.name, right.name) == 0 &&
                left.generic_arg_count == right.generic_arg_count &&
-               left.array_depth == right.array_depth;
+               tc_checked_type_array_extents_equal(left, right);
     }
 
     if (left.kind == CHECKED_TYPE_FUNCTION) {
@@ -107,7 +279,7 @@ bool tc_checked_type_equals(CheckedType left, CheckedType right) {
     }
 
     return tc_primitive_canonical(left.primitive) == tc_primitive_canonical(right.primitive) &&
-           left.array_depth == right.array_depth;
+           tc_checked_type_array_extents_equal(left, right);
 }
 
 bool tc_checked_type_is_scalar_value(CheckedType type) {

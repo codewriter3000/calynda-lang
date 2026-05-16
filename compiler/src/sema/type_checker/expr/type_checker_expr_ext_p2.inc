@@ -111,6 +111,118 @@ static bool tc_check_builtin_type_query_call(TypeChecker *checker,
     return true;
 }
 
+static bool tc_check_builtin_fence_call(TypeChecker *checker,
+                                        const AstExpression *expression,
+                                        TypeCheckInfo *info) {
+    const AstExpression *callee;
+
+    if (!checker || !expression || expression->kind != AST_EXPR_CALL ||
+        !expression->as.call.callee || !info) {
+        return false;
+    }
+
+    callee = expression->as.call.callee;
+    if (callee->kind != AST_EXPR_IDENTIFIER ||
+        tc_identifier_has_symbol_or_overload_resolution(checker, callee) ||
+        !callee->as.identifier || strcmp(callee->as.identifier, "fence") != 0) {
+        return false;
+    }
+
+    if (expression->as.call.arguments.count != 0) {
+        tc_set_error_at(checker,
+                        expression->source_span,
+                        NULL,
+                        "fence expects exactly 0 arguments but got %zu.",
+                        expression->as.call.arguments.count);
+        return true;
+    }
+
+    *info = tc_type_check_info_make(tc_checked_type_void());
+    return true;
+}
+
+static bool tc_builtin_allows_cache_address_type(CheckedType type) {
+    if (tc_checked_type_is_integral(type)) {
+        return true;
+    }
+
+    return type.kind == CHECKED_TYPE_NAMED &&
+           type.array_depth == 0 &&
+           type.name != NULL &&
+           (strcmp(type.name, "ptr") == 0 || strcmp(type.name, "mmio") == 0);
+}
+
+static bool tc_check_builtin_cache_call(TypeChecker *checker,
+                                        const AstExpression *expression,
+                                        TypeCheckInfo *info) {
+    const AstExpression *callee;
+    const char *builtin_name;
+
+    if (!checker || !expression || expression->kind != AST_EXPR_CALL ||
+        !expression->as.call.callee || !info) {
+        return false;
+    }
+
+    callee = expression->as.call.callee;
+    if (callee->kind != AST_EXPR_IDENTIFIER ||
+        tc_identifier_has_symbol_or_overload_resolution(checker, callee) ||
+        !callee->as.identifier) {
+        return false;
+    }
+
+    builtin_name = callee->as.identifier;
+    if (strcmp(builtin_name, "cacheclean") == 0) {
+        const TypeCheckInfo *argument_info;
+        CheckedType argument_type;
+        char argument_text[64];
+
+        if (expression->as.call.arguments.count != 1) {
+            tc_set_error_at(checker,
+                            expression->source_span,
+                            NULL,
+                            "cacheclean expects exactly 1 argument but got %zu.",
+                            expression->as.call.arguments.count);
+            return true;
+        }
+
+        argument_info = tc_check_expression(checker,
+                                            expression->as.call.arguments.items[0]);
+        if (!argument_info) {
+            return true;
+        }
+
+        argument_type = tc_type_check_source_type(argument_info);
+        if (!tc_builtin_allows_cache_address_type(argument_type)) {
+            checked_type_to_string(argument_type, argument_text, sizeof(argument_text));
+            tc_set_error_at(checker,
+                            expression->as.call.arguments.items[0]->source_span,
+                            NULL,
+                            "cacheclean expects an integral, ptr<T>, or mmio<T> address but got %s.",
+                            argument_text);
+            return true;
+        }
+
+        *info = tc_type_check_info_make(tc_checked_type_void());
+        return true;
+    }
+
+    if (strcmp(builtin_name, "cachefinal") != 0) {
+        return false;
+    }
+
+    if (expression->as.call.arguments.count != 0) {
+        tc_set_error_at(checker,
+                        expression->source_span,
+                        NULL,
+                        "cachefinal expects exactly 0 arguments but got %zu.",
+                        expression->as.call.arguments.count);
+        return true;
+    }
+
+    *info = tc_type_check_info_make(tc_checked_type_void());
+    return true;
+}
+
 static bool tc_check_builtin_array_call(TypeChecker *checker,
                                         const AstExpression *expression,
                                         TypeCheckInfo *info) {
@@ -188,7 +300,7 @@ static bool tc_check_builtin_array_call(TypeChecker *checker,
 
     *info = tc_type_check_info_make(
         strcmp(builtin_name, "car") == 0
-            ? tc_checked_type_value(argument_type.primitive, argument_type.array_depth - 1)
+            ? tc_checked_type_consume_array_prefix(argument_type, 1)
             : argument_type);
     return true;
 }

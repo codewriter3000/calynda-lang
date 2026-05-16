@@ -8,6 +8,8 @@
 
 static bool g_global_bounds_check = false;
 static bool g_global_strict_race_check = false;
+static CalyndaGcMode g_global_gc_mode = CALYNDA_GC_MARKSWEEP;
+static const char *g_gc_plugin_path = NULL;
 
 void calynda_compile_options_init(CalyndaCompileOptions *options) {
     if (!options) {
@@ -15,6 +17,8 @@ void calynda_compile_options_init(CalyndaCompileOptions *options) {
     }
     options->manual_bounds_check = false;
     options->strict_race_check = false;
+    options->gc_mode = CALYNDA_GC_MARKSWEEP;
+    options->gc_plugin_path = NULL;
     options->target = target_get_default();
     options->archive_paths = NULL;
     options->archive_count = 0;
@@ -41,10 +45,14 @@ void calynda_apply_compile_options(const CalyndaCompileOptions *options) {
     if (!options) {
         calynda_set_global_bounds_check(false);
         calynda_set_global_strict_race_check(false);
+        g_global_gc_mode = CALYNDA_GC_MARKSWEEP;
+        g_gc_plugin_path = NULL;
         return;
     }
     calynda_set_global_bounds_check(options->manual_bounds_check);
     calynda_set_global_strict_race_check(options->strict_race_check);
+    g_global_gc_mode = options->gc_mode;
+    g_gc_plugin_path = options->gc_plugin_path;
 }
 
 void calynda_set_global_bounds_check(bool enabled) {
@@ -53,6 +61,14 @@ void calynda_set_global_bounds_check(bool enabled) {
 
 void calynda_set_global_strict_race_check(bool enabled) {
     g_global_strict_race_check = enabled;
+}
+
+CalyndaGcMode calynda_get_global_gc_mode(void) {
+    return g_global_gc_mode;
+}
+
+const char *calynda_get_gc_plugin_path(void) {
+    return g_gc_plugin_path;
 }
 
 int calynda_compile_to_machine_program(const char *path,
@@ -221,26 +237,4 @@ int calynda_compile_to_machine_program(const char *path,
         exit_code = 1;
         goto cleanup;
     }
-    if (!codegen_build_program(&codegen_program, &lir_program, target)) {
-        const CodegenBuildError *codegen_error = codegen_get_error(&codegen_program);
-
-        if (codegen_error) {
-            calynda_print_diagnostic(path, source,
-                                     codegen_error->primary_span.start_line,
-                                     codegen_error->primary_span.start_column,
-                                     codegen_error->primary_span.end_column,
-                                     "codegen error", codegen_error->message);
-            if (codegen_error->has_related_span)
-                fprintf(stderr, "   note: related location at %d:%d.\n",
-                        codegen_error->related_span.start_line,
-                        codegen_error->related_span.start_column);
-        } else {
-            fprintf(stderr, "%s: codegen lowering failed\n", path);
-        }
-        exit_code = 1;
-        goto cleanup;
-    }
-    if (!machine_build_program(machine_program, &lir_program, &codegen_program)) {
-        const MachineBuildError *machine_error = machine_get_error(machine_program);
-
 #include "calynda_compile_p2.inc"

@@ -55,6 +55,7 @@ typedef enum {
     TOK_MANUAL,
     TOK_ARR,
     TOK_PTR,
+    TOK_MMIO,
     TOK_MALLOC,
     TOK_CALLOC,
     TOK_REALLOC,

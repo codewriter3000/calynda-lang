@@ -65,6 +65,9 @@ int main(void) {
     RUN_TEST(test_runtime_thread_cancel_stops_thread);
     RUN_TEST(test_runtime_future_spawn_get_cancel);
     RUN_TEST(test_runtime_atomic_operations);
+    RUN_TEST(test_runtime_mmio_helpers_preserve_values);
+    RUN_TEST(test_runtime_fence_helper_is_callable);
+    RUN_TEST(test_runtime_cache_helpers_are_callable);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

@@ -202,6 +202,12 @@ The `build_native` module:
 - Build system is incremental and cacheable
 - CLI is the primary interface for developers
 - Future: Language server protocol (LSP) integration
+## Changes in 1.0.0-alpha.7
+
+- `calynda build`, `calynda run`, and `calynda asm` now accept `--manual-bounds-check`, `--gc marksweep|legacy`, and `--gc-plugin path.a` in addition to the existing target/archive flags.
+- Hosted runtime resolution now defaults to the mark-and-sweep archive (`calynda_runtime_ms.a`) while preserving `calynda_runtime.a` for `--gc legacy` and custom archives for `--gc-plugin`.
+- The CLI metadata/version surface is now aligned to 1.0.0-alpha.7.
+
 ## Changes in 1.0.0-alpha.6
 
 - `build_native.c` / `build_native_utils.c` link the freestanding boot archive (`calynda_runtime_boot.a`) for `boot -> { ... };` programs and the hosted archive (`calynda_runtime.a`) otherwise.

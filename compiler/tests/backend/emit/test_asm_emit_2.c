@@ -119,6 +119,29 @@ void test_asm_emit_compiles_runtime_backed_program(void) {
     free(assembly);
 }
 
+void test_asm_emit_lowers_final_global_arrays_into_static_rodata(void) {
+    static const char source[] =
+        "final int32[3] values = [1, 2, 4];\n"
+        "start -> values[0] == 1 ? (values[2] == 4 ? 0 : 2) : 1;\n";
+    char *assembly;
+
+    REQUIRE_TRUE(build_assembly_from_source(source, &assembly),
+                 "emit static final array assembly text");
+    ASSERT_CONTAINS(".Larr_obj_", assembly,
+                    "static final arrays emit concrete array object labels");
+    ASSERT_CONTAINS(".Larr_elems_", assembly,
+                    "static final arrays emit concrete element storage labels");
+    ASSERT_CONTAINS("calynda_global_values:", assembly,
+                    "static final arrays still materialize a global slot symbol");
+    ASSERT_CONTAINS("call calynda_rt_register_static_object", assembly,
+                    "static final arrays register their top-level roots with the runtime");
+    ASSERT_TRUE(strstr(assembly, "__calynda_rt_array_literal") == NULL,
+                "static final arrays skip the runtime array-literal helper");
+    ASSERT_TRUE(compile_assembly_text(assembly),
+                "emitted static final array assembly assembles with gcc -c");
+    free(assembly);
+}
+
 
 void test_asm_emit_lowers_string_literals_into_runtime_objects(void) {
     static const char source[] =
@@ -238,6 +261,33 @@ void test_asm_emit_asm_decl_emits_raw_body(void) {
     ASSERT_CONTAINS("ret", assembly, "asm body line 3 emitted verbatim");
     ASSERT_CONTAINS("call calynda_unit_my_add", assembly, "start body calls asm function");
     ASSERT_TRUE(compile_assembly_text(assembly), "emitted asm-decl assembly assembles with gcc -c");
+    free(assembly);
+}
+
+
+void test_asm_emit_inline_asm_statement_emits_hidden_unit(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    asm {\n"
+        "        nop\n"
+        "        nop\n"
+        "        ret\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    char *assembly;
+
+    REQUIRE_TRUE(build_assembly_from_source(source, &assembly),
+                 "emit inline asm statement assembly text");
+    ASSERT_CONTAINS(".globl calynda_unit_inline_asm_0",
+                    assembly,
+                    "inline asm statement emits a hidden global unit");
+    ASSERT_CONTAINS("nop", assembly, "inline asm body is emitted verbatim");
+    ASSERT_CONTAINS("call calynda_unit_inline_asm_0",
+                    assembly,
+                    "start body calls hidden inline asm unit");
+    ASSERT_TRUE(compile_assembly_text(assembly),
+                "emitted inline-asm assembly assembles with gcc -c");
     free(assembly);
 }
 

@@ -14,9 +14,15 @@ typedef enum {
 } ResolvedTypeKind;
 
 typedef struct {
+    bool               has_size;
+    unsigned long long size;
+} ArrayExtent;
+
+typedef struct {
     ResolvedTypeKind kind;
     AstPrimitiveType primitive;
     size_t           array_depth;
+    const ArrayExtent *array_extents;
     const char      *name;             /* for RESOLVED_TYPE_NAMED */
     size_t           generic_arg_count; /* for RESOLVED_TYPE_NAMED */
 } ResolvedType;
@@ -54,6 +60,9 @@ typedef struct {
     TypeAliasEntry        *alias_entries;
     size_t                 alias_count;
     size_t                 alias_capacity;
+    ArrayExtent          **owned_array_extent_blocks;
+    size_t                 owned_array_extent_block_count;
+    size_t                 owned_array_extent_block_capacity;
     TypeResolutionError    error;
     bool                   has_error;
 } TypeResolver;

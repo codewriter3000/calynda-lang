@@ -1,6 +1,6 @@
 # Calynda Syntax
 
-Minimal VS Code extension for the frozen Calynda 0.4 syntax surface.
+Minimal VS Code extension for the current Calynda alpha.7 syntax surface.
 
 ## What it provides
 
@@ -9,8 +9,8 @@ Minimal VS Code extension for the frozen Calynda 0.4 syntax surface.
 - Bracket and quote auto-closing
 - Syntax highlighting for:
   - keywords and modifiers
-  - primitive types
-  - tagged unions, `arr<?>`, `ptr<T>`, `layout`, and manual-memory keywords
+  - primitive types, including `num`
+  - tagged unions, `arr<?>`, `ptr<T>`, `mmio<T>`, `layout`, and manual-memory keywords
   - booleans and `null`
   - numeric literals
   - strings, chars, and template literals
@@ -33,6 +33,11 @@ If you want a `.vsix` package:
 ## Notes
 
 The grammar is based on the canonical language definition in `../compiler/calynda.ebnf` plus the tokenizer behavior in `../compiler/src/tokenizer/tokenizer.h`.
+## Changes in 1.0.0-alpha.7
+
+- Highlighting now covers `mmio`, `num`, `thread_local`, `type`, and the low-level barrier/cache builtin names used by the current alpha.7 surface.
+- The syntax package continues to track the canonical compiler grammar/tokenizer behaviour rather than a frozen 0.4 subset.
+
 ## Changes in 1.0.0-alpha.6
 
 - Highlighting for the new `var` parameter modifier, the `|var` early-return parameter form, and the built-in generic types `num` and `arr<?>` (the latter was already partially supported and is now treated consistently).

@@ -107,6 +107,12 @@ hir_program_free(&hir);
 - HIR is easier to analyze than AST due to explicit types and resolved names
 - HIR is the last representation that preserves lambda closures explicitly
 - Future optimizations can be performed at the HIR level
+## Changes in 1.0.0-alpha.7
+
+- HIR lowering now carries the `mmio<T>` / `.value` surface through the dedicated volatile memory-op path instead of the plain pointer helpers.
+- Statement-level `asm { ... };` blocks lower by synthesizing hidden zero-argument asm units and then emitting normal calls to them.
+- Fixed-size array metadata is preserved where needed for the stricter alpha.7 extent checks.
+
 ## Changes in 1.0.0-alpha.6
 
 - HIR lowering now distinguishes value-captured and reference-captured locals. Lambdas observe writes to enclosing scope through the new reference-capture path (`hir_lower_expr*`).

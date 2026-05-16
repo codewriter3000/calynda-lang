@@ -22,15 +22,12 @@ static const AstExpression *tc_strip_grouping_expression(const AstExpression *ex
 
 static bool tc_identifier_has_symbol_or_overload_resolution(const TypeChecker *checker,
                                                             const AstExpression *identifier) {
-    const SymbolResolution *resolution;
-
     if (!checker || !identifier) {
         return false;
     }
 
-    resolution = symbol_table_find_resolution(checker->symbols, identifier);
-    return resolution != NULL &&
-           (resolution->symbol != NULL || resolution->overload_set != NULL);
+    return symbol_table_resolve_identifier(checker->symbols, identifier) != NULL ||
+           symbol_table_resolve_overload_set(checker->symbols, identifier) != NULL;
 }
 
 static bool tc_callable_parameters_accept_arity(const AstParameterList *parameters,

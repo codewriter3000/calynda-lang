@@ -85,7 +85,7 @@ const PIPELINE_STAGES_BACKEND = [
     name: 'Runtime',
     dir: 'compiler/src/runtime/',
     description:
-      'Concrete runtime objects and values. Values are raw machine words or registered heap-object handles. Object kinds include strings, arrays, closures, packages, extern callables, template-part packs, unions, threads, futures, mutexes, and atomics. Includes process startup that boxes argv into Calynda string[] and registers static string objects.',
+      'Concrete runtime objects and values. Values are raw machine words or registered heap-object handles. Object kinds include strings, arrays, closures, packages, extern callables, template-part packs, unions, threads, futures, mutexes, and atomics. Includes process startup that boxes argv into Calynda string[] and registers static string objects. Hosted builds can link either the legacy append-only runtime archive or the default mark-and-sweep archive, while boot builds use the freestanding boot archive.',
     keyTypes: [
       'CalyndaRtWord', 'CalyndaRtString', 'CalyndaRtArray',
       'CalyndaRtClosure', 'CalyndaRtTypeTag', 'CalyndaRtTypeDescriptor',
@@ -117,7 +117,7 @@ const PIPELINE_STAGES_BACKEND = [
     name: 'CLI',
     dir: 'compiler/src/cli/',
     description:
-      'Command-line tools: the calynda compiler driver (supports --version, --strict-race-check, and --target for x86_64/aarch64/riscv64), AST dumper, semantic dumper, assembly emitter, bytecode emitter, native builder, and CAR archive commands (pack/build/run). Build, run, and asm all accept .car archives, while bytecode remains .cal-only. The native builder resolves the runtime archive relative to the executable directory.',
+      'Command-line tools: the calynda compiler driver (supports --version, --strict-race-check, --manual-bounds-check, --gc marksweep|legacy, --gc-plugin path.a, and --target for x86_64/aarch64/riscv64), AST dumper, semantic dumper, assembly emitter, bytecode emitter, native builder, and CAR archive commands (pack/build/run). Build, run, and asm all accept .car archives, while bytecode remains .cal-only. The native builder resolves the runtime archive relative to the executable directory and selects the hosted GC archive at link time.',
     keyTypes: [],
     keyFunctions: [],
     files: [

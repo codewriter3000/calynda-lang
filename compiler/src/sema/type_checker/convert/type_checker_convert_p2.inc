@@ -90,15 +90,19 @@ bool tc_checked_type_first_generic_arg_from_ast_type(TypeChecker *checker,
 
     supported_generic_host = type->kind == AST_TYPE_FUTURE ||
                              type->kind == AST_TYPE_ATOMIC ||
+                             type->kind == AST_TYPE_PTR ||
                              (type->kind == AST_TYPE_NAMED &&
                               type->name != NULL &&
                               (strcmp(type->name, "Future") == 0 ||
-                               strcmp(type->name, "Atomic") == 0));
+                               strcmp(type->name, "Atomic") == 0 ||
+                               strcmp(type->name, "mmio") == 0 ||
+                               strcmp(type->name, "ptr") == 0));
     if (!supported_generic_host) {
         return false;
     }
 
-    *generic_arg_type = tc_checked_type_from_generic_ast(type->generic_args.items[0].type);
+    *generic_arg_type = tc_checked_type_from_generic_ast(checker,
+                                                        type->generic_args.items[0].type);
     return generic_arg_type->kind != CHECKED_TYPE_INVALID;
 }
 

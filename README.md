@@ -10,7 +10,7 @@
 
 ---
 
-Calynda is a compiled functional systems programming language. The current 1.0.0-alpha.6 surface targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files. A small standard library ships alongside the toolchain.
+Calynda is a compiled functional systems programming language. The current 1.0.0-alpha.7 surface targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files. A small standard library ships alongside the toolchain.
 
 ## Repository Layout
 
@@ -40,11 +40,13 @@ There is no interpreter path. AST or IR interpretation is not part of the design
 ## Language Features
 
 - First-class lambdas with arrow syntax
-- Homogeneous typed arrays and heterogeneous `arr<?>` arrays
+- Homogeneous typed arrays, including fixed-size annotations such as `int32[4]` with semantic extent checks, and heterogeneous `arr<?>` arrays
 - Tagged unions with constructor syntax and read-only `.tag` / `.payload` access
 - Layout declarations for describing typed-pointer memory structures
 - Unsafe manual memory management via `manual { ... };` and `manual checked { ... };`
 - Typed pointers (`ptr<T>`) with `deref`, `store`, `offset`, and `addr` operations
+- Typed MMIO handles via `mmio<T>` and `mmio<T>.value` for volatile device access
+- Barrier and cache-maintenance builtins: `fence()`, `cacheclean(address)`, `cachefinal()`
 - Deferred cleanup via `cleanup(value, fn)`, which runs `fn(value)` when the enclosing manual scope exits — including on `return` and `throw` paths
 - Scope-local scratch storage via `stackalloc(size)`, reclaimed at manual-scope exit
 - `manual checked` keeps a growable runtime bounds registry for safer pointer tracking
@@ -52,8 +54,8 @@ There is no interpreter path. AST or IR interpretation is not part of the design
 - `Thread.join()` / `Thread.cancel()` and `Future<T>.get()` / `Future<T>.cancel()`
 - `Atomic<T>` cells with `Atomic<T>.new(value)`, `.load()`, `.store(value)`, and `.exchange(value)` for first-class single-word runtime values
 - `thread_local` storage for cross-thread identity (not ordinary stack locals)
-- Inline assembly declarations via `asm()`
-- Bare-metal entry point via `boot()` for freestanding environments without weakening the bare-metal contract to Linux-only exit behavior
+- Inline assembly declarations via `asm()` plus statement-level `asm { ... };` blocks
+- Bare-metal entry point via `boot` for freestanding environments without weakening the bare-metal contract to Linux-only exit behavior
 - Template literals with string interpolation
 - Ternary expressions, member access, index access, and casts
 - CAR source archives for bundling `.cal` files
@@ -65,7 +67,7 @@ There is no interpreter path. AST or IR interpretation is not part of the design
 - Lambdas capture enclosing locals by reference (writes are visible to the enclosing scope)
 - Bundled standard library (`conditional`, `loop`, `math`, `string_utils`, `structure/`)
 
-The standard entry point is `start(string[] args)`. Bare-metal programs use `boot()` instead.
+The standard entry point is `start(string[] args)`. Bare-metal programs use `boot` instead.
 
 For concurrency, `spawn` of a zero-argument `void` callable returns `Thread`; `spawn` of a zero-argument non-`void` callable returns `Future<T>`.
 
@@ -94,6 +96,7 @@ The installer builds Calynda and installs:
 - a `calynda` launcher in your bin directory
 - the real CLI binary under `lib/calynda/`
 - the hosted `calynda_runtime.a` archive beside that binary so generated executables can link correctly
+- the hosted `calynda_runtime_ms.a` archive used by the default mark-and-sweep GC backend
 - the freestanding `calynda_runtime_boot.a` archive used by `boot -> { ... };` programs
 
 If your install bin directory is not on `PATH`, the installer prints the export line to add to your shell profile.
@@ -156,10 +159,10 @@ The current CLI commands are:
 
 ```text
 calynda --version
-calynda build [--strict-race-check] [--target T] <source> [-o output]
-calynda run [--strict-race-check] [--target T] <source> [args...]
+calynda build [compiler options] <source> [-o output]
+calynda run [compiler options] <source> [args...]
 calynda pack <directory> [-o output.car]
-calynda asm [--strict-race-check] [--target T] <source.cal>
+calynda asm [compiler options] <source>
 calynda bytecode <source.cal>
 calynda help
 ```
@@ -167,13 +170,15 @@ calynda help
 What they do:
 
 - `--version`: print the CLI version metadata
-- `build`: compile a `.cal` or `.car` source input to a native executable, optionally with the strict race checker enabled
+- `build`: compile a `.cal` or `.car` source input to a native executable
 - `run`: build a temporary native executable and execute it
 - `pack`: bundle a directory of `.cal` files into a `.car` archive
-- `asm`: emit native assembly to stdout (x86_64 by default, or `--target aarch64-linux` / `--target riscv64-linux`)
+- `asm`: emit native assembly to stdout from a `.cal` or `.car` input
 - `bytecode`: emit `portable-v1` bytecode text to stdout
 
-`--strict-race-check` is the exact alpha.2 flag spelling for the stricter shared-state race checker.
+Compiler options for `build`, `run`, and `asm` include `--strict-race-check`, `--manual-bounds-check`, `--target`, `--archive`, `--archive-path`, `--gc marksweep|legacy`, and `--gc-plugin path.a`.
+
+Hosted builds default to the mark-and-sweep runtime archive. Pass `--gc legacy` to keep the append-only legacy runtime, or `--gc-plugin path.a` to link a custom GC backend archive.
 
 ## Grammar
 
@@ -215,7 +220,7 @@ The local VS Code syntax extension lives under [vscode-calynda/README.md](vscode
 
 ## MCP Server
 
-An [MCP (Model Context Protocol)](mcp-server/README.md) server is included that enables AI assistants to deeply understand and work with Calynda. It provides code analysis, type validation, syntax explanation, code completion, examples, and formatting tools.
+An [MCP (Model Context Protocol)](mcp-server/README.md) server is included that enables AI assistants to deeply understand and work with Calynda. It tracks the alpha.7 language/help surface and provides code analysis, type validation, syntax explanation, code completion, examples, and formatting tools.
 
 See [mcp-server/README.md](mcp-server/README.md) for installation and configuration instructions.
 

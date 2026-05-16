@@ -56,8 +56,9 @@ typedef enum {
 } CalyndaRtTypeTag;
 
 typedef struct {
-    uint32_t magic;
-    uint32_t kind;
+    uint32_t  magic;
+    uint32_t  kind;
+    uintptr_t gc_word; /* reserved for GC backend (e.g. mark bit) */
 } CalyndaRtObjectHeader;
 
 typedef struct {
@@ -172,6 +173,9 @@ typedef struct {
 #define CALYNDA_RT_ATOMIC_LOAD     "__calynda_rt_atomic_load"
 #define CALYNDA_RT_ATOMIC_STORE    "__calynda_rt_atomic_store"
 #define CALYNDA_RT_ATOMIC_EXCHANGE "__calynda_rt_atomic_exchange"
+#define CALYNDA_RT_FENCE           "__calynda_rt_fence"
+#define CALYNDA_RT_CACHE_CLEAN     "__calynda_rt_cache_clean"
+#define CALYNDA_RT_CACHE_FINAL     "__calynda_rt_cache_final"
 #define CALYNDA_RT_ARRAY_CAR       "__calynda_rt_array_car"
 #define CALYNDA_RT_ARRAY_CDR       "__calynda_rt_array_cdr"
 #define CALYNDA_RT_STRING_CDR      "__calynda_rt_string_cdr"

@@ -106,8 +106,11 @@ bool mr_lower_memory_op_expression(MirUnitBuildContext *context,
     size_t element_size;
     size_t extra_argument_count;
     bool use_bounds_checks;
+    bool is_mmio;
 
-    use_bounds_checks = context->in_checked_manual || expression->as.memory_op.is_checked_ptr;
+    is_mmio = expression->as.memory_op.is_mmio;
+    use_bounds_checks = !is_mmio &&
+        (context->in_checked_manual || expression->as.memory_op.is_checked_ptr);
     element_size = expression->as.memory_op.element_size;
     extra_argument_count = 0;
 
@@ -152,7 +155,14 @@ bool mr_lower_memory_op_expression(MirUnitBuildContext *context,
         function_name = use_bounds_checks ? "__calynda_bc_stackalloc" : "__calynda_stackalloc";
         break;
     case HIR_MEMORY_DEREF:
-        if (use_bounds_checks) {
+        if (is_mmio) {
+            if (element_size != 0 && element_size != 8) {
+                function_name = "__calynda_mmio_deref_sized";
+                extra_argument_count = 1;
+            } else {
+                function_name = "__calynda_mmio_deref";
+            }
+        } else if (use_bounds_checks) {
             function_name = "__calynda_bc_deref";
         } else if (element_size != 0 && element_size != 8) {
             function_name = "__calynda_deref_sized";
@@ -175,7 +185,14 @@ bool mr_lower_memory_op_expression(MirUnitBuildContext *context,
         }
         break;
     case HIR_MEMORY_STORE:
-        if (use_bounds_checks) {
+        if (is_mmio) {
+            if (element_size != 0 && element_size != 8) {
+                function_name = "__calynda_mmio_store_sized";
+                extra_argument_count = 1;
+            } else {
+                function_name = "__calynda_mmio_store";
+            }
+        } else if (use_bounds_checks) {
             function_name = "__calynda_bc_store";
         } else if (element_size != 0 && element_size != 8) {
             function_name = "__calynda_store_sized";

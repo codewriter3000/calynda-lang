@@ -141,7 +141,10 @@ static int emit_program_file(const char *path) {
         !mir_build_program(&mir_program, &hir_program, false) ||
         !lir_build_program(&lir_program, &mir_program) ||
         !codegen_build_program(&codegen_program, &lir_program, target_get_default()) ||
-        !machine_build_program(&machine_program, &lir_program, &codegen_program)) {
+        !machine_build_program(&machine_program,
+                               &lir_program,
+                               &codegen_program,
+                               &hir_program)) {
         fprintf(stderr, "%s: backend lowering failed\n", path);
         exit_code = 1;
         goto cleanup;

@@ -24,6 +24,72 @@ static bool reserve_items(void **items, size_t *capacity,
     return true;
 }
 
+static bool parse_array_size_literal(const char *text, unsigned long long *value_out) {
+    char *end = NULL;
+    unsigned long long value;
+
+    if (!text || text[0] == '\0') {
+        return false;
+    }
+
+    errno = 0;
+    value = strtoull(text, &end, 10);
+    if (errno != 0 || !end || *end != '\0') {
+        return false;
+    }
+
+    if (value_out) {
+        *value_out = value;
+    }
+    return true;
+}
+
+static bool tr_register_owned_array_extent_block(TypeResolver *resolver,
+                                                 ArrayExtent *array_extents) {
+    if (!reserve_items((void **)&resolver->owned_array_extent_blocks,
+                       &resolver->owned_array_extent_block_capacity,
+                       resolver->owned_array_extent_block_count + 1,
+                       sizeof(*resolver->owned_array_extent_blocks))) {
+        tr_set_error(resolver,
+                     "Out of memory while storing resolved array extent metadata.");
+        return false;
+    }
+
+    resolver->owned_array_extent_blocks[resolver->owned_array_extent_block_count++] =
+        array_extents;
+    return true;
+}
+
+static bool tr_allocate_array_extents(TypeResolver *resolver,
+                                      size_t count,
+                                      ArrayExtent **array_extents_out) {
+    ArrayExtent *array_extents;
+
+    if (!resolver || !array_extents_out) {
+        return false;
+    }
+
+    *array_extents_out = NULL;
+    if (count == 0) {
+        return true;
+    }
+
+    array_extents = calloc(count, sizeof(*array_extents));
+    if (!array_extents) {
+        tr_set_error(resolver,
+                     "Out of memory while allocating resolved array extent metadata.");
+        return false;
+    }
+
+    if (!tr_register_owned_array_extent_block(resolver, array_extents)) {
+        free(array_extents);
+        return false;
+    }
+
+    *array_extents_out = array_extents;
+    return true;
+}
+
 const char *tr_primitive_type_name(AstPrimitiveType primitive) {
     switch (primitive) {
     case AST_PRIMITIVE_INT8:
@@ -111,6 +177,58 @@ ResolvedType tr_resolved_type_with_extra_arrays(ResolvedType type,
                                                 size_t extra_array_depth) {
     type.array_depth += extra_array_depth;
     return type;
+}
+
+bool tr_build_array_extents(TypeResolver *resolver,
+                            const ArrayExtent *base_extents,
+                            size_t base_extent_count,
+                            const AstArrayDimension *extra_dimensions,
+                            size_t extra_dimension_count,
+                            ArrayExtent **array_extents_out) {
+    ArrayExtent *array_extents;
+    size_t total_count = base_extent_count + extra_dimension_count;
+    size_t i;
+
+    if (!resolver || !array_extents_out) {
+        return false;
+    }
+
+    *array_extents_out = NULL;
+    if (total_count == 0) {
+        return true;
+    }
+
+    if (!tr_allocate_array_extents(resolver, total_count, &array_extents)) {
+        return false;
+    }
+
+    for (i = 0; i < base_extent_count; i++) {
+        if (base_extents) {
+            array_extents[i] = base_extents[i];
+        }
+    }
+
+    for (i = 0; i < extra_dimension_count; i++) {
+        if (extra_dimensions[i].has_size) {
+            unsigned long long size_value = 0;
+
+            if (!parse_array_size_literal(extra_dimensions[i].size_literal, &size_value) ||
+                size_value == 0) {
+                tr_set_error(resolver,
+                             "Internal error: invalid resolved array extent '%s'.",
+                             extra_dimensions[i].size_literal
+                                 ? extra_dimensions[i].size_literal
+                                 : "<missing>");
+                return false;
+            }
+
+            array_extents[base_extent_count + i].has_size = true;
+            array_extents[base_extent_count + i].size = size_value;
+        }
+    }
+
+    *array_extents_out = array_extents;
+    return true;
 }
 
 bool tr_source_span_is_valid(AstSourceSpan span) {

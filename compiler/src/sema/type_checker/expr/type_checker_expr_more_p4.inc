@@ -72,6 +72,22 @@
                     break;
                 }
             }
+            if (tc_checked_type_is_named_type(target_type, "mmio") &&
+                strcmp(expression->as.member.member, "value") == 0) {
+                CheckedType generic_arg_type;
+                bool has_generic_arg = tc_type_check_info_first_generic_arg(checker,
+                                                                            target_info,
+                                                                            NULL,
+                                                                            &generic_arg_type);
+
+                if (checker->has_error) {
+                    return NULL;
+                }
+
+                info = tc_type_check_info_make(
+                    has_generic_arg ? generic_arg_type : tc_checked_type_external());
+                break;
+            }
             if (tc_checked_type_is_named_type(target_type, "Mutex")) {
                 if (expression->as.member.target->kind == AST_EXPR_IDENTIFIER &&
                     expression->as.member.target->as.identifier &&

@@ -163,6 +163,12 @@ if (!type_checker_check_program(&checker, &program, &symbols)) {
 - Type checking happens after full symbol resolution
 - Generic types are validated but not instantiated at this stage
 - The type system is designed to prevent common programming errors
+## Changes in 1.0.0-alpha.7
+
+- Type resolution now accepts `mmio<T>` alongside the existing named/generic low-level types.
+- The type checker validates `fence()`, `cacheclean(...)`, and `cachefinal()`, including arity checks and address-kind rules for integral, `ptr<T>`, and `mmio<T>` inputs.
+- Declared fixed-size array extents are now enforced across initializers, assignments, call boundaries, default values, lambda returns, and ternary merges when shape metadata survives.
+
 ## Changes in 1.0.0-alpha.6
 
 - Type-checker (`type_checker_lambda.c`, `type_checker_resolve_binding.c`, `type_checker_types.c`, `type_checker_ops.c`, `type_checker_convert.c`) now understands:

@@ -69,7 +69,7 @@ void test_keywords(void) {
         "return exit throw true false null "
         "int8 int16 int32 int64 uint8 uint16 uint32 uint64 "
         "float32 float64 bool char string "
-        "export as internal static thread_local union manual arr ptr "
+        "export as internal static thread_local union manual arr ptr mmio "
         "malloc calloc realloc free deref addr offset store cleanup stackalloc layout";
 
     TokenType expected[] = {
@@ -80,7 +80,7 @@ void test_keywords(void) {
         TOK_UINT8, TOK_UINT16, TOK_UINT32, TOK_UINT64,
         TOK_FLOAT32, TOK_FLOAT64, TOK_BOOL, TOK_CHAR, TOK_STRING,
         TOK_EXPORT, TOK_AS, TOK_INTERNAL, TOK_STATIC, TOK_THREAD_LOCAL, TOK_UNION,
-        TOK_MANUAL, TOK_ARR, TOK_PTR,
+        TOK_MANUAL, TOK_ARR, TOK_PTR, TOK_MMIO,
         TOK_MALLOC, TOK_CALLOC, TOK_REALLOC, TOK_FREE,
         TOK_DEREF, TOK_ADDR, TOK_OFFSET, TOK_STORE, TOK_CLEANUP, TOK_STACKALLOC, TOK_LAYOUT,
         TOK_EOF

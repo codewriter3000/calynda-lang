@@ -203,6 +203,8 @@ bool st_analyze_statement(SymbolTable *table, const AstStatement *statement,
     case AST_STMT_SWAP:
         return st_analyze_expression(table, statement->as.swap.left, scope) &&
                st_analyze_expression(table, statement->as.swap.right, scope);
+    case AST_STMT_INLINE_ASM:
+        return true;
     }
 
     return false;

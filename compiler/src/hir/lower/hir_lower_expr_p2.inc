@@ -47,6 +47,55 @@ static bool hr_is_builtin_type_query_call(HirBuildContext *context,
     return false;
 }
 
+static bool hr_is_builtin_fence_call(HirBuildContext *context,
+                                     const AstExpression *expression) {
+    const AstExpression *callee;
+
+    if (!context || !expression || expression->kind != AST_EXPR_CALL ||
+        !expression->as.call.callee) {
+        return false;
+    }
+
+    callee = expression->as.call.callee;
+    if (callee->kind != AST_EXPR_IDENTIFIER ||
+        symbol_table_resolve_identifier(context->symbols, callee) != NULL ||
+        !callee->as.identifier) {
+        return false;
+    }
+
+    return strcmp(callee->as.identifier, "fence") == 0 &&
+           expression->as.call.arguments.count == 0;
+}
+
+static const char *hr_builtin_cache_helper_name(HirBuildContext *context,
+                                                const AstExpression *expression) {
+    const AstExpression *callee;
+
+    if (!context || !expression || expression->kind != AST_EXPR_CALL ||
+        !expression->as.call.callee) {
+        return NULL;
+    }
+
+    callee = expression->as.call.callee;
+    if (callee->kind != AST_EXPR_IDENTIFIER ||
+        symbol_table_resolve_identifier(context->symbols, callee) != NULL ||
+        !callee->as.identifier) {
+        return NULL;
+    }
+
+    if (strcmp(callee->as.identifier, "cacheclean") == 0 &&
+        expression->as.call.arguments.count == 1) {
+        return "__calynda_rt_cache_clean";
+    }
+
+    if (strcmp(callee->as.identifier, "cachefinal") == 0 &&
+        expression->as.call.arguments.count == 0) {
+        return "__calynda_rt_cache_final";
+    }
+
+    return NULL;
+}
+
 static HirExpression *hr_make_helper_call(HirBuildContext *context,
                                           const AstExpression *expression,
                                           const char *helper_name,

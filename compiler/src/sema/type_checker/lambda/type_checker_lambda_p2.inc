@@ -37,6 +37,16 @@
             }
 
             if (!parameter->is_untyped &&
+                !tc_validate_sized_array_default_value(checker,
+                                                       &parameter->type,
+                                                       0,
+                                                       parameter->default_expr,
+                                                       &parameter->name_span,
+                                                       parameter->name)) {
+                return false;
+            }
+
+            if (!parameter->is_untyped &&
                 !tc_checked_type_assignable(parameter_type, default_type)) {
                 char expected_text[64];
                 char actual_text[64];
@@ -100,11 +110,14 @@ bool tc_resolve_parameters_in_scope(TypeChecker *checker,
 const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
                                                 const AstExpression *expression,
                                                 const CheckedType *expected_return_type,
+                                                const AstType *expected_return_ast_type,
                                                 const AstSourceSpan *related_span,
                                                 bool is_nlr_block) {
     const Scope *lambda_scope;
     CheckedType return_type;
     AstSourceSpan return_span;
+    const AstType *inferred_return_shape_type = NULL;
+    size_t inferred_return_shape_consumed_dimensions = 0;
     TypeCheckInfo info;
 
     if (!checker || !expression || expression->kind != AST_EXPR_LAMBDA) {
@@ -142,6 +155,7 @@ const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
         BlockContext context;
         CheckedType saved_outer_return_type = checker->outer_return_type;
         bool saved_has_outer = checker->has_outer_return_type;
+        const AstType *saved_outer_return_ast_type = checker->outer_return_ast_type;
         bool ok;
 
         memset(&context, 0, sizeof(context));
@@ -151,6 +165,7 @@ const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
         if (expected_return_type) {
             context.expected_return_type = *expected_return_type;
         }
+        context.expected_return_ast_type = expected_return_ast_type;
         context.owner_span = expression->source_span;
         if (related_span && tc_source_span_is_valid(*related_span)) {
             context.related_span = *related_span;
@@ -162,16 +177,20 @@ const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
         if (expected_return_type) {
             checker->outer_return_type = *expected_return_type;
             checker->has_outer_return_type = true;
+            checker->outer_return_ast_type = expected_return_ast_type;
         }
 
         ok = tc_check_block(checker,
                             expression->as.lambda.body.as.block,
                             &context,
                             &return_type,
-                            &return_span);
+                            &return_span,
+                            &inferred_return_shape_type,
+                            &inferred_return_shape_consumed_dimensions);
 
         checker->outer_return_type = saved_outer_return_type;
         checker->has_outer_return_type = saved_has_outer;
+        checker->outer_return_ast_type = saved_outer_return_ast_type;
 
         if (!ok) {
             return NULL;
@@ -186,6 +205,16 @@ const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
 
         return_type = tc_type_check_source_type(body_info);
         return_span = expression->as.lambda.body.as.expression->source_span;
+
+        if (expected_return_ast_type &&
+            !tc_validate_sized_array_return_value(checker,
+                                                  expected_return_ast_type,
+                                                  0,
+                                                  expression->as.lambda.body.as.expression,
+                                                  related_span,
+                                                  "lambda body")) {
+            return NULL;
+        }
 
         if (expected_return_type &&
             !tc_checked_type_assignable(*expected_return_type, return_type)) {
@@ -204,9 +233,28 @@ const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
                             actual_text);
             return NULL;
         }
+
+        info = tc_type_check_info_make_callable(return_type, &expression->as.lambda.parameters);
+        if (expected_return_ast_type && expected_return_ast_type->dimension_count > 0) {
+            info.callable_return_array_shape_type = expected_return_ast_type;
+            info.callable_return_array_shape_consumed_dimensions = 0;
+        } else if (body_info->array_shape_type) {
+            info.callable_return_array_shape_type = body_info->array_shape_type;
+            info.callable_return_array_shape_consumed_dimensions =
+                body_info->array_shape_consumed_dimensions;
+        }
+        return tc_store_expression_info(checker, expression, info);
     }
 
     info = tc_type_check_info_make_callable(return_type, &expression->as.lambda.parameters);
+    if (expected_return_ast_type && expected_return_ast_type->dimension_count > 0) {
+        info.callable_return_array_shape_type = expected_return_ast_type;
+        info.callable_return_array_shape_consumed_dimensions = 0;
+    } else if (inferred_return_shape_type) {
+        info.callable_return_array_shape_type = inferred_return_shape_type;
+        info.callable_return_array_shape_consumed_dimensions =
+            inferred_return_shape_consumed_dimensions;
+    }
     return tc_store_expression_info(checker, expression, info);
 }
 

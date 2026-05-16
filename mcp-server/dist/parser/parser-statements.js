@@ -14,7 +14,7 @@ function parseType(state) {
         const voidNode = { kind: 'VoidType', start: startPos, end };
         return voidNode;
     }
-    if (state.check('keyword', 'arr') || state.check('keyword', 'ptr')) {
+    if (state.check('keyword', 'arr') || state.check('keyword', 'ptr') || state.check('keyword', 'mmio')) {
         const nameTok = state.advance();
         const genericArgs = parseGenericArgs(state);
         const namedNode = { kind: 'NamedType', name: nameTok.value, genericArgs, start: startPos, end: state.position() };

@@ -15,7 +15,7 @@ exports.LexError = LexError;
 exports.KEYWORDS = new Set([
     'package', 'import', 'public', 'private', 'final', 'var', 'start', 'boot',
     'return', 'exit', 'throw', 'null', 'true', 'false', 'void',
-    'export', 'as', 'internal', 'static', 'thread_local', 'type', 'union', 'manual', 'arr', 'ptr', 'layout',
+    'export', 'as', 'internal', 'static', 'thread_local', 'type', 'union', 'manual', 'arr', 'ptr', 'mmio', 'layout',
     'spawn', 'checked', 'asm', 'malloc', 'calloc', 'realloc', 'free', 'deref', 'store',
     'offset', 'addr', 'cleanup', 'stackalloc',
 ]);
@@ -23,6 +23,7 @@ exports.PRIMITIVE_TYPES = new Set([
     'int8', 'int16', 'int32', 'int64',
     'uint8', 'uint16', 'uint32', 'uint64',
     'float32', 'float64',
+    'num',
     'bool', 'char', 'string',
     'byte', 'sbyte', 'short', 'int', 'long', 'ulong', 'uint', 'float', 'double',
 ]);

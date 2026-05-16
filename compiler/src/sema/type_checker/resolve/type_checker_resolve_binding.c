@@ -100,6 +100,11 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
                 entry->info = tc_type_check_info_make_callable(
                     provisional_return_type,
                     &binding_decl->initializer->as.lambda.parameters);
+                if (binding_decl->declared_type.dimension_count > 0) {
+                    entry->info.callable_return_array_shape_type =
+                        &binding_decl->declared_type;
+                    entry->info.callable_return_array_shape_consumed_dimensions = 0;
+                }
                 {
                     CheckedType generic_arg_type;
 
@@ -170,6 +175,10 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
         }
         resolved_info = tc_type_check_info_make_callable(return_type,
                                                          parameters);
+        if (return_type_ast->dimension_count > 0) {
+            resolved_info.callable_return_array_shape_type = return_type_ast;
+            resolved_info.callable_return_array_shape_consumed_dimensions = 0;
+        }
         break;
     }
 
@@ -224,6 +233,12 @@ const TypeCheckInfo *tc_resolve_symbol_info(TypeChecker *checker,
 
     case SYMBOL_KIND_VARIANT:
         break;
+    }
+
+    if (!resolved_info.is_callable && symbol->declared_type &&
+        symbol->declared_type->dimension_count > 0) {
+        resolved_info.array_shape_type = symbol->declared_type;
+        resolved_info.array_shape_consumed_dimensions = 0;
     }
 
     entry->info = resolved_info;

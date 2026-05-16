@@ -10,6 +10,7 @@ typedef struct {
     MachineProgram      *program;
     const LirProgram    *lir_program;
     const CodegenProgram *codegen_program;
+    const HirProgram    *hir_program;
 } MachineBuildContext;
 
 /* Convenience accessors for the target descriptor from a build context */
@@ -20,6 +21,7 @@ typedef struct {
 
 bool mc_reserve_items(void **items, size_t *capacity,
                       size_t needed, size_t item_size);
+bool mc_collect_static_arrays(MachineBuildContext *context);
 bool mc_source_span_is_valid(AstSourceSpan span);
 void mc_set_error(MachineBuildContext *context,
                   AstSourceSpan primary_span,

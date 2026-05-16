@@ -44,6 +44,8 @@
                                                   statement->as.swap.right,
                                                   spawn_scope,
                                                   visited);
+    case AST_STMT_INLINE_ASM:
+        return true;
     case AST_STMT_EXIT:
         return true;
     }

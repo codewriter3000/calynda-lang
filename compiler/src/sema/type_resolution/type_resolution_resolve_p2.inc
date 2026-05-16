@@ -84,6 +84,8 @@ static bool resolve_statement(TypeResolver *resolver, const AstStatement *statem
     case AST_STMT_SWAP:
         return tr_resolve_expression(resolver, statement->as.swap.left) &&
                tr_resolve_expression(resolver, statement->as.swap.right);
+    case AST_STMT_INLINE_ASM:
+        return true;
     }
 
     return false;

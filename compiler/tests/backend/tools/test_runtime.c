@@ -98,20 +98,23 @@ void test_runtime_deref_sized_and_store_sized_primitive_widths(void);
 void test_runtime_thread_cancel_stops_thread(void);
 void test_runtime_future_spawn_get_cancel(void);
 void test_runtime_atomic_operations(void);
+void test_runtime_mmio_helpers_preserve_values(void);
+void test_runtime_fence_helper_is_callable(void);
+void test_runtime_cache_helpers_are_callable(void);
 
 static void test_runtime_layout_dump_defines_object_model(void) {
     static const char expected[] =
         "RuntimeLayout word=uint64 raw-scalar-or-object-handle\n"
         "  ObjectHeader size=8 magic=0x434C5944 fields=[magic:uint32, kind:uint32]\n"
-        "  String size=24 payload=[length:size_t, bytes:char*]\n"
-        "  Array size=24 payload=[count:size_t, elements:uint64*]\n"
-        "  Closure size=32 payload=[entry:void*, capture_count:size_t, captures:uint64*]\n"
-        "  Package size=16 payload=[name:char*]\n"
-        "  ExternCallable size=24 payload=[kind:uint32, name:char*]\n"
+        "  String size=32 payload=[length:size_t, bytes:char*]\n"
+        "  Array size=32 payload=[count:size_t, elements:uint64*]\n"
+        "  Closure size=40 payload=[entry:void*, capture_count:size_t, captures:uint64*]\n"
+        "  Package size=24 payload=[name:char*]\n"
+        "  ExternCallable size=32 payload=[kind:uint32, name:char*]\n"
         "  TemplatePart size=16 payload=[tag:uint64, payload:uint64]\n"
         "  TemplateTags text=0 value=1\n"
-        "  Union size=32 payload=[type_desc:TypeDescriptor*, tag:uint32, payload:uint64]\n"
-        "  HeteroArray size=32 payload=[type_desc:TypeDescriptor*, count:size_t, elements:uint64*]\n"
+        "  Union size=40 payload=[type_desc:TypeDescriptor*, tag:uint32, payload:uint64]\n"
+        "  HeteroArray size=40 payload=[type_desc:TypeDescriptor*, count:size_t, elements:uint64*]\n"
         "  TypeDescriptor fields=[name:char*, generic_param_count:size_t, generic_param_tags:uint32*, variant_count:size_t, variant_names:char**, variant_payload_tags:uint32*]\n"
         "  Builtins package=stdlib member=print\n";
     char *dump = calynda_rt_dump_layout_to_string();

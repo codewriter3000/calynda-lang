@@ -27,6 +27,35 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
     if (expression->kind == AST_EXPR_CALL) {
         const char *helper_name = NULL;
         const char *builtin_name = hr_builtin_sequence_name(context, expression);
+        const char *cache_helper_name = hr_builtin_cache_helper_name(context, expression);
+
+        if (hr_is_builtin_fence_call(context, expression)) {
+            return hr_make_helper_call(context,
+                                       expression,
+                                       "__calynda_rt_fence",
+                                       info->type,
+                                       NULL,
+                                       0);
+        }
+
+        if (cache_helper_name) {
+            HirExpression *arguments[1] = { NULL };
+
+            if (expression->as.call.arguments.count == 1) {
+                arguments[0] = hr_lower_expression(context,
+                                                   expression->as.call.arguments.items[0]);
+                if (!arguments[0]) {
+                    return NULL;
+                }
+            }
+
+            return hr_make_helper_call(context,
+                                       expression,
+                                       cache_helper_name,
+                                       info->type,
+                                       arguments,
+                                       expression->as.call.arguments.count);
+        }
 
         if (hr_is_builtin_type_query_call(context, expression, &helper_name)) {
             HirExpression *arguments[4] = { NULL, NULL, NULL, NULL };

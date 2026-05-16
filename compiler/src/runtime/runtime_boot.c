@@ -103,6 +103,30 @@ static CalyndaRtWord *frt_copy_words(const CalyndaRtWord *source, size_t count) 
     return copy;
 }
 
+static CalyndaRtWord frt_mmio_load_bytes(const volatile unsigned char *source,
+                                         size_t size) {
+    CalyndaRtWord result = 0;
+    unsigned char *result_bytes = (unsigned char *)&result;
+    size_t i;
+
+    for (i = 0; i < size && i < sizeof(result); i++) {
+        result_bytes[i] = source[i];
+    }
+
+    return result;
+}
+
+static void frt_mmio_store_bytes(volatile unsigned char *target,
+                                 CalyndaRtWord value,
+                                 size_t size) {
+    const unsigned char *value_bytes = (const unsigned char *)&value;
+    size_t i;
+
+    for (i = 0; i < size && i < sizeof(value); i++) {
+        target[i] = value_bytes[i];
+    }
+}
+
 static CalyndaRtArray *frt_new_array(size_t count, const CalyndaRtWord *elements) {
     CalyndaRtArray *array = (CalyndaRtArray *)frt_alloc_bytes(sizeof(*array));
 
@@ -221,4 +245,52 @@ void __calynda_rt_store_index(CalyndaRtWord target,
         frt_fail();
     }
     array->elements[offset] = value;
+}
+
+CalyndaRtWord __calynda_mmio_deref(CalyndaRtWord ptr) {
+    return frt_mmio_load_bytes((const volatile unsigned char *)(uintptr_t)ptr,
+                               sizeof(CalyndaRtWord));
+}
+
+CalyndaRtWord __calynda_mmio_deref_sized(CalyndaRtWord ptr, CalyndaRtWord size) {
+    return frt_mmio_load_bytes((const volatile unsigned char *)(uintptr_t)ptr,
+                               (size_t)size);
+}
+
+void __calynda_mmio_store(CalyndaRtWord ptr, CalyndaRtWord value) {
+    frt_mmio_store_bytes((volatile unsigned char *)(uintptr_t)ptr,
+                         value,
+                         sizeof(CalyndaRtWord));
+}
+
+void __calynda_mmio_store_sized(CalyndaRtWord ptr,
+                                CalyndaRtWord value,
+                                CalyndaRtWord size) {
+    frt_mmio_store_bytes((volatile unsigned char *)(uintptr_t)ptr,
+                         value,
+                         (size_t)size);
+}
+
+void __calynda_rt_fence(void) {
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+}
+
+void __calynda_rt_cache_clean(CalyndaRtWord address) {
+    uintptr_t raw_address = (uintptr_t)address;
+
+#if defined(__aarch64__)
+    __asm__ volatile("dc cvau, %0" : : "r"(raw_address) : "memory");
+#else
+    (void)raw_address;
+#endif
+}
+
+void __calynda_rt_cache_final(void) {
+#if defined(__aarch64__)
+    __asm__ volatile("dsb ish\n\tisb" : : : "memory");
+#elif defined(__riscv)
+    __asm__ volatile("fence.i" : : : "memory");
+#else
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+#endif
 }

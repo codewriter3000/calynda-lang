@@ -217,14 +217,10 @@ The runtime initializes and invokes the program's start function.
 
 ## Memory Model
 
-### Current: Manual Memory Management
-- Objects explicitly allocated and freed
-- Compiler inserts free calls (future: escape analysis)
-
-### Future: Garbage Collection
-- Mark-and-sweep or generational GC
-- Automatic memory reclamation
-- Cycle detection
+### Current: Hosted GC Backends Plus Manual Memory Helpers
+- Hosted builds ship with two runtime archives: legacy append-only `calynda_runtime.a` and default mark-and-sweep `calynda_runtime_ms.a`
+- `--gc legacy` and `--gc-plugin path.a` select alternate hosted backends at link time
+- Manual-memory helpers (`manual`, `manual checked`, `ptr<T>`, `stackalloc`, `cleanup`) continue to coexist with the GC-managed object model
 
 ## Standard Library
 
@@ -275,9 +271,15 @@ bool calynda_rt_dump_layout(FILE *out);
 
 - Runtime is written in C for portability
 - ABI is stable across compiler versions
-- Runtime is linked as shared library (future: static option)
+- Runtime is linked as static archives (`calynda_runtime.a`, `calynda_runtime_ms.a`, `calynda_runtime_boot.a`)
 - Runtime functions are prefixed with `__calynda_rt_` or `calynda_rt_`
 - Public API uses `calynda_rt_`, private uses `__calynda_rt_`
+## Changes in 1.0.0-alpha.7
+
+- Hosted runtime delivery now includes two GC backends: legacy `calynda_runtime.a` and default mark-and-sweep `calynda_runtime_ms.a`, plus a stable plugin surface for `--gc-plugin`.
+- The runtime helper layer now includes the low-level barrier/cache primitives and dedicated volatile MMIO load/store helpers backing `mmio<T>.value`.
+- The freestanding boot runtime keeps the boot/start split intact while sharing the new low-level barrier/cache helpers where appropriate.
+
 ## Changes in 1.0.0-alpha.6
 
 - New module `runtime_nlr.c` implements the non-local-return slot stack used to lower `|var` early-return parameters. Public helpers: `__calynda_rt_nlr_push`, `__calynda_rt_nlr_invoke`, `__calynda_rt_nlr_check_pop`, `__calynda_rt_nlr_get_value`. Slots are thread-local.

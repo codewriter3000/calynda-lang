@@ -113,12 +113,21 @@ int calynda_build_program_file(const char *source_path, const char *output_path,
         strcpy(executable_dir, "build");
     }
     {
-        const char *runtime_name = calynda_runtime_archive_name(target, is_boot);
-        if (snprintf(runtime_object_path,
-                     sizeof(runtime_object_path),
-                     "%s/%s",
-                     executable_dir,
-                     runtime_name) < 0) {
+        const char *gc_plugin = calynda_get_gc_plugin_path();
+        int path_ok;
+        if (gc_plugin && !is_boot) {
+            path_ok = snprintf(runtime_object_path,
+                               sizeof(runtime_object_path),
+                               "%s", gc_plugin);
+        } else {
+            const char *runtime_name = calynda_runtime_archive_name(target, is_boot);
+            path_ok = snprintf(runtime_object_path,
+                               sizeof(runtime_object_path),
+                               "%s/%s",
+                               executable_dir,
+                               runtime_name);
+        }
+        if (path_ok < 0) {
             fprintf(stderr, "%s: failed to resolve runtime object path\n", source_path);
             unlink(assembly_path);
             free(assembly);

@@ -9,7 +9,7 @@ You are an expert on the current Calynda repository. You know the repository str
 
 ## Language Overview
 
-Calynda is a compiled functional systems programming language. Source files use the `.cal` extension. The compiler is written in C11 and targets native machine code (x86_64, AArch64, RISC-V RV64GC) or portable-v1 bytecode. The current shipped surface is **1.0.0-alpha.6** and includes a small bundled standard library (`conditional`, `loop`, `math`, `string_utils`, `structure/`).
+Calynda is a compiled functional systems programming language. Source files use the `.cal` extension. The compiler is written in C11 and targets native machine code (x86_64, AArch64, RISC-V RV64GC) or portable-v1 bytecode. The current shipped surface is **1.0.0-alpha.7** and includes a small bundled standard library (`conditional`, `loop`, `math`, `string_utils`, `structure/`).
 
 ### Key Language Features
 
@@ -21,6 +21,9 @@ Calynda is a compiled functional systems programming language. Source files use 
 - **`num` generic numeric primitive** (alpha.6): a single binding written against `num` resolves to whichever numeric primitive (`int8`…`int64`, `uint8`…`uint64`, `float32`, `float64`) the call site requires. Participates in numeric widening.
 - **`arr<?>` wildcard array type** (alpha.6): accepts any primitive-element array (`int32[]`, `string[]`, `float64[]`, …). The element type is opaque inside the body and accessed via indexing plus runtime type queries.
 - **`car`/`cdr` accept `string`** (alpha.6): `car(s)` returns the first byte as `char`, `cdr(s)` returns a new `string` with the first byte removed. Both abort at runtime on an empty string. The existing array overloads are unchanged.
+- **`mmio<T>` and `.value`** (alpha.7): typed MMIO/device addresses with volatile `.value` loads/stores, typed `offset(...)`, and compatibility with cache-maintenance helpers.
+- **Barrier/cache builtins** (alpha.7): `fence()`, `cacheclean(address)`, and `cachefinal()` form the low-level ordering/cache-maintenance surface for hosted and bare-metal code.
+- **Statement-level inline asm** (alpha.7): block bodies now accept `asm { ... };` in addition to top-level `asm(...) -> { ... };` declarations.
 - **Entry point**: `start(string[] args) -> { ... };` — implicitly returns int32 (exit code). Argument-optional and return-optional forms are valid: `start -> expr;`, `start -> { ... };`, `start(string[] args) -> expr;`, `start(string[] args) -> { ... };`. A void `start` body that falls through or uses bare `return;` exits with code 0.
 - **Bare-metal entry point**: `boot -> { ... };` — freestanding entry; takes no parameters or parentheses; links against `calynda_runtime_boot.a` (compiled with `-ffreestanding -fno-builtin -fno-stack-protector`).
 - **Operator overloading**: top-level bindings may share the same name with different parameter types; selected at each call site by exact match first, then numeric widening.
@@ -30,7 +33,7 @@ Calynda is a compiled functional systems programming language. Source files use 
 - **Type-query intrinsics**: `typeof(value)` (`string`), `isint`, `isfloat`, `isbool`, `isstring`, `isarray`, `issametype(x, y)` (`bool`). Dispatched through the runtime; not constant-folded at compile time.
 - **Primitive types**: int8, int16, int32, int64, uint8, uint16, uint32, uint64, float32, float64, bool, char, string
 - **Java-style aliases**: byte, sbyte, short, int, long, ulong, uint, float, double
-- **Homogeneous arrays**: `T[]` — fixed-dimension, element-typed
+- **Homogeneous arrays**: `T[]` — fixed-dimension, element-typed; declared extents such as `int32[4]` now participate in semantic shape checks
 - **Heterogeneous arrays**: `arr<T>` — tagged elements, supports `arr<?>` wildcard
 - **Tagged unions**: `union Option<T> { Some(T), None };` with reified generics; `.tag` (int32) and `.payload` (`<external>`) are read-only first-class member accesses
 - **Template literals**: backtick strings with `${expr}` interpolation; zero-argument callable expressions are auto-called during interpolation (void return rejected by type checker)
@@ -54,6 +57,8 @@ Calynda is a compiled functional systems programming language. Source files use 
 ### Grammar
 
 The canonical grammar lives in `compiler/calynda.ebnf`. As of alpha.6, `Parameter` carries a new alternative for untyped `var` parameters; `|var` early-return parameters are recognised by the parser and surfaced as a flag on the parameter node.
+
+As of alpha.7, the grammar and parser also cover `mmio<T>`, statement-level `asm { ... };`, and the fixed-size array surface that now feeds stricter semantic extent checks.
 
 ## Compiler Architecture
 
@@ -90,10 +95,10 @@ MIR is the split point. There is no interpreter path — execution is always com
 | **ASM Emit** | `compiler/src/backend/asm_emit/` | GNU assembler text output: rodata literals, global storage, string-object data, entry glue (`main`, `calynda_program_start`, per-lambda wrappers, `.note.GNU-stack`). Dispatches per-target (x86_64 / AArch64 / RV64GC). 13 files. |
 | **Target** | `compiler/src/backend/target/` | `TargetDescriptor` abstraction: `target_x86_64.c`, `target_aarch64.c`, `target_riscv64.c`. Exposes register names, ABI conventions, `work_register`. CLI `--target` flag accepts `x86_64`, `aarch64`, `riscv64`. 4 files. |
 | **Runtime ABI** | `compiler/src/backend/runtime_abi/` | Helper-call signatures for closures, callable dispatch, member/index, arrays, templates, casts, throw, typed ptr ops, union ops. Capture environment contract: `r15` (x86_64), `x19` (AArch64), `s1` (RV64GC). 4 files. |
-| **Runtime** | `compiler/src/runtime/` | Hosted runtime objects: strings, arrays, closures, packages, unions, template packs. `calynda_rt_start_process` boxes `argv[1..]`. Static string object registration. `manual checked` bounds registry. Typed ptr helpers. **alpha.6**: split into hosted (`calynda_runtime.a`) and freestanding (`calynda_runtime_boot.a`) archives; new `runtime_nlr.c` implements the non-local-return slot stack used by `|var`; new user-input helpers in `runtime_format.c`. |
+| **Runtime** | `compiler/src/runtime/` | Hosted runtime objects: strings, arrays, closures, packages, unions, template packs. `calynda_rt_start_process` boxes `argv[1..]`. Static string object registration. `manual checked` bounds registry. Typed ptr/MMIO helpers. Hosted builds now ship legacy (`calynda_runtime.a`) and default mark-and-sweep (`calynda_runtime_ms.a`) archives plus the freestanding boot archive (`calynda_runtime_boot.a`); the runtime also carries the non-local-return slot stack, user-input helpers, and the alpha.7 barrier/cache/MMIO helper surface. |
 | **Bytecode** | `compiler/src/bytecode/` | Portable-v1 ISA: 18 instructions + 4 terminators, constant pool, mirrors MIR surface including union and hetero-array ops. Type-descriptor constants interned in constant pool. 13 files. |
 | **CAR** | `compiler/src/car/` | Binary source archive format. `car_write.c`, `car_read.c`, `car_dir.c`. Multi-file compilation via AST merging in `calynda_car.c`. 5 files. |
-| **CLI** | `compiler/src/cli/` | Driver, AST/semantic dumpers, assembly/bytecode emitters, native builder. `calynda.c` supports `--target T` before the source file on `asm`/`build`/`run` commands. `runtime.o` resolved relative to executable directory. 10 files. |
+| **CLI** | `compiler/src/cli/` | Driver, AST/semantic dumpers, assembly/bytecode emitters, native builder. `calynda.c` supports `--target T`, `--manual-bounds-check`, `--gc marksweep|legacy`, and `--gc-plugin path.a` on `asm` / `build` / `run`, and resolves the hosted runtime archive relative to the executable directory. 10 files. |
 
 ### Key Data Flow
 
@@ -195,13 +200,13 @@ All three targets share a single target-agnostic Machine and Codegen layer, para
 
 ## MCP Server
 
-The MCP server (`mcp-server/`) is updated for alpha.6. It exposes:
+The MCP server (`mcp-server/`) is updated for alpha.7. It exposes:
 
 - **Tools**: `analyze_calynda_code`, `complete_calynda_code`, `explain_calynda_syntax`, `explain_compiler_architecture`, `format_calynda_code`, `get_calynda_examples`, `validate_calynda_types`
-- **Resources**: grammar (alpha.6 surface), types, keywords, examples (`examples-v3.ts`), compiler architecture, bytecode ISA
+- **Resources**: grammar (alpha.7 surface), types, keywords, examples (`examples-v3.ts`), compiler architecture, bytecode ISA
 - **Prompts**: function writing, debugging, code conversion, pipeline stage explanation
 
-The MCP parser modules (`mcp-server/src/parser/`) handle `arr<?>`, named/generic types, generic args, whole-function manual lambda shorthand, and the alpha.6 surface: untyped `var` parameters, `|var` early-return parameters, the `num` generic numeric type. Tools and resources cover all alpha.6 features in addition to the previously documented surface. All TypeScript source files are ≤250 lines; all directories have ≤15 entries.
+The MCP parser modules (`mcp-server/src/parser/`) handle `arr<?>`, `mmio<T>`, named/generic types, generic args, whole-function manual lambda shorthand, and the alpha.6/alpha.7 surface: untyped `var` parameters, `|var` early-return parameters, the `num` generic numeric type, and the fixed-size array type syntax. Tools, resources, completions, and explainers cover the alpha.7 MMIO/cache/GC surface in addition to the previously documented features. All TypeScript source files are ≤250 lines; all directories have ≤15 entries.
 
 ## Repository Conventions
 

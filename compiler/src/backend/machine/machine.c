@@ -23,7 +23,15 @@ void machine_program_free(MachineProgram *program) {
     for (i = 0; i < program->unit_count; i++) {
         mc_unit_free(&program->units[i]);
     }
+    for (i = 0; i < program->static_array_object_count; i++) {
+        free(program->static_array_objects[i].elements);
+    }
+    for (i = 0; i < program->static_array_binding_count; i++) {
+        free(program->static_array_bindings[i].global_name);
+    }
     free(program->units);
+    free(program->static_array_objects);
+    free(program->static_array_bindings);
     memset(program, 0, sizeof(*program));
 }
 
@@ -87,7 +95,8 @@ bool machine_format_error(const MachineBuildError *error,
 
 bool machine_build_program(MachineProgram *program,
                            const LirProgram *lir_program,
-                           const CodegenProgram *codegen_program) {
+                           const CodegenProgram *codegen_program,
+                           const HirProgram *hir_program) {
     MachineBuildContext context;
     const LirBuildError *lir_error;
     const CodegenBuildError *codegen_error;
@@ -104,6 +113,7 @@ bool machine_build_program(MachineProgram *program,
     context.program = program;
     context.lir_program = lir_program;
     context.codegen_program = codegen_program;
+    context.hir_program = hir_program;
 
     lir_error = lir_get_error(lir_program);
     if (lir_error != NULL) {
@@ -142,6 +152,10 @@ bool machine_build_program(MachineProgram *program,
                      (AstSourceSpan){0},
                      NULL,
                      "Machine emission requires matching LIR/codegen unit counts.");
+        return false;
+    }
+
+    if (!mc_collect_static_arrays(&context)) {
         return false;
     }
 

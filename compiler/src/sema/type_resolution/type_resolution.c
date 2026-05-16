@@ -35,14 +35,51 @@ void type_resolver_init(TypeResolver *resolver) {
 }
 
 void type_resolver_free(TypeResolver *resolver) {
+    size_t i;
+
     if (!resolver) {
         return;
     }
 
+    for (i = 0; i < resolver->owned_array_extent_block_count; i++) {
+        free(resolver->owned_array_extent_blocks[i]);
+    }
     free(resolver->type_entries);
     free(resolver->cast_entries);
     free(resolver->alias_entries);
+    free(resolver->owned_array_extent_blocks);
     memset(resolver, 0, sizeof(*resolver));
+}
+
+static bool tr_append_array_extents_to_string(ResolvedType type,
+                                              char *buffer,
+                                              size_t buffer_size,
+                                              int *written_out) {
+    size_t i;
+    int written = written_out ? *written_out : 0;
+
+    if (!buffer || !written_out) {
+        return false;
+    }
+
+    for (i = 0; i < type.array_depth; i++) {
+        if (type.array_extents && type.array_extents[i].has_size) {
+            written += snprintf(buffer + written,
+                                buffer_size - (size_t)written,
+                                "[%llu]",
+                                type.array_extents[i].size);
+        } else {
+            written += snprintf(buffer + written,
+                                buffer_size - (size_t)written,
+                                "[]");
+        }
+        if (written < 0 || (size_t)written >= buffer_size) {
+            return false;
+        }
+    }
+
+    *written_out = written;
+    return true;
 }
 
 bool type_resolver_resolve_program(TypeResolver *resolver, const AstProgram *program) {
@@ -209,7 +246,6 @@ const ResolvedType *type_resolver_get_cast_target_type(const TypeResolver *resol
 }
 
 bool resolved_type_to_string(ResolvedType type, char *buffer, size_t buffer_size) {
-    size_t i;
     int written;
 
     if (!buffer || buffer_size == 0) {
@@ -226,12 +262,6 @@ bool resolved_type_to_string(ResolvedType type, char *buffer, size_t buffer_size
         if (written < 0 || (size_t)written >= buffer_size) {
             return false;
         }
-        for (i = 0; i < type.array_depth; i++) {
-            written += snprintf(buffer + written, buffer_size - (size_t)written, "[]");
-            if (written < 0 || (size_t)written >= buffer_size) {
-                return false;
-            }
-        }
-        return true;
+        return tr_append_array_extents_to_string(type, buffer, buffer_size, &written);
 
 #include "type_resolution_p2.inc"

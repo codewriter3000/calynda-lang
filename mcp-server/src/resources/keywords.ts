@@ -1,9 +1,11 @@
 import {
+  BUILTIN_CALL_DOCS,
   BUILTIN_TYPES,
   DECLARATION_DOCS,
   KEYWORD_DOCS,
   KEYWORDS,
   NUMERIC_LITERAL_NOTES,
+  PARAMETER_FORMS,
   PRIMITIVE_TYPES,
 } from '../knowledge/keywords';
 
@@ -24,6 +26,16 @@ export function getKeywordsResource(): string {
 
   for (const [keyword, description] of Object.entries(KEYWORD_DOCS)) {
     lines.push(`- \`${keyword}\`: ${description}`);
+  }
+
+  lines.push('', '## Built-in Calls');
+  for (const [name, description] of Object.entries(BUILTIN_CALL_DOCS)) {
+    lines.push(`- \`${name}\`: ${description}`);
+  }
+
+  lines.push('', '## Parameter Forms');
+  for (const form of PARAMETER_FORMS) {
+    lines.push(`- \`${form.syntax}\` — ${form.description}`);
   }
 
   lines.push('', '## Declaration Syntax');

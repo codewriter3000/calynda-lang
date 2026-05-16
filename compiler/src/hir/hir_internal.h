@@ -72,6 +72,9 @@ HirStatement *hr_lower_statement(HirBuildContext *context,
 bool hr_lower_swap_statement(HirBuildContext *context,
                              HirBlock *block,
                              const AstStatement *statement);
+bool hr_lower_inline_asm_statement(HirBuildContext *context,
+                                   HirBlock *block,
+                                   const AstStatement *statement);
 
 /* hir_lower_expr.c */
 HirExpression *hr_lower_expression(HirBuildContext *context,
@@ -79,6 +82,9 @@ HirExpression *hr_lower_expression(HirBuildContext *context,
 HirExpression *hr_lower_memory_expression(HirBuildContext *context,
                                           const AstExpression *expression,
                                           const TypeCheckInfo *info);
+HirExpression *hr_lower_mmio_value_expression(HirBuildContext *context,
+                                              const AstExpression *expression,
+                                              const TypeCheckInfo *info);
 
 /* hir_lower_expr_ext.c */
 HirExpression *hr_lower_expr_complex(HirBuildContext *context,

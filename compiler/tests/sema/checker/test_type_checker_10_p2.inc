@@ -8,6 +8,25 @@
     ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
                 "typed ptr<int8> ops pass type checking");
 
+    body = program.top_level_decls[0]->as.start_decl.body.as.block;
+    manual_body = body->statements[0]->as.manual.body;
+    deref_info = type_checker_get_expression_info(
+        &checker, manual_body->statements[2]->as.local_binding.initializer);
+    offset_info = type_checker_get_expression_info(
+        &checker, manual_body->statements[3]->as.local_binding.initializer);
+    REQUIRE_TRUE(deref_info != NULL, "typed ptr<int8> deref expression has type info");
+    REQUIRE_TRUE(offset_info != NULL, "typed ptr<int8> offset expression has type info");
+    ASSERT_EQ_INT(AST_PRIMITIVE_INT8, deref_info->type.primitive,
+                  "typed ptr<int8> deref yields int8");
+    ASSERT_EQ_INT(CHECKED_TYPE_NAMED, offset_info->type.kind,
+                  "typed ptr<int8> offset preserves pointer type");
+    ASSERT_TRUE(offset_info->type.name != NULL && strcmp(offset_info->type.name, "ptr") == 0,
+                "typed ptr<int8> offset preserves ptr wrapper");
+    ASSERT_TRUE(offset_info->has_first_generic_arg,
+                "typed ptr<int8> offset preserves first generic argument metadata");
+    ASSERT_EQ_INT(AST_PRIMITIVE_INT8, offset_info->first_generic_arg_type.primitive,
+                  "typed ptr<int8> offset preserves int8 element type");
+
     type_checker_free(&checker);
     symbol_table_free(&symbols);
     ast_program_free(&program);
