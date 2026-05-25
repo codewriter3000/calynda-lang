@@ -1,13 +1,24 @@
 {
   "name": "calynda-syntax",
   "displayName": "Calynda Syntax",
-  "description": "Syntax highlighting and basic language configuration for the Calynda 0.4 surface.",
-  "version": "0.4.0",
+  "description": "Syntax highlighting and language configuration for the current Calynda 1.0.0-alpha.8 surface.",
+  "version": "1.0.0-alpha.8",
   "publisher": "local",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codewriter3000/calynda-lang.git",
+    "directory": "vscode-calynda"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
+  "files": [
+    "language-configuration.json",
+    "syntaxes/**",
+    "README.md",
+    "LICENSE"
+  ],
   "categories": [
     "Programming Languages"
   ],
@@ -19,7 +30,10 @@
     "union",
     "manual-memory",
     "heterogeneous-arrays",
-    "layout"
+    "layout",
+    "threading",
+    "typed-pointers",
+    "template-literals"
   ],
   "contributes": {
     "languages": [
