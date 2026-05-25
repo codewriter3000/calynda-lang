@@ -2,6 +2,7 @@
 #include "hir_dump.h"
 #include "parser.h"
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

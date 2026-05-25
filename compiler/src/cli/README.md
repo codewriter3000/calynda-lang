@@ -202,6 +202,12 @@ The `build_native` module:
 - Build system is incremental and cacheable
 - CLI is the primary interface for developers
 - Future: Language server protocol (LSP) integration
+## Changes in 1.0.0-alpha.8
+
+- `calynda help` and the compile-option plumbing now expose `--no-performance-warnings`, `--performance-advisories`, and `--size-focus` alongside the existing target/archive/GC flags.
+- Non-fatal type-checker warnings and opt-in advisories are now printed with source spans during `build`, `run`, `asm`, and CAR-backed compilation instead of being silently discarded.
+- The CLI metadata/version surface is now aligned to 1.0.0-alpha.8.
+
 ## Changes in 1.0.0-alpha.7
 
 - `calynda build`, `calynda run`, and `calynda asm` now accept `--manual-bounds-check`, `--gc marksweep|legacy`, and `--gc-plugin path.a` in addition to the existing target/archive flags.

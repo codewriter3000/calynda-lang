@@ -87,7 +87,9 @@ INCLUDES = -I$(AST_DIR) \
            -I$(TYPE_RESOLUTION_DIR) \
            -I$(TOKENIZER_DIR)
 
-CFLAGS  = -Wall -Wextra -pedantic -std=c11 -g $(INCLUDES)
+DEPFLAGS = -MMD -MP
+
+CFLAGS  = -Wall -Wextra -pedantic -std=c11 -g $(DEPFLAGS) $(INCLUDES)
 PTHREAD_FLAGS = -pthread
 FREESTANDING_CFLAGS = $(CFLAGS) -ffreestanding -fno-builtin -fno-stack-protector
 
@@ -1214,7 +1216,7 @@ clean:
 
 # --- ARM64 cross-compiled runtime library ---
 CROSS_CC_AARCH64 = aarch64-linux-gnu-gcc
-CROSS_CFLAGS_AARCH64 = -Wall -Wextra -pedantic -std=c11 -g -I$(RUNTIME_DIR)
+CROSS_CFLAGS_AARCH64 = -Wall -Wextra -pedantic -std=c11 -g $(DEPFLAGS) -I$(RUNTIME_DIR)
 
 RUNTIME_AARCH64_BASE_OBJS = $(BUILD_DIR)/runtime_aarch64.o \
                              $(BUILD_DIR)/runtime_bounds_aarch64.o \
@@ -1276,7 +1278,7 @@ runtime-aarch64: $(BUILD_DIR)/calynda_runtime_aarch64.a $(BUILD_DIR)/calynda_run
 
 # --- RISC-V 64 cross-compiled runtime library ---
 CROSS_CC_RISCV64 = riscv64-linux-gnu-gcc
-CROSS_CFLAGS_RISCV64 = -Wall -Wextra -pedantic -std=c11 -g -I$(RUNTIME_DIR)
+CROSS_CFLAGS_RISCV64 = -Wall -Wextra -pedantic -std=c11 -g $(DEPFLAGS) -I$(RUNTIME_DIR)
 
 RUNTIME_RISCV64_BASE_OBJS = $(BUILD_DIR)/runtime_riscv64.o \
                              $(BUILD_DIR)/runtime_bounds_riscv64.o \
@@ -1332,3 +1334,5 @@ $(BUILD_DIR)/calynda_runtime_boot_riscv64.a: $(RUNTIME_BOOT_RISCV64_OBJS)
 	ar rcs $@ $^
 
 runtime-riscv64: $(BUILD_DIR)/calynda_runtime_riscv64.a $(BUILD_DIR)/calynda_runtime_ms_riscv64.a $(BUILD_DIR)/calynda_runtime_boot_riscv64.a
+
+-include $(wildcard $(BUILD_DIR)/*.d)

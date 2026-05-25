@@ -13,6 +13,34 @@ static bool tc_checked_type_is_float_value(CheckedType type) {
            tc_primitive_is_float(type.primitive);
 }
 
+static const AstExpression *tc_strip_grouping_expression(const AstExpression *expression);
+
+static void tc_maybe_emit_external_call_performance_warning(TypeChecker *checker,
+                                                            const AstExpression *expression) {
+    const AstExpression *callee;
+
+    if (!checker || !expression || expression->kind != AST_EXPR_CALL) {
+        return;
+    }
+
+    callee = tc_strip_grouping_expression(expression->as.call.callee);
+    if (callee && callee->kind == AST_EXPR_IDENTIFIER && callee->as.identifier) {
+        tc_set_performance_warning_at(
+            checker,
+            callee->source_span,
+            NULL,
+            "Dynamic callable dispatch through external-typed value '%s' cannot use a direct call and will route through runtime helper dispatch. Prefer a statically typed callable when performance matters.",
+            callee->as.identifier);
+        return;
+    }
+
+    tc_set_performance_warning_at(
+        checker,
+        expression->as.call.callee->source_span,
+        NULL,
+        "Dynamic callable dispatch through an external-typed value cannot use a direct call and will route through runtime helper dispatch. Prefer a statically typed callable when performance matters.");
+}
+
 static const AstExpression *tc_strip_grouping_expression(const AstExpression *expression) {
     while (expression && expression->kind == AST_EXPR_GROUPING) {
         expression = expression->as.grouping.inner;

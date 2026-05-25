@@ -62,20 +62,29 @@ typedef struct {
 } TypeCheckError;
 
 typedef struct {
+    TypeCheckError error;
+    bool           is_performance;
+} TypeCheckNotice;
+
+typedef struct {
     const AstProgram           *program;
     const SymbolTable          *symbols;
     TypeResolver                resolver;
-    TypeCheckExpressionEntry   *expression_entries;
+    TypeCheckExpressionEntry  **expression_entries;
     size_t                      expression_count;
     size_t                      expression_capacity;
-    TypeCheckSymbolEntry       *symbol_entries;
+    TypeCheckSymbolEntry      **symbol_entries;
     size_t                      symbol_count;
     size_t                      symbol_capacity;
     ArrayExtent               **owned_array_extent_blocks;
     size_t                      owned_array_extent_block_count;
     size_t                      owned_array_extent_block_capacity;
-    TypeCheckError              warning;
-    bool                        has_warning;
+    TypeCheckNotice            *warnings;
+    size_t                      warning_count;
+    size_t                      warning_capacity;
+    TypeCheckNotice            *advisories;
+    size_t                      advisory_count;
+    size_t                      advisory_capacity;
     TypeCheckError              error;
     bool                        has_error;
     /* Non-local return context: the expected return type of the innermost enclosing
@@ -83,6 +92,8 @@ typedef struct {
     CheckedType                 outer_return_type;
     bool                        has_outer_return_type;
     const AstType              *outer_return_ast_type;
+    bool                        current_boot_context;
+    size_t                      manual_context_depth;
 } TypeChecker;
 
 void type_checker_init(TypeChecker *checker);
@@ -93,11 +104,28 @@ bool type_checker_check_program(TypeChecker *checker,
 
 const TypeCheckError *type_checker_get_error(const TypeChecker *checker);
 const TypeCheckError *type_checker_get_warning(const TypeChecker *checker);
+const TypeCheckError *type_checker_get_warning_at(const TypeChecker *checker,
+                                                  size_t index);
+size_t type_checker_warning_count(const TypeChecker *checker);
+bool type_checker_warning_is_performance(const TypeChecker *checker,
+                                         size_t index);
+const TypeCheckError *type_checker_get_advisory(const TypeChecker *checker);
+const TypeCheckError *type_checker_get_advisory_at(const TypeChecker *checker,
+                                                   size_t index);
+size_t type_checker_advisory_count(const TypeChecker *checker);
+bool type_checker_advisory_is_performance(const TypeChecker *checker,
+                                          size_t index);
 bool type_checker_format_error(const TypeCheckError *error,
                                char *buffer,
                                size_t buffer_size);
 void type_checker_set_global_strict_race_check(bool enabled);
 bool type_checker_get_global_strict_race_check(void);
+void type_checker_set_global_performance_warnings(bool enabled);
+bool type_checker_get_global_performance_warnings(void);
+void type_checker_set_global_performance_advisories(bool enabled);
+bool type_checker_get_global_performance_advisories(void);
+void type_checker_set_global_size_focus(bool enabled);
+bool type_checker_get_global_size_focus(void);
 
 const TypeCheckInfo *type_checker_get_expression_info(const TypeChecker *checker,
                                                       const AstExpression *expression);

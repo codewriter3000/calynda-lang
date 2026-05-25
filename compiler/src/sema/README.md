@@ -163,6 +163,12 @@ if (!type_checker_check_program(&checker, &program, &symbols)) {
 - Type checking happens after full symbol resolution
 - Generic types are validated but not instantiated at this stage
 - The type system is designed to prevent common programming errors
+## Changes in 1.0.0-alpha.8
+
+- The type checker now records non-fatal warnings and opt-in advisories in addition to hard errors. Dynamic callable dispatch through `var` / `external` warns by default, while template literals and runtime-derived omitted array extents participate in the advisory channel.
+- Explicitly typed, non-`final` bindings may omit their initializer; `var` bindings still require an initializer for inference, and `final` bindings still require one for assignment semantics.
+- Omitted array extents now preserve statically provable sizes farther across bindings, declared lambda returns, and parameter default values, with advisories only when the shape remains runtime-derived.
+
 ## Changes in 1.0.0-alpha.7
 
 - Type resolution now accepts `mmio<T>` alongside the existing named/generic low-level types.

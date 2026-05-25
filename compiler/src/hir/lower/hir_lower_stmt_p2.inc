@@ -77,9 +77,16 @@ HirStatement *hr_lower_statement(HirBuildContext *context,
                 hir_statement_free(hir_statement);
                 return NULL;
             }
-            hir_statement->as.local_binding.initializer = hr_lower_expression(
-                context,
-                statement->as.local_binding.initializer);
+            if (statement->as.local_binding.initializer) {
+                hir_statement->as.local_binding.initializer = hr_lower_expression(
+                    context,
+                    statement->as.local_binding.initializer);
+            } else {
+                hir_statement->as.local_binding.initializer =
+                    hr_make_default_initializer_expression(context,
+                                                           info->type,
+                                                           statement->as.local_binding.name_span);
+            }
             if (!hir_statement->as.local_binding.initializer) {
                 hir_statement_free(hir_statement);
                 return NULL;
@@ -120,8 +127,12 @@ HirStatement *hr_lower_statement(HirBuildContext *context,
     case AST_STMT_MANUAL:
         hir_statement->as.manual.is_checked = statement->as.manual.is_checked;
         if (statement->as.manual.body) {
+            bool saved_manual_context = context->current_manual_context;
+
+            context->current_manual_context = true;
             hir_statement->as.manual.body = hr_lower_block(context,
                                                            statement->as.manual.body);
+            context->current_manual_context = saved_manual_context;
             if (!hir_statement->as.manual.body) {
                 hir_statement_free(hir_statement);
                 return NULL;

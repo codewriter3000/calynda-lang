@@ -29,33 +29,42 @@
     }
 
     body_span = start_decl->start_span;
-    if (start_decl->body.kind == AST_LAMBDA_BODY_BLOCK) {
-        BlockContext context;
+    {
+        bool saved_boot_context = checker->current_boot_context;
 
-        memset(&context, 0, sizeof(context));
-        context.kind = BLOCK_CONTEXT_START;
-        context.owner_span = start_decl->start_span;
-        context.related_span = start_decl->start_span;
-        context.has_related_span = true;
+        checker->current_boot_context = start_decl->is_boot;
+        if (start_decl->body.kind == AST_LAMBDA_BODY_BLOCK) {
+            BlockContext context;
 
-        if (!tc_check_block(checker,
-                            start_decl->body.as.block,
-                            &context,
-                            &body_type,
-                            &body_span,
-                            NULL,
-                            NULL)) {
-            return false;
+            memset(&context, 0, sizeof(context));
+            context.kind = BLOCK_CONTEXT_START;
+            context.owner_span = start_decl->start_span;
+            context.related_span = start_decl->start_span;
+            context.has_related_span = true;
+
+            if (!tc_check_block(checker,
+                                start_decl->body.as.block,
+                                &context,
+                                &body_type,
+                                &body_span,
+                                NULL,
+                                NULL)) {
+                checker->current_boot_context = saved_boot_context;
+                return false;
+            }
+        } else {
+            const TypeCheckInfo *body_info = tc_check_expression(checker,
+                                                                 start_decl->body.as.expression);
+
+            if (!body_info) {
+                checker->current_boot_context = saved_boot_context;
+                return false;
+            }
+
+            body_type = tc_type_check_source_type(body_info);
+            body_span = start_decl->body.as.expression->source_span;
         }
-    } else {
-        const TypeCheckInfo *body_info = tc_check_expression(checker, start_decl->body.as.expression);
-
-        if (!body_info) {
-            return false;
-        }
-
-        body_type = tc_type_check_source_type(body_info);
-        body_span = start_decl->body.as.expression->source_span;
+        checker->current_boot_context = saved_boot_context;
     }
 
     if (body_type.kind == CHECKED_TYPE_VOID) {

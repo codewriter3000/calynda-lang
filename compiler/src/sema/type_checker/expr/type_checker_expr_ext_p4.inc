@@ -59,6 +59,7 @@
                             return NULL;
                         }
                     }
+                    tc_maybe_emit_external_call_performance_warning(checker, expression);
                     info = tc_type_check_info_make_external_value();
                     return tc_store_expression_info(checker, expression, info);
                 }
@@ -214,6 +215,13 @@
             }
 
             info = tc_type_check_info_make(callee_info->callable_return_type);
+            if (callee_info->callable_return_array_shape_type &&
+                callee_info->callable_return_array_shape_consumed_dimensions <
+                    callee_info->callable_return_array_shape_type->dimension_count) {
+                info.array_shape_type = callee_info->callable_return_array_shape_type;
+                info.array_shape_consumed_dimensions =
+                    callee_info->callable_return_array_shape_consumed_dimensions;
+            }
         }
         break;
 

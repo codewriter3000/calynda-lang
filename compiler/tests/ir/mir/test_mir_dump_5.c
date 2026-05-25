@@ -56,21 +56,11 @@ void test_mir_dump_lowers_union_new_instructions(void) {
         "start(string[] args) -> 0;\n";
     static const char expected[] =
         "MirProgram\n"
-        "  Unit name=__mir$module_init kind=init return=void params=0 locals=0 blocks=1\n"
-        "    Locals:\n"
-        "    Blocks:\n"
-        "      Block bb0:\n"
-        "        t0 = union_new typedesc(Option|1|g0:int32|Some:int32|None:void) variant 0 payload int32(42)\n"
-        "        store global(x) <- temp(0)\n"
-        "        t1 = union_new typedesc(Option|1|g0:raw_word|Some:raw_word|None:void) variant 1\n"
-        "        store global(y) <- temp(1)\n"
-        "        return\n"
         "  Unit name=start kind=start return=int32 params=1 locals=1 blocks=1\n"
         "    Locals:\n"
         "      Local index=0 kind=param name=args type=string[] final=false\n"
         "    Blocks:\n"
         "      Block bb0:\n"
-        "        call global(__mir$module_init)()\n"
         "        return int32(0)\n";
     Parser parser;
     AstProgram ast_program;

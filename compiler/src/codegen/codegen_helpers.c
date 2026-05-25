@@ -108,7 +108,9 @@ CheckedType cg_checked_type_invalid_value(void) {
 }
 
 bool cg_is_direct_scalar_type(CheckedType type) {
-    return type.kind == CHECKED_TYPE_VALUE && type.array_depth == 0;
+    return type.kind == CHECKED_TYPE_VALUE &&
+           type.array_depth == 0 &&
+           type.primitive != AST_PRIMITIVE_STRING;
 }
 
 bool cg_select_instruction(CodegenBuildContext *context,

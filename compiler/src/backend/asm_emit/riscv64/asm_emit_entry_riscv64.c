@@ -24,6 +24,9 @@ bool ae_emit_program_entry_glue_riscv64(AsmEmitContext *context, FILE *out) {
     for (unit_index = 0; unit_index < context->program->unit_count; unit_index++) {
         const MachineUnit *unit = &context->program->units[unit_index];
 
+        if (!ae_is_unit_reachable(context, unit_index)) {
+            continue;
+        }
         if (unit->kind == LIR_UNIT_START) {
             start_unit = unit;
             break;
@@ -92,6 +95,11 @@ bool ae_emit_program_entry_glue_riscv64(AsmEmitContext *context, FILE *out) {
             for (static_array_index = 0;
                  static_array_index < context->program->static_array_binding_count;
                  static_array_index++) {
+                if (!ae_is_static_array_binding_reachable(
+                        context,
+                        &context->program->static_array_bindings[static_array_index])) {
+                    continue;
+                }
                 if (!ae_emit_line(out,
                                   "    la a0, .Larr_obj_%zu\n"
                                   "    call calynda_rt_register_static_object\n",
@@ -136,6 +144,9 @@ bool ae_emit_program_entry_glue_riscv64(AsmEmitContext *context, FILE *out) {
     /* Lambda closure wrappers */
     for (unit_index = 0; unit_index < context->program->unit_count;
          unit_index++) {
+        if (!ae_is_unit_reachable(context, unit_index)) {
+            continue;
+        }
         if (!ae_emit_closure_wrapper_riscv64(context, out,
                     &context->program->units[unit_index])) {
             return false;
@@ -197,7 +208,7 @@ bool ae_emit_closure_wrapper_riscv64(AsmEmitContext *context, FILE *out,
     /* Push extra arguments (>8) to the stack */
     if (extra_arg_count > 0) {
         cleanup_bytes = (extra_arg_count * 8) + stack_pad;
-        if (!ae_emit_line(out, "    addi sp, sp, -%zu\n", cleanup_bytes)) {
+        if (!ae_rv64_emit_stack_adjust(out, -(long long)cleanup_bytes)) {
             free(wrapper_symbol);
             return false;
         }
@@ -232,7 +243,7 @@ bool ae_emit_closure_wrapper_riscv64(AsmEmitContext *context, FILE *out,
     }
 
     if (cleanup_bytes > 0) {
-        if (!ae_emit_line(out, "    addi sp, sp, %zu\n", cleanup_bytes)) {
+        if (!ae_rv64_emit_stack_adjust(out, (long long)cleanup_bytes)) {
             free(wrapper_symbol);
             return false;
         }

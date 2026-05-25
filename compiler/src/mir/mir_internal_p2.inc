@@ -74,9 +74,12 @@ bool mr_lower_statement(MirUnitBuildContext *context,
 bool mr_lower_block(MirUnitBuildContext *context, const HirBlock *block);
 bool mr_lower_parameters(MirUnitBuildContext *context,
                          const HirParameterList *parameters);
+struct MirModuleInitSegment;
 bool mr_top_level_binding_uses_lambda_unit(const HirTopLevelDecl *decl);
 bool mr_lower_module_init_unit(MirBuildContext *context,
-                               bool *created_module_init_unit);
+                               bool *created_module_init_unit,
+                               struct MirModuleInitSegment **segments_out,
+                               size_t *segment_count_out);
 
 /* Inline helper for CHECKED_TYPE_EXTERNAL (used for NLR slot pointers) */
 static inline CheckedType mr_nlr_external_type(void) {

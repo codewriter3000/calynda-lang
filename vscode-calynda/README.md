@@ -1,6 +1,6 @@
 # Calynda Syntax
 
-Minimal VS Code extension for the current Calynda alpha.7 syntax surface.
+Minimal VS Code extension for the current Calynda alpha.8 syntax surface.
 
 ## What it provides
 
@@ -33,6 +33,11 @@ If you want a `.vsix` package:
 ## Notes
 
 The grammar is based on the canonical language definition in `../compiler/calynda.ebnf` plus the tokenizer behavior in `../compiler/src/tokenizer/tokenizer.h`.
+## Changes in 1.0.0-alpha.8
+
+- No new syntax-highlighting categories were required for alpha.8. Typed omitted initializers reuse the existing binding grammar, and the new performance diagnostics / size-focus surface lives in compiler and tooling layers rather than the syntax grammar.
+- The syntax package continues to track the canonical compiler grammar/tokenizer behaviour rather than a frozen release subset.
+
 ## Changes in 1.0.0-alpha.7
 
 - Highlighting now covers `mmio`, `num`, `thread_local`, `type`, and the low-level barrier/cache builtin names used by the current alpha.7 surface.

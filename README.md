@@ -10,7 +10,7 @@
 
 ---
 
-Calynda is a compiled functional systems programming language. The current 1.0.0-alpha.7 surface targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files. A small standard library ships alongside the toolchain.
+Calynda is a compiled functional systems programming language. The current 1.0.0-alpha.8 surface targets Linux on x86_64, AArch64, and RISC-V 64, and can also emit portable bytecode. The compiler is written in C and produces native executables directly from `.cal` source files. A small standard library ships alongside the toolchain.
 
 ## Repository Layout
 
@@ -57,6 +57,7 @@ There is no interpreter path. AST or IR interpretation is not part of the design
 - Inline assembly declarations via `asm()` plus statement-level `asm { ... };` blocks
 - Bare-metal entry point via `boot` for freestanding environments without weakening the bare-metal contract to Linux-only exit behavior
 - Template literals with string interpolation
+- Explicitly typed, non-`final` bindings may omit their initializer and receive a concrete default value
 - Ternary expressions, member access, index access, and casts
 - CAR source archives for bundling `.cal` files
 - `throw` for error propagation
@@ -176,7 +177,7 @@ What they do:
 - `asm`: emit native assembly to stdout from a `.cal` or `.car` input
 - `bytecode`: emit `portable-v1` bytecode text to stdout
 
-Compiler options for `build`, `run`, and `asm` include `--strict-race-check`, `--manual-bounds-check`, `--target`, `--archive`, `--archive-path`, `--gc marksweep|legacy`, and `--gc-plugin path.a`.
+Compiler options for `build`, `run`, and `asm` include `--strict-race-check`, `--manual-bounds-check`, `--no-performance-warnings`, `--performance-advisories`, `--size-focus`, `--target`, `--archive`, `--archive-path`, `--gc marksweep|legacy`, and `--gc-plugin path.a`.
 
 Hosted builds default to the mark-and-sweep runtime archive. Pass `--gc legacy` to keep the append-only legacy runtime, or `--gc-plugin path.a` to link a custom GC backend archive.
 
@@ -220,7 +221,7 @@ The local VS Code syntax extension lives under [vscode-calynda/README.md](vscode
 
 ## MCP Server
 
-An [MCP (Model Context Protocol)](mcp-server/README.md) server is included that enables AI assistants to deeply understand and work with Calynda. It tracks the alpha.7 language/help surface and provides code analysis, type validation, syntax explanation, code completion, examples, and formatting tools.
+An [MCP (Model Context Protocol)](mcp-server/README.md) server is included that enables AI assistants to deeply understand and work with Calynda. It tracks the alpha.8 language/help surface and provides code analysis, type validation, syntax explanation, diagnostic explanations, code completion, examples, and formatting tools.
 
 See [mcp-server/README.md](mcp-server/README.md) for installation and configuration instructions.
 

@@ -98,9 +98,9 @@ static bool rt_type_text_is_array(const char *type_text) {
     }
 
     length = strlen(type_text);
-    return (length >= 2 &&
-            type_text[length - 2] == '[' &&
-            type_text[length - 1] == ']') ||
+        return (length >= 2 &&
+            type_text[length - 1] == ']' &&
+            strchr(type_text, '[') != NULL) ||
            rt_type_text_base_equals(type_text, "arr");
 }
 

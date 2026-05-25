@@ -90,10 +90,10 @@ void test_hir_dump_covers_templates_casts_arrays_assignments_and_nested_lambdas(
 
     dump = hir_dump_program_to_string(&hir_program);
     REQUIRE_TRUE(dump != NULL, "render broad HIR coverage dump to string");
-    ASSERT_CONTAINS("Local name=values type=int32[] final=false span=2:9",
+    ASSERT_CONTAINS("Local name=values type=int32[3] final=false span=2:9",
                     dump,
                     "array local appears in HIR dump");
-    ASSERT_CONTAINS("ArrayLiteral type=int32[] span=2:18",
+    ASSERT_CONTAINS("ArrayLiteral type=int32[3] span=2:18",
                     dump,
                     "array literal lowering is covered");
     ASSERT_CONTAINS("Local name=chooser type=int32 callable=(bool) -> int32 final=false span=3:9",

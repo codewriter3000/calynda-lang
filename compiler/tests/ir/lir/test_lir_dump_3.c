@@ -112,7 +112,9 @@ void test_lir_dump_lowers_union_descriptors(void) {
         "union Option<T> { Some(T), None };\n"
         "Option<int32> x = Option.Some(42);\n"
         "Option<int32> y = Option.None;\n"
-        "start(string[] args) -> 0;\n";
+        "start(string[] args) -> {\n"
+        "    return x.tag + y.tag;\n"
+        "};\n";
     Parser parser;
     AstProgram ast_program;
     SymbolTable symbols;

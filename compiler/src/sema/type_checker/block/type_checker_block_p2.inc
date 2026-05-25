@@ -4,6 +4,7 @@
                 AstSourceSpan statement_span;
                 BlockContext nested_context;
                 const BlockContext *manual_context = NULL;
+                size_t saved_manual_context_depth;
 
                 statement_return_type = tc_checked_type_void();
                 memset(&statement_span, 0, sizeof(statement_span));
@@ -13,14 +14,18 @@
                     manual_context = &nested_context;
                 }
 
+                saved_manual_context_depth = checker->manual_context_depth;
+                checker->manual_context_depth = saved_manual_context_depth + 1;
                 if (!tc_check_block(checker, statement->as.manual.body,
                                     manual_context,
                                     &statement_return_type,
                                     &statement_span,
                                     NULL,
                                     NULL)) {
+                    checker->manual_context_depth = saved_manual_context_depth;
                     return false;
                 }
+                checker->manual_context_depth = saved_manual_context_depth;
 
                 if (tc_source_span_is_valid(statement_span)) {
                     if (!saw_return) {

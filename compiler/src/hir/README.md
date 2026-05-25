@@ -107,6 +107,11 @@ hir_program_free(&hir);
 - HIR is easier to analyze than AST due to explicit types and resolved names
 - HIR is the last representation that preserves lambda closures explicitly
 - Future optimizations can be performed at the HIR level
+## Changes in 1.0.0-alpha.8
+
+- HIR lowering now synthesizes concrete default initializer expressions for omitted typed bindings, so later IR passes see ordinary literals (`0`, `false`, `null`) instead of nullable initializer slots.
+- Callable return/default array-shape information is preserved farther through HIR so later MIR/codegen stages can keep statically provable extents when the source made them available.
+
 ## Changes in 1.0.0-alpha.7
 
 - HIR lowering now carries the `mmio<T>` / `.value` surface through the dedicated volatile memory-op path instead of the plain pointer helpers.

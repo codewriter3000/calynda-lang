@@ -109,15 +109,12 @@ AstTopLevelDecl *parse_binding_decl(Parser *parser) {
     }
     decl->as.binding_decl.name_span = parser_source_span(name_token);
 
-    if (!parser_consume(parser, TOK_ASSIGN, "Expected '=' after binding name.")) {
-        ast_top_level_decl_free(decl);
-        return NULL;
-    }
-
-    decl->as.binding_decl.initializer = parse_expression_node(parser);
-    if (!decl->as.binding_decl.initializer) {
-        ast_top_level_decl_free(decl);
-        return NULL;
+    if (parser_match(parser, TOK_ASSIGN)) {
+        decl->as.binding_decl.initializer = parse_expression_node(parser);
+        if (!decl->as.binding_decl.initializer) {
+            ast_top_level_decl_free(decl);
+            return NULL;
+        }
     }
 
     if (!parser_consume(parser, TOK_SEMICOLON, "Expected ';' after binding declaration.")) {

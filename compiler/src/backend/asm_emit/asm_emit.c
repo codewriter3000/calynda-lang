@@ -9,6 +9,180 @@ static bool ae_source_span_is_valid(AstSourceSpan span) {
     return span.start_line > 0 && span.start_column > 0;
 }
 
+static size_t ae_find_program_unit_index(const AsmEmitContext *context,
+                                         const char *name) {
+    size_t i;
+
+    if (!context || !context->program || !name) {
+        return (size_t)-1;
+    }
+
+    for (i = 0; i < context->program->unit_count; i++) {
+        if (context->program->units[i].name &&
+            strcmp(context->program->units[i].name, name) == 0) {
+            return i;
+        }
+    }
+
+    return (size_t)-1;
+}
+
+static void ae_mark_unit_reachable(AsmEmitContext *context, size_t unit_index);
+
+static void ae_mark_named_unit_reachable(AsmEmitContext *context, const char *name) {
+    size_t unit_index = ae_find_program_unit_index(context, name);
+
+    if (unit_index == (size_t)-1) {
+        return;
+    }
+
+    ae_mark_unit_reachable(context, unit_index);
+}
+
+static void ae_mark_paren_references(AsmEmitContext *context,
+                                     const char *instruction_text,
+                                     const char *prefix) {
+    const char *cursor;
+    size_t prefix_length;
+
+    if (!context || !instruction_text || !prefix) {
+        return;
+    }
+
+    prefix_length = strlen(prefix);
+    cursor = instruction_text;
+    while ((cursor = strstr(cursor, prefix)) != NULL) {
+        const char *name_start = cursor + prefix_length;
+        const char *name_end = strchr(name_start, ')');
+
+        if (!name_end) {
+            return;
+        }
+
+        if (name_end > name_start) {
+            char *name = ae_copy_text_n(name_start, (size_t)(name_end - name_start));
+
+            if (name) {
+                ae_mark_named_unit_reachable(context, name);
+                free(name);
+            }
+        }
+        cursor = name_end + 1;
+    }
+}
+
+static void ae_mark_direct_call_reference(AsmEmitContext *context,
+                                          const char *instruction_text) {
+    const char *cursor;
+    const char *name_end;
+    char *name;
+
+    if (!context || !instruction_text) {
+        return;
+    }
+
+    cursor = instruction_text;
+    while (*cursor == ' ' || *cursor == '\t') {
+        cursor++;
+    }
+
+    if (ae_starts_with(cursor, "call ")) {
+        cursor += 5;
+    } else if (ae_starts_with(cursor, "bl ")) {
+        cursor += 3;
+    } else {
+        return;
+    }
+
+    while (*cursor == ' ' || *cursor == '\t') {
+        cursor++;
+    }
+    name_end = cursor;
+    while (*name_end != '\0' && *name_end != ' ' && *name_end != '\t' && *name_end != ',') {
+        name_end++;
+    }
+
+    if (name_end == cursor) {
+        return;
+    }
+
+    name = ae_copy_text_n(cursor, (size_t)(name_end - cursor));
+    if (!name) {
+        return;
+    }
+
+    ae_mark_named_unit_reachable(context, name);
+    free(name);
+}
+
+static void ae_mark_unit_dependencies(AsmEmitContext *context,
+                                      const MachineUnit *unit) {
+    size_t block_index;
+
+    if (!context || !unit) {
+        return;
+    }
+
+    for (block_index = 0; block_index < unit->block_count; block_index++) {
+        size_t instruction_index;
+
+        for (instruction_index = 0;
+             instruction_index < unit->blocks[block_index].instruction_count;
+             instruction_index++) {
+            const char *instruction_text =
+                unit->blocks[block_index].instructions[instruction_index].text;
+
+            ae_mark_paren_references(context, instruction_text, "code(");
+            ae_mark_paren_references(context, instruction_text, "global(");
+            ae_mark_direct_call_reference(context, instruction_text);
+        }
+    }
+}
+
+static void ae_mark_unit_reachable(AsmEmitContext *context, size_t unit_index) {
+    if (!context || !context->program || !context->reachable_units ||
+        unit_index >= context->program->unit_count || context->reachable_units[unit_index]) {
+        return;
+    }
+
+    context->reachable_units[unit_index] = true;
+    ae_mark_unit_dependencies(context, &context->program->units[unit_index]);
+}
+
+static bool ae_compute_reachable_units(AsmEmitContext *context) {
+    size_t unit_index;
+    bool found_start = false;
+
+    if (!context || !context->program) {
+        return false;
+    }
+
+    if (context->program->unit_count == 0) {
+        return true;
+    }
+
+    context->reachable_units = calloc(context->program->unit_count,
+                                      sizeof(*context->reachable_units));
+    if (!context->reachable_units) {
+        return false;
+    }
+
+    for (unit_index = 0; unit_index < context->program->unit_count; unit_index++) {
+        if (context->program->units[unit_index].kind == LIR_UNIT_START) {
+            found_start = true;
+            ae_mark_unit_reachable(context, unit_index);
+        }
+    }
+
+    if (!found_start) {
+        memset(context->reachable_units,
+               1,
+               context->program->unit_count * sizeof(*context->reachable_units));
+    }
+
+    return true;
+}
+
 bool asm_emit_get_error(const MachineProgram *program, AsmEmitError *out) {
     const MachineBuildError *machine_error;
 
@@ -67,6 +241,7 @@ bool asm_emit_program(FILE *out, const MachineProgram *program) {
     AsmEmitContext context;
     size_t unit_index;
     bool is_arm64;
+    bool ok = false;
 
     if (!out || !program) {
         return false;
@@ -77,6 +252,9 @@ bool asm_emit_program(FILE *out, const MachineProgram *program) {
 
     memset(&context, 0, sizeof(context));
     context.program = program;
+    if (!ae_compute_reachable_units(&context)) {
+        goto cleanup;
+    }
     is_arm64 = program->target_desc &&
                program->target_desc->kind == TARGET_KIND_AARCH64_AAPCS_ELF;
     {
@@ -85,17 +263,20 @@ bool asm_emit_program(FILE *out, const MachineProgram *program) {
 
         if (is_arm64 || is_riscv64) {
             if (fputs(".text\n", out) == EOF) {
-                return false;
+                goto cleanup;
             }
         } else {
             if (fputs(".intel_syntax noprefix\n.text\n", out) == EOF) {
-                return false;
+                goto cleanup;
             }
         }
     }
     for (unit_index = 0; unit_index < program->unit_count; unit_index++) {
+        if (!ae_is_unit_reachable(&context, unit_index)) {
+            continue;
+        }
         if (!ae_emit_unit_text(&context, out, unit_index, &program->units[unit_index])) {
-            return false;
+            goto cleanup;
         }
     }
     {
@@ -104,24 +285,28 @@ bool asm_emit_program(FILE *out, const MachineProgram *program) {
 
         if (is_arm64) {
             if (!ae_emit_program_entry_glue_aarch64(&context, out)) {
-                return false;
+                goto cleanup;
             }
         } else if (is_riscv64) {
             if (!ae_emit_program_entry_glue_riscv64(&context, out)) {
-                return false;
+                goto cleanup;
             }
         } else {
             if (!ae_emit_program_entry_glue(&context, out)) {
-                return false;
+                goto cleanup;
             }
         }
     }
     if (!ae_emit_rodata(out, &context) || !ae_emit_data(out, &context) ||
         !ae_emit_line(out, ".section .note.GNU-stack,\"\",@progbits\n")) {
-        return false;
+        goto cleanup;
     }
 
-    return !ferror(out);
+    ok = !ferror(out);
+
+cleanup:
+    free(context.reachable_units);
+    return ok;
 }
 
 char *asm_emit_program_to_string(const MachineProgram *program) {

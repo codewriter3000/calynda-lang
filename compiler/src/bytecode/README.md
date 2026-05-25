@@ -191,6 +191,11 @@ bytecode_program_free(&bytecode);
 - Bytecode can be serialized and deserialized
 - Future: Add bytecode verifier for safety
 - Future: Support for bytecode-level debugging
+## Changes in 1.0.0-alpha.8
+
+- No new bytecode opcodes were required. Typed omitted initializers are synthesized before bytecode lowering, and the new warning/advisory surface remains a semantic/CLI concern.
+- MIR-side reachability pruning now removes dead top-level initializers before bytecode/native lowering has to consider them, keeping the portable-v1 ISA unchanged.
+
 ## Changes in 1.0.0-alpha.7
 
 - No new bytecode opcodes were required. The alpha.7 `mmio<T>`, `fence()`, `cacheclean()`, and `cachefinal()` surface lowers through the existing helper-call-oriented model.

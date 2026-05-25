@@ -85,6 +85,7 @@ void test_parse_java_primitive_aliases(void);
 void test_parse_union_declaration(void);
 void test_parse_union_with_modifiers(void);
 void test_parse_internal_local_binding(void);
+void test_parse_uninitialized_bindings(void);
 void test_parse_named_type_in_binding(void);
 void test_parse_arr_wildcard_type(void);
 void test_parse_future_and_atomic_types(void);
@@ -138,6 +139,7 @@ int main(void) {
     RUN_TEST(test_parse_union_declaration);
     RUN_TEST(test_parse_union_with_modifiers);
     RUN_TEST(test_parse_internal_local_binding);
+    RUN_TEST(test_parse_uninitialized_bindings);
     RUN_TEST(test_parse_named_type_in_binding);
     RUN_TEST(test_parse_arr_wildcard_type);
     RUN_TEST(test_parse_future_and_atomic_types);

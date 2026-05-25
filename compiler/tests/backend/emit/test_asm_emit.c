@@ -160,6 +160,10 @@ bool compile_assembly_text(const char *assembly) {
 
 void test_asm_emit_compiles_minimal_direct_program(void);
 void test_asm_emit_compiles_runtime_backed_program(void);
+void test_asm_emit_fast_paths_simple_hosted_templates(void);
+void test_asm_emit_manual_templates_keep_runtime_builder(void);
+void test_asm_emit_prunes_unreachable_top_level_callable_unit(void);
+void test_asm_emit_prunes_unreachable_static_array_root(void);
 void test_asm_emit_lowers_final_global_arrays_into_static_rodata(void);
 void test_asm_emit_lowers_string_literals_into_runtime_objects(void);
 void test_asm_emit_aarch64_minimal_program(void);
@@ -174,6 +178,7 @@ void test_asm_emit_boot_rejects_unknown_imported_member(void);
 void test_asm_emit_boot_rejects_multi_arg_imported_print(void);
 void test_asm_emit_riscv64_minimal_program(void);
 void test_asm_emit_riscv64_runtime_backed_program(void);
+void test_asm_emit_riscv64_large_frame_uses_legal_stack_addressing(void);
 void test_asm_emit_boot_riscv64_emits_start_label(void);
 void test_asm_emit_boot_riscv64_statically_lowers_imported_print(void);
 void test_asm_emit_preserves_upstream_error_spans(void);
@@ -188,6 +193,10 @@ int main(void) {
 
     RUN_TEST(test_asm_emit_compiles_minimal_direct_program);
     RUN_TEST(test_asm_emit_compiles_runtime_backed_program);
+    RUN_TEST(test_asm_emit_fast_paths_simple_hosted_templates);
+    RUN_TEST(test_asm_emit_manual_templates_keep_runtime_builder);
+    RUN_TEST(test_asm_emit_prunes_unreachable_top_level_callable_unit);
+    RUN_TEST(test_asm_emit_prunes_unreachable_static_array_root);
     RUN_TEST(test_asm_emit_lowers_final_global_arrays_into_static_rodata);
     RUN_TEST(test_asm_emit_lowers_string_literals_into_runtime_objects);
 
@@ -213,6 +222,7 @@ int main(void) {
     printf("\n  RV64 tests...\n");
     RUN_TEST(test_asm_emit_riscv64_minimal_program);
     RUN_TEST(test_asm_emit_riscv64_runtime_backed_program);
+    RUN_TEST(test_asm_emit_riscv64_large_frame_uses_legal_stack_addressing);
 
     printf("\n  Cross-compilation tests (skipped if toolchain absent)...\n");
     RUN_TEST(test_cross_asm_riscv64_assembles);

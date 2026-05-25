@@ -75,3 +75,97 @@ void test_type_checker_resolves_overloads_by_arity(void) {
     ast_program_free(&program);
     parser_free(&parser);
 }
+
+void test_type_checker_accepts_typed_uninitialized_bindings(void) {
+    static const char source[] =
+        "int32 counter;\n"
+        "start(string[] args) -> {\n"
+        "    bool ready;\n"
+        "    return ready ? counter : counter;\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse typed uninitialized bindings");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for typed uninitialized bindings");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "typed uninitialized bindings pass type checking");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_rejects_inferred_uninitialized_binding(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    var pending;\n"
+        "    return 0;\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse inferred uninitialized binding");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for inferred uninitialized binding");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
+                "inferred uninitialized binding is rejected");
+    REQUIRE_TRUE(type_checker_format_error(type_checker_get_error(&checker),
+                                           diagnostic,
+                                           sizeof(diagnostic)),
+                 "format inferred uninitialized binding diagnostic");
+    ASSERT_CONTAINS("requires an initializer", diagnostic,
+                    "inferred uninitialized binding reports missing initializer");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_rejects_final_uninitialized_binding(void) {
+    static const char source[] =
+        "final int32 counter;\n"
+        "start(string[] args) -> counter;\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse final uninitialized binding");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for final uninitialized binding");
+    ASSERT_TRUE(!type_checker_check_program(&checker, &program, &symbols),
+                "final uninitialized binding is rejected");
+    REQUIRE_TRUE(type_checker_format_error(type_checker_get_error(&checker),
+                                           diagnostic,
+                                           sizeof(diagnostic)),
+                 "format final uninitialized binding diagnostic");
+    ASSERT_CONTAINS("requires an initializer", diagnostic,
+                    "final uninitialized binding reports missing initializer");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}

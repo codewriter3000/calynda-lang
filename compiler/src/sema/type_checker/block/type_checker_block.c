@@ -184,6 +184,31 @@ bool tc_check_block(TypeChecker *checker, const AstBlock *block,
                                         actual_text);
                         return false;
                     }
+
+                    if (statement->as.return_expression &&
+                        context->expected_return_ast_type) {
+                        CheckedType merged_return_type = context->expected_return_type;
+
+                        if (!tc_checked_type_fill_missing_array_extents(checker,
+                                                                        context->expected_return_type,
+                                                                        statement_return_type,
+                                                                        &merged_return_type)) {
+                            return false;
+                        }
+
+                        if (tc_checked_type_has_runtime_omitted_array_extent(
+                                context->expected_return_ast_type,
+                                merged_return_type)) {
+                            tc_set_performance_advisory_at(
+                                checker,
+                                statement->as.return_expression->source_span,
+                                tc_block_context_related_span(
+                                    context,
+                                    statement->as.return_expression->source_span),
+                                "Return type for %s omits an array length that cannot be inferred statically; length will be determined at runtime. Prefer an explicit extent or a statically sized return value when size-focused optimizations matter.",
+                                tc_block_context_name(context->kind));
+                        }
+                    }
                 }
 
                 if (!saw_return) {

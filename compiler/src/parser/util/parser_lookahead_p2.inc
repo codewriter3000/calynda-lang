@@ -19,8 +19,9 @@ bool looks_like_local_binding_statement(const Parser *parser) {
         return false;
     }
 
-    return parser_token_at(parser, index)->type == TOK_IDENTIFIER &&
-           parser_token_at(parser, index + 1)->type == TOK_ASSIGN;
+        return parser_token_at(parser, index)->type == TOK_IDENTIFIER &&
+            (parser_token_at(parser, index + 1)->type == TOK_ASSIGN ||
+             parser_token_at(parser, index + 1)->type == TOK_SEMICOLON);
 }
 
 AstPrimitiveType primitive_type_from_token(TokenType type) {

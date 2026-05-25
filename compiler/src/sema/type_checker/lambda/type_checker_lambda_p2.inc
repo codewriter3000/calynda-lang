@@ -23,6 +23,7 @@
             const TypeCheckInfo *default_info = tc_check_expression(checker,
                                                                     parameter->default_expr);
             CheckedType default_type;
+            CheckedType merged_parameter_type;
 
             if (!default_info) {
                 return false;
@@ -61,6 +62,26 @@
                                 expected_text,
                                 actual_text);
                 return false;
+            }
+
+            merged_parameter_type = parameter_type;
+            if (!parameter->is_untyped &&
+                !tc_checked_type_fill_missing_array_extents(checker,
+                                                            parameter_type,
+                                                            default_type,
+                                                            &merged_parameter_type)) {
+                return false;
+            }
+
+            if (!parameter->is_untyped &&
+                tc_checked_type_has_runtime_omitted_array_extent(&parameter->type,
+                                                                 merged_parameter_type)) {
+                tc_set_performance_advisory_at(
+                    checker,
+                    parameter->default_expr->source_span,
+                    &parameter->name_span,
+                    "Default value for parameter '%s' omits an array length that cannot be inferred statically; length will be determined at runtime. Prefer an explicit extent or a statically sized default value when size-focused optimizations matter.",
+                    parameter->name);
             }
         }
 
@@ -195,6 +216,19 @@ const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
         if (!ok) {
             return NULL;
         }
+
+        if (expected_return_type) {
+            CheckedType merged_return_type = *expected_return_type;
+
+            if (!tc_checked_type_fill_missing_array_extents(checker,
+                                                            *expected_return_type,
+                                                            return_type,
+                                                            &merged_return_type)) {
+                return NULL;
+            }
+
+            return_type = merged_return_type;
+        }
     } else {
         const TypeCheckInfo *body_info = tc_check_expression(checker,
                                                              expression->as.lambda.body.as.expression);
@@ -232,6 +266,29 @@ const TypeCheckInfo *tc_check_lambda_expression(TypeChecker *checker,
                             expected_text,
                             actual_text);
             return NULL;
+        }
+
+        if (expected_return_type) {
+            CheckedType merged_return_type = *expected_return_type;
+
+            if (!tc_checked_type_fill_missing_array_extents(checker,
+                                                            *expected_return_type,
+                                                            return_type,
+                                                            &merged_return_type)) {
+                return NULL;
+            }
+
+            return_type = merged_return_type;
+
+            if (expected_return_ast_type &&
+                tc_checked_type_has_runtime_omitted_array_extent(expected_return_ast_type,
+                                                                 merged_return_type)) {
+                tc_set_performance_advisory_at(
+                    checker,
+                    return_span,
+                    related_span,
+                    "Return type for lambda body omits an array length that cannot be inferred statically; length will be determined at runtime. Prefer an explicit extent or a statically sized return value when size-focused optimizations matter.");
+            }
         }
 
         info = tc_type_check_info_make_callable(return_type, &expression->as.lambda.parameters);

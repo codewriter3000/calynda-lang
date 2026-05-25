@@ -83,7 +83,7 @@ static HirExpression *hr_make_string_literal_expression(HirBuildContext *context
     }
 
     literal_expr->type =
-        (CheckedType){CHECKED_TYPE_VALUE, AST_PRIMITIVE_STRING, 0, NULL, 0, false};
+        (CheckedType){CHECKED_TYPE_VALUE, AST_PRIMITIVE_STRING, 0, NULL, NULL, 0, false};
     literal_expr->source_span = source_span;
     literal_expr->as.literal.kind = AST_LITERAL_STRING;
     literal_expr->as.literal.as.text = malloc(text_length + 3);
@@ -116,7 +116,7 @@ static HirExpression *hr_make_zero_integer_literal_expression(HirBuildContext *c
     }
 
     literal_expr->type =
-        (CheckedType){CHECKED_TYPE_VALUE, AST_PRIMITIVE_INT32, 0, NULL, 0, false};
+        (CheckedType){CHECKED_TYPE_VALUE, AST_PRIMITIVE_INT32, 0, NULL, NULL, 0, false};
     literal_expr->source_span = source_span;
     literal_expr->as.literal.kind = AST_LITERAL_INTEGER;
     literal_expr->as.literal.as.text = ast_copy_text("0");
@@ -130,6 +130,98 @@ static HirExpression *hr_make_zero_integer_literal_expression(HirBuildContext *c
     }
 
     return literal_expr;
+}
+
+static HirExpression *hr_make_zero_float_literal_expression(HirBuildContext *context,
+                                                            CheckedType type,
+                                                            AstSourceSpan source_span) {
+    HirExpression *literal_expr = hr_expression_new(HIR_EXPR_LITERAL);
+
+    if (!literal_expr) {
+        return NULL;
+    }
+
+    literal_expr->type = type;
+    literal_expr->source_span = source_span;
+    literal_expr->as.literal.kind = AST_LITERAL_FLOAT;
+    literal_expr->as.literal.as.text = ast_copy_text("0.0");
+    if (!literal_expr->as.literal.as.text) {
+        hir_expression_free(literal_expr);
+        hr_set_error(context,
+                     source_span,
+                     NULL,
+                     "Out of memory while lowering float literal.");
+        return NULL;
+    }
+
+    return literal_expr;
+}
+
+static HirExpression *hr_make_false_literal_expression(HirBuildContext *context,
+                                                       CheckedType type,
+                                                       AstSourceSpan source_span) {
+    HirExpression *literal_expr = hr_expression_new(HIR_EXPR_LITERAL);
+
+    (void)context;
+
+    if (!literal_expr) {
+        return NULL;
+    }
+
+    literal_expr->type = type;
+    literal_expr->source_span = source_span;
+    literal_expr->as.literal.kind = AST_LITERAL_BOOL;
+    literal_expr->as.literal.as.bool_value = false;
+    return literal_expr;
+}
+
+static HirExpression *hr_make_null_literal_expression(HirBuildContext *context,
+                                                      CheckedType type,
+                                                      AstSourceSpan source_span) {
+    HirExpression *literal_expr = hr_expression_new(HIR_EXPR_LITERAL);
+
+    (void)context;
+
+    if (!literal_expr) {
+        return NULL;
+    }
+
+    literal_expr->type = type;
+    literal_expr->source_span = source_span;
+    literal_expr->as.literal.kind = AST_LITERAL_NULL;
+    return literal_expr;
+}
+
+HirExpression *hr_make_default_initializer_expression(HirBuildContext *context,
+                                                      CheckedType type,
+                                                      AstSourceSpan source_span) {
+    if (!context) {
+        return NULL;
+    }
+
+    if (type.kind == CHECKED_TYPE_VALUE && type.array_depth == 0) {
+        switch (type.primitive) {
+        case AST_PRIMITIVE_BOOL:
+            return hr_make_false_literal_expression(context, type, source_span);
+        case AST_PRIMITIVE_STRING:
+            return hr_make_null_literal_expression(context, type, source_span);
+        case AST_PRIMITIVE_FLOAT32:
+        case AST_PRIMITIVE_FLOAT64:
+        case AST_PRIMITIVE_FLOAT:
+        case AST_PRIMITIVE_DOUBLE:
+            return hr_make_zero_float_literal_expression(context, type, source_span);
+        default: {
+            HirExpression *literal_expr = hr_make_zero_integer_literal_expression(context,
+                                                                                  source_span);
+            if (literal_expr) {
+                literal_expr->type = type;
+            }
+            return literal_expr;
+        }
+        }
+    }
+
+    return hr_make_null_literal_expression(context, type, source_span);
 }
 
 static HirExpression *hr_make_index_expression(HirBuildContext *context,

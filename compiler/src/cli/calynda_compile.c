@@ -8,8 +8,55 @@
 
 static bool g_global_bounds_check = false;
 static bool g_global_strict_race_check = false;
+static bool g_global_performance_warnings = true;
+static bool g_global_performance_advisories = false;
+static bool g_global_size_focus = false;
 static CalyndaGcMode g_global_gc_mode = CALYNDA_GC_MARKSWEEP;
 static const char *g_gc_plugin_path = NULL;
+
+static void calynda_print_type_checker_notices(const char *path,
+                                               const char *source,
+                                               const TypeChecker *checker) {
+    size_t i;
+
+    if (!checker) {
+        return;
+    }
+
+    for (i = 0; i < type_checker_warning_count(checker); i++) {
+        const TypeCheckError *warning = type_checker_get_warning_at(checker, i);
+
+        if (!warning) {
+            continue;
+        }
+        calynda_print_diagnostic(path, source,
+                                 warning->primary_span.start_line,
+                                 warning->primary_span.start_column,
+                                 warning->primary_span.end_column,
+                                 "warning", warning->message);
+        if (warning->has_related_span)
+            fprintf(stderr, "   note: related location at %d:%d.\n",
+                    warning->related_span.start_line,
+                    warning->related_span.start_column);
+    }
+
+    for (i = 0; i < type_checker_advisory_count(checker); i++) {
+        const TypeCheckError *advisory = type_checker_get_advisory_at(checker, i);
+
+        if (!advisory) {
+            continue;
+        }
+        calynda_print_diagnostic(path, source,
+                                 advisory->primary_span.start_line,
+                                 advisory->primary_span.start_column,
+                                 advisory->primary_span.end_column,
+                                 "advisory", advisory->message);
+        if (advisory->has_related_span)
+            fprintf(stderr, "   note: related location at %d:%d.\n",
+                    advisory->related_span.start_line,
+                    advisory->related_span.start_column);
+    }
+}
 
 void calynda_compile_options_init(CalyndaCompileOptions *options) {
     if (!options) {
@@ -17,6 +64,9 @@ void calynda_compile_options_init(CalyndaCompileOptions *options) {
     }
     options->manual_bounds_check = false;
     options->strict_race_check = false;
+    options->performance_warnings = true;
+    options->performance_advisories = false;
+    options->size_focus = false;
     options->gc_mode = CALYNDA_GC_MARKSWEEP;
     options->gc_plugin_path = NULL;
     options->target = target_get_default();
@@ -45,12 +95,18 @@ void calynda_apply_compile_options(const CalyndaCompileOptions *options) {
     if (!options) {
         calynda_set_global_bounds_check(false);
         calynda_set_global_strict_race_check(false);
+        calynda_set_global_performance_warnings(true);
+        calynda_set_global_performance_advisories(false);
+        calynda_set_global_size_focus(false);
         g_global_gc_mode = CALYNDA_GC_MARKSWEEP;
         g_gc_plugin_path = NULL;
         return;
     }
     calynda_set_global_bounds_check(options->manual_bounds_check);
     calynda_set_global_strict_race_check(options->strict_race_check);
+    calynda_set_global_performance_warnings(options->performance_warnings);
+    calynda_set_global_performance_advisories(options->performance_advisories);
+    calynda_set_global_size_focus(options->size_focus);
     g_global_gc_mode = options->gc_mode;
     g_gc_plugin_path = options->gc_plugin_path;
 }
@@ -59,8 +115,40 @@ void calynda_set_global_bounds_check(bool enabled) {
     g_global_bounds_check = enabled;
 }
 
+bool calynda_get_global_bounds_check(void) {
+    return g_global_bounds_check;
+}
+
 void calynda_set_global_strict_race_check(bool enabled) {
     g_global_strict_race_check = enabled;
+}
+
+bool calynda_get_global_strict_race_check(void) {
+    return g_global_strict_race_check;
+}
+
+void calynda_set_global_performance_warnings(bool enabled) {
+    g_global_performance_warnings = enabled;
+}
+
+void calynda_set_global_performance_advisories(bool enabled) {
+    g_global_performance_advisories = enabled;
+}
+
+bool calynda_get_global_performance_warnings(void) {
+    return g_global_performance_warnings;
+}
+
+bool calynda_get_global_performance_advisories(void) {
+    return g_global_performance_advisories;
+}
+
+void calynda_set_global_size_focus(bool enabled) {
+    g_global_size_focus = enabled;
+}
+
+bool calynda_get_global_size_focus(void) {
+    return g_global_size_focus;
 }
 
 CalyndaGcMode calynda_get_global_gc_mode(void) {
@@ -166,6 +254,9 @@ int calynda_compile_to_machine_program(const char *path,
         goto cleanup;
     }
     type_checker_set_global_strict_race_check(g_global_strict_race_check);
+    type_checker_set_global_performance_warnings(g_global_performance_warnings);
+    type_checker_set_global_performance_advisories(g_global_performance_advisories);
+    type_checker_set_global_size_focus(g_global_size_focus);
     if (!type_checker_check_program(&checker, &program, &symbols)) {
         type_error = type_checker_get_error(&checker);
         if (type_error) {
@@ -184,6 +275,7 @@ int calynda_compile_to_machine_program(const char *path,
         exit_code = 1;
         goto cleanup;
     }
+    calynda_print_type_checker_notices(path, source, &checker);
     if (!hir_build_program(&hir_program, &program, &symbols, &checker)) {
         const HirBuildError *hir_error = hir_get_error(&hir_program);
 

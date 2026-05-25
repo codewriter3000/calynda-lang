@@ -5,8 +5,17 @@ const types_1 = require("../knowledge/types");
 const examples_1 = require("../knowledge/examples");
 const architecture_1 = require("../knowledge/architecture");
 const bytecode_1 = require("../knowledge/bytecode");
+const diagnostics_1 = require("../knowledge/diagnostics");
 function explainTopic(input) {
     const topic = input.topic.toLowerCase().trim();
+    if (topic.includes('warning') || topic.includes('advisory') || topic.includes('diagnostic')) {
+        const diagnosticMatches = (0, diagnostics_1.findDiagnosticDocs)(topic);
+        if (diagnosticMatches.length > 0) {
+            return {
+                explanation: diagnosticMatches.map(doc => (0, diagnostics_1.formatDiagnosticDoc)(doc)).join('\n\n---\n\n'),
+            };
+        }
+    }
     // Type documentation
     if (types_1.TYPE_DOCS[topic]) {
         const info = types_1.TYPE_DOCS[topic];

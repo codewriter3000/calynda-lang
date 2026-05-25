@@ -199,15 +199,12 @@ AstStatement *parse_statement(Parser *parser) {
         }
         statement->as.local_binding.name_span = parser_source_span(name_token);
 
-        if (!parser_consume(parser, TOK_ASSIGN, "Expected '=' after local binding name.")) {
-            ast_statement_free(statement);
-            return NULL;
-        }
-
-        statement->as.local_binding.initializer = parse_expression_node(parser);
-        if (!statement->as.local_binding.initializer) {
-            ast_statement_free(statement);
-            return NULL;
+        if (parser_match(parser, TOK_ASSIGN)) {
+            statement->as.local_binding.initializer = parse_expression_node(parser);
+            if (!statement->as.local_binding.initializer) {
+                ast_statement_free(statement);
+                return NULL;
+            }
         }
 
         if (!parser_consume(parser, TOK_SEMICOLON,

@@ -25,6 +25,9 @@ typedef enum {
 typedef struct {
     bool manual_bounds_check;
     bool strict_race_check;
+    bool performance_warnings;
+    bool performance_advisories;
+    bool size_focus;
     CalyndaGcMode gc_mode;
     const char *gc_plugin_path; /* NULL unless --gc-plugin was passed */
     const TargetDescriptor *target;
@@ -45,7 +48,15 @@ void calynda_compile_options_init(CalyndaCompileOptions *options);
 void calynda_compile_options_free(CalyndaCompileOptions *options);
 void calynda_apply_compile_options(const CalyndaCompileOptions *options);
 void calynda_set_global_bounds_check(bool enabled);
+bool calynda_get_global_bounds_check(void);
 void calynda_set_global_strict_race_check(bool enabled);
+bool calynda_get_global_strict_race_check(void);
+void calynda_set_global_performance_warnings(bool enabled);
+void calynda_set_global_performance_advisories(bool enabled);
+bool calynda_get_global_performance_warnings(void);
+bool calynda_get_global_performance_advisories(void);
+void calynda_set_global_size_focus(bool enabled);
+bool calynda_get_global_size_focus(void);
 CalyndaGcMode calynda_get_global_gc_mode(void);
 const char *calynda_get_gc_plugin_path(void);
 

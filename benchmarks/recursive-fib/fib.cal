@@ -1,0 +1,7 @@
+int32 fib = (int32 n) -> n <= 1 ? n : fib(n - 1) + fib(n - 2);
+
+start(string[] args) -> {
+    int32 runtime_delta = int32(args.length);
+    int32 n = 38 + runtime_delta - runtime_delta;
+    return fib(n) % 251;
+};

@@ -69,9 +69,11 @@ void test_hir_dump_lowers_manual_block_with_memory_ops(void);
 void test_hir_dump_lowers_threading_helpers(void);
 void test_hir_dump_lowers_array_car_cdr_helpers(void);
 void test_hir_dump_lowers_string_car_and_cdr(void);
+void test_hir_dump_synthesizes_default_initializers_for_omitted_bindings(void);
 void test_hir_dump_expands_swap_statement(void);
 void test_hir_dump_inlines_default_arguments(void);
 void test_hir_dump_lowers_overload_calls_to_selected_signature(void);
+void test_hir_dump_lowers_monolithic_scene60_hetero_array(void);
 
 
 int main(void) {
@@ -88,9 +90,11 @@ int main(void) {
     RUN_TEST(test_hir_dump_lowers_threading_helpers);
     RUN_TEST(test_hir_dump_lowers_array_car_cdr_helpers);
     RUN_TEST(test_hir_dump_lowers_string_car_and_cdr);
+    RUN_TEST(test_hir_dump_synthesizes_default_initializers_for_omitted_bindings);
     RUN_TEST(test_hir_dump_expands_swap_statement);
     RUN_TEST(test_hir_dump_inlines_default_arguments);
     RUN_TEST(test_hir_dump_lowers_overload_calls_to_selected_signature);
+    RUN_TEST(test_hir_dump_lowers_monolithic_scene60_hetero_array);
 
     printf("\n========================================\n");
     printf("  Total: %d  |  Passed: %d  |  Failed: %d\n",

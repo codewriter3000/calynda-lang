@@ -23,6 +23,9 @@ bool ae_emit_program_entry_glue_aarch64(AsmEmitContext *context, FILE *out) {
     for (unit_index = 0; unit_index < context->program->unit_count; unit_index++) {
         const MachineUnit *unit = &context->program->units[unit_index];
 
+        if (!ae_is_unit_reachable(context, unit_index)) {
+            continue;
+        }
         if (unit->kind == LIR_UNIT_START) {
             start_unit = unit;
             break;
@@ -85,6 +88,11 @@ bool ae_emit_program_entry_glue_aarch64(AsmEmitContext *context, FILE *out) {
             for (static_array_index = 0;
                  static_array_index < context->program->static_array_binding_count;
                  static_array_index++) {
+                if (!ae_is_static_array_binding_reachable(
+                        context,
+                        &context->program->static_array_bindings[static_array_index])) {
+                    continue;
+                }
                 if (!ae_emit_line(out,
                                   "    adrp x0, .Larr_obj_%zu\n"
                                   "    add x0, x0, :lo12:.Larr_obj_%zu\n"
@@ -146,6 +154,9 @@ bool ae_emit_program_entry_glue_aarch64(AsmEmitContext *context, FILE *out) {
         size_t argument_index;
         size_t cleanup_bytes;
 
+        if (!ae_is_unit_reachable(context, unit_index)) {
+            continue;
+        }
         if (unit->kind != LIR_UNIT_LAMBDA) {
             continue;
         }

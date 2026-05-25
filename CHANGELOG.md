@@ -1,3 +1,27 @@
+# Calynda 1.0.0-alpha.8
+
+May 24, 2026
+
+## Highlights
+
+- **Compiler warnings, advisories, and size-focused builds.** The type checker now tracks non-fatal warnings and opt-in performance advisories separately from hard errors, and the CLI surfaces them during `calynda asm`, `build`, `run`, and archive compilation with source spans. New flags `--no-performance-warnings`, `--performance-advisories`, and `--size-focus` let you suppress dynamic-dispatch warnings, opt into minor performance advisories, or bias lowering toward smaller, more predictable helper-backed paths.
+- **Dynamic callable dispatch and template diagnostics.** Calls made through `var` or other `external`-typed callable values now emit a default performance warning because they route through runtime helper dispatch instead of direct calls. Template literals now emit opt-in advisories, with stronger wording in `boot`, inside `manual` blocks, or under `--size-focus`, where interpolation stays on the runtime-helper path.
+- **Omitted array extents preserve static shapes farther into the pipeline.** Declarations such as `int32[] values = [1, 2, 3]`, declared lambda returns, and parameter default values now absorb statically provable extents instead of immediately erasing them. When an omitted extent still depends on runtime flow, the compiler remains permissive but can emit an advisory that the length stays runtime-derived.
+- **Typed bindings can now omit initializers.** The parser now accepts `Type name;` for top-level and local bindings. Semantic acceptance is intentionally narrower: explicitly typed, non-`final` bindings get default initialization, while `var` and `final` bindings still require an initializer. HIR then synthesizes concrete defaults such as `0`, `false`, or `null`, so later IR and codegen do not need to carry uninitialized slots.
+- **MIR and native assembly now prune unreachable initialization more aggressively.** MIR reachability analysis drops unreachable top-level callable units and pure dead `__mir$module_init` segments, including branching and short-circuit-only initialization that no reachable code reads. Native assembly emission now follows reachable roots as well, skipping dead machine units, dead static-array roots, and their startup-registration glue.
+- **Hosted template lowering has a clearer fast path.** Ordinary hosted single-expression templates such as `` `${value}` `` keep the cheap cast-based path when possible, while strong contexts (`boot`, `manual`, or `--size-focus`) intentionally route through the generic template builder. This makes the cost model more explicit and gives size-sensitive builds a predictable lowering choice.
+- **Diagnostics knowledge is now shared with tooling.** The compiler tree now carries a warning/advisory catalog, and the MCP server exposes the same families through `calynda://diagnostics`, the `explain_calynda_diagnostic` tool, and structured diagnostic details in analyzer and validator results.
+- **Regression and benchmark coverage expanded.** New parser, type-checker, HIR, MIR, asm-emission, CLI, and MCP regressions cover the new diagnostics and pruning behavior, and a recursive Fibonacci benchmark now ships under `benchmarks/recursive-fib/` with Calynda, C, and Rust baselines.
+
+## Backward compatibility
+
+- `var name;` and `final T name;` remain invalid; only explicitly typed, non-`final` bindings can omit the initializer.
+- Dynamic callable dispatch through `var` or `external` now warns by default but does not fail the build. Pass `--no-performance-warnings` to silence it.
+- `--performance-advisories` is opt-in. Enabling it, especially with `--size-focus`, may surface new notes for template literals and runtime-derived omitted array extents.
+- Unused pure top-level initializers may now disappear from MIR and assembly output if no reachable code reads them.
+
+---
+
 # Calynda 1.0.0-alpha.7
 
 May 16, 2026

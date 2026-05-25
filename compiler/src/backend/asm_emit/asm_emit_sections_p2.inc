@@ -32,13 +32,24 @@ static bool ae_emit_static_array_global_symbol(FILE *out,
 
 bool ae_emit_data(FILE *out, const AsmEmitContext *context) {
     size_t i;
+    bool has_reachable_static_array_bindings = false;
 
     if (!context) {
         return false;
     }
+    if (context->program) {
+        for (i = 0; i < context->program->static_array_binding_count; i++) {
+            if (ae_is_static_array_binding_reachable(
+                    context,
+                    &context->program->static_array_bindings[i])) {
+                has_reachable_static_array_bindings = true;
+                break;
+            }
+        }
+    }
     if (context->global_symbol_count == 0 && context->string_literal_count == 0 &&
         context->type_descriptor_count == 0 &&
-        (!context->program || context->program->static_array_binding_count == 0)) {
+        !has_reachable_static_array_bindings) {
         return true;
     }
     if (!ae_emit_line(out, ".data\n")) {
@@ -93,6 +104,11 @@ bool ae_emit_data(FILE *out, const AsmEmitContext *context) {
     }
     if (context->program) {
         for (i = 0; i < context->program->static_array_binding_count; i++) {
+            if (!ae_is_static_array_binding_reachable(
+                    context,
+                    &context->program->static_array_bindings[i])) {
+                continue;
+            }
             if (!ae_emit_static_array_global_symbol(out,
                                                     &context->program->static_array_bindings[i])) {
                 return false;

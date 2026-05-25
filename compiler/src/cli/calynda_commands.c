@@ -23,6 +23,15 @@ static bool calynda_option_enable_manual_bounds(const char *value,
 static bool calynda_option_enable_strict_race(const char *value,
                                               CalyndaCompileOptions *options,
                                               FILE *err);
+static bool calynda_option_disable_performance_warnings(const char *value,
+                                                        CalyndaCompileOptions *options,
+                                                        FILE *err);
+static bool calynda_option_enable_performance_advisories(const char *value,
+                                                         CalyndaCompileOptions *options,
+                                                         FILE *err);
+static bool calynda_option_enable_size_focus(const char *value,
+                                             CalyndaCompileOptions *options,
+                                             FILE *err);
 static bool calynda_option_set_target(const char *value,
                                       CalyndaCompileOptions *options,
                                       FILE *err);
@@ -64,6 +73,11 @@ static int emit_program_file(const char *path, CalyndaEmitMode mode,
 static const CalyndaOptionSpec k_compile_option_specs[] = {
     { "--manual-bounds-check", false, calynda_option_enable_manual_bounds },
     { "--strict-race-check", false, calynda_option_enable_strict_race },
+        { "--no-performance-warnings", false,
+            calynda_option_disable_performance_warnings },
+        { "--performance-advisories", false,
+            calynda_option_enable_performance_advisories },
+    { "--size-focus", false, calynda_option_enable_size_focus },
     { "--target", true, calynda_option_set_target },
     { "--archive", true, calynda_option_add_archive },
     { "--archive-path", true, calynda_option_add_archive_path },
@@ -126,6 +140,9 @@ void calynda_print_usage(FILE *out, const char *program_name) {
     fprintf(out, "\nCompiler options:\n");
     fprintf(out, "  --strict-race-check                             Enable the reserved alpha.2 strict race mode\n");
     fprintf(out, "  --manual-bounds-check                           Force manual memory ops through checked helpers\n");
+    fprintf(out, "  --no-performance-warnings                       Disable non-fatal performance warnings\n");
+    fprintf(out, "  --performance-advisories                        Enable minor performance advisories\n");
+    fprintf(out, "  --size-focus                                    Prefer smaller lowering paths and keep strong size advisories\n");
     fprintf(out, "  --target T                                      Target x86_64, aarch64, or riscv64\n");
     fprintf(out, "  --archive path.car                              Add a dependency CAR archive (repeatable)\n");
     fprintf(out, "  --archive-path dir                              Add all .car files from a dependency directory\n");

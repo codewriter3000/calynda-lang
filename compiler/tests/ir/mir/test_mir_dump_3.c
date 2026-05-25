@@ -52,7 +52,11 @@ void test_mir_dump_lowers_short_circuit_logical_operators(void) {
     static const char source[] =
         "bool both = (bool left, bool right) -> left && right;\n"
         "bool either = (bool left, bool right) -> left || right;\n"
-        "start(string[] args) -> 0;\n";
+        "start(string[] args) -> {\n"
+        "    bool left = both(true, false);\n"
+        "    bool right = either(false, true);\n"
+        "    return 0;\n"
+        "};\n";
     static const char expected[] =
         "MirProgram\n"
         "  Unit name=both kind=binding return=bool params=2 locals=3 blocks=4\n"
@@ -87,11 +91,17 @@ void test_mir_dump_lowers_short_circuit_logical_operators(void) {
         "        goto bb3\n"
         "      Block bb3:\n"
         "        return local(2:__mir_logical0)\n"
-        "  Unit name=start kind=start return=int32 params=1 locals=1 blocks=1\n"
+        "  Unit name=start kind=start return=int32 params=1 locals=3 blocks=1\n"
         "    Locals:\n"
         "      Local index=0 kind=param name=args type=string[] final=false\n"
+        "      Local index=1 kind=local name=left type=bool final=false\n"
+        "      Local index=2 kind=local name=right type=bool final=false\n"
         "    Blocks:\n"
         "      Block bb0:\n"
+        "        t0 = call global(both)(bool(true), bool(false))\n"
+        "        store local(1:left) <- temp(0)\n"
+        "        t1 = call global(either)(bool(false), bool(true))\n"
+        "        store local(2:right) <- temp(1)\n"
         "        return int32(0)\n";
     Parser parser;
     AstProgram ast_program;
@@ -143,7 +153,7 @@ void test_mir_dump_lowers_arrays_assignments_members_and_templates(void) {
         "  Unit name=start kind=start return=int32 params=1 locals=2 blocks=1\n"
         "    Locals:\n"
         "      Local index=0 kind=param name=args type=string[] final=false\n"
-        "      Local index=1 kind=local name=values type=int32[] final=false\n"
+        "      Local index=1 kind=local name=values type=int32[3] final=false\n"
         "    Blocks:\n"
         "      Block bb0:\n"
         "        t0 = array(int32(1), int32(2), int32(3))\n"
@@ -183,6 +193,98 @@ void test_mir_dump_lowers_arrays_assignments_members_and_templates(void) {
     dump = mir_dump_program_to_string(&mir_program);
     REQUIRE_TRUE(dump != NULL, "render rich MIR dump to string");
     ASSERT_EQ_STR(expected, dump, "rich MIR dump string");
+
+    free(dump);
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+}
+
+
+void test_mir_dump_preserves_static_extent_for_explicit_unsized_array_binding(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    return values[0];\n"
+        "};\n";
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &ast_program),
+                 "parse explicit unsized array MIR program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &ast_program),
+                 "build symbols for explicit unsized array MIR program");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &ast_program, &symbols),
+                 "type check explicit unsized array MIR program");
+    REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
+                 "lower HIR for explicit unsized array MIR program");
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
+                 "lower MIR for explicit unsized array binding");
+
+    dump = mir_dump_program_to_string(&mir_program);
+    REQUIRE_TRUE(dump != NULL, "render explicit unsized array MIR dump to string");
+    ASSERT_TRUE(strstr(dump,
+                       "Local index=1 kind=local name=values type=int32[3] final=false") != NULL,
+                "explicit unsized array binding should preserve inferred static extent");
+
+    free(dump);
+    mir_program_free(&mir_program);
+    hir_program_free(&hir_program);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&ast_program);
+    parser_free(&parser);
+}
+
+void test_mir_dump_preserves_static_extent_across_declared_array_return_boundary(void) {
+    static const char source[] =
+        "int32[] make_values = () -> [1, 2, 3];\n"
+        "start(string[] args) -> {\n"
+        "    int32[] values = make_values();\n"
+        "    return values[0];\n"
+        "};\n";
+    Parser parser;
+    AstProgram ast_program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    HirProgram hir_program;
+    MirProgram mir_program;
+    char *dump;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    hir_program_init(&hir_program);
+    mir_program_init(&mir_program);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &ast_program),
+                 "parse declared array return boundary MIR program");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &ast_program),
+                 "build symbols for declared array return boundary MIR program");
+    REQUIRE_TRUE(type_checker_check_program(&checker, &ast_program, &symbols),
+                 "type check declared array return boundary MIR program");
+    REQUIRE_TRUE(hir_build_program(&hir_program, &ast_program, &symbols, &checker),
+                 "lower HIR for declared array return boundary MIR program");
+    REQUIRE_TRUE(mir_build_program(&mir_program, &hir_program, false),
+                 "lower MIR for declared array return boundary");
+
+    dump = mir_dump_program_to_string(&mir_program);
+    REQUIRE_TRUE(dump != NULL, "render declared array return boundary MIR dump");
+    ASSERT_TRUE(strstr(dump,
+                       "Local index=1 kind=local name=values type=int32[3] final=false") != NULL,
+                "callers should retain static extents across declared array return boundaries");
 
     free(dump);
     mir_program_free(&mir_program);

@@ -22,6 +22,29 @@ static const MachineStaticArrayBinding *ae_find_static_array_binding(
     return NULL;
 }
 
+static void ae_mark_static_array_object_reachable(const MachineProgram *program,
+                                                  bool *reachable_objects,
+                                                  size_t object_index) {
+    const MachineStaticArrayObject *object;
+    size_t element_index;
+
+    if (!program || !reachable_objects ||
+        object_index >= program->static_array_object_count ||
+        reachable_objects[object_index]) {
+        return;
+    }
+
+    reachable_objects[object_index] = true;
+    object = &program->static_array_objects[object_index];
+    for (element_index = 0; element_index < object->element_count; element_index++) {
+        if (object->elements[element_index].kind == MACHINE_STATIC_ARRAY_ELEMENT_OBJECT) {
+            ae_mark_static_array_object_reachable(program,
+                                                  reachable_objects,
+                                                  object->elements[element_index].object_index);
+        }
+    }
+}
+
 bool ae_emit_unit_text(AsmEmitContext *context,
                            FILE *out,
                            size_t unit_index,
@@ -77,7 +100,7 @@ bool ae_emit_unit_text(AsmEmitContext *context,
             !ae_emit_line(out, "    addi sp, sp, -16\n    sd ra, 8(sp)\n"
                        "    sd s0, 0(sp)\n    addi s0, sp, 16\n"))
             return false;
-        if (frame_size > 0 && !ae_emit_line(out, "    addi sp, sp, -%zu\n", frame_size))
+        if (frame_size > 0 && !ae_rv64_emit_stack_adjust(out, -(long long)frame_size))
             return false;
         if (!ae_emit_line(out, "    sd t0, -24(s0)\n    sd s1, -32(s0)\n"))
             return false;
@@ -139,14 +162,48 @@ bool ae_emit_rodata(FILE *out, const AsmEmitContext *context) {
     size_t i;
     size_t j;
     size_t static_array_index;
+    bool *reachable_static_array_objects = NULL;
+    bool has_reachable_static_arrays = false;
 
-    if (!context ||
-        (context->byte_literal_count == 0 &&
-         context->string_literal_count == 0 &&
-         (!context->program || context->program->static_array_object_count == 0))) {
+    if (!context) {
+        return false;
+    }
+    if (context->program && context->program->static_array_object_count > 0) {
+        reachable_static_array_objects = calloc(context->program->static_array_object_count,
+                                                sizeof(*reachable_static_array_objects));
+        if (!reachable_static_array_objects) {
+            return false;
+        }
+        for (static_array_index = 0;
+             static_array_index < context->program->static_array_binding_count;
+             static_array_index++) {
+            if (!ae_is_static_array_binding_reachable(
+                    context,
+                    &context->program->static_array_bindings[static_array_index])) {
+                continue;
+            }
+            ae_mark_static_array_object_reachable(
+                context->program,
+                reachable_static_array_objects,
+                context->program->static_array_bindings[static_array_index].object_index);
+        }
+        for (static_array_index = 0;
+             static_array_index < context->program->static_array_object_count;
+             static_array_index++) {
+            if (reachable_static_array_objects[static_array_index]) {
+                has_reachable_static_arrays = true;
+                break;
+            }
+        }
+    }
+    if (context->byte_literal_count == 0 &&
+        context->string_literal_count == 0 &&
+        !has_reachable_static_arrays) {
+        free(reachable_static_array_objects);
         return true;
     }
     if (!ae_emit_line(out, ".section .rodata\n")) {
+        free(reachable_static_array_objects);
         return false;
     }
     for (i = 0; i < context->byte_literal_count; i++) {
@@ -181,6 +238,11 @@ bool ae_emit_rodata(FILE *out, const AsmEmitContext *context) {
              static_array_index++) {
             const MachineStaticArrayObject *object =
                 &context->program->static_array_objects[static_array_index];
+
+            if (reachable_static_array_objects &&
+                !reachable_static_array_objects[static_array_index]) {
+                continue;
+            }
 
             if (object->element_count > 0) {
                 if (!ae_emit_line(out,
@@ -236,6 +298,7 @@ bool ae_emit_rodata(FILE *out, const AsmEmitContext *context) {
         }
     }
 
+    free(reachable_static_array_objects);
     return true;
 }
 

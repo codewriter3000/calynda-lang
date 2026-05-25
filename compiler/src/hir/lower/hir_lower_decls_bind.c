@@ -56,8 +56,15 @@ bool hr_lower_binding_or_start_decl(HirBuildContext *context,
             free(hir_decl);
             return false;
         }
-        hir_decl->as.binding.initializer = hr_lower_expression(context,
-                                                               ast_decl->as.binding_decl.initializer);
+        if (ast_decl->as.binding_decl.initializer) {
+            hir_decl->as.binding.initializer = hr_lower_expression(context,
+                                                                   ast_decl->as.binding_decl.initializer);
+        } else {
+            hir_decl->as.binding.initializer =
+                hr_make_default_initializer_expression(context,
+                                                       info->type,
+                                                       ast_decl->as.binding_decl.name_span);
+        }
         if (!hir_decl->as.binding.name || !hir_decl->as.binding.initializer) {
             if (!context->program->has_error) {
                 hr_set_error(context,
@@ -103,8 +110,15 @@ bool hr_lower_binding_or_start_decl(HirBuildContext *context,
             free(hir_decl);
             return false;
         }
+
+        {
+            bool saved_boot_context = context->current_boot_context;
+
+            context->current_boot_context = ast_decl->as.start_decl.is_boot;
         hir_decl->as.start.body = hr_lower_start_body_to_block(context,
                                                                &ast_decl->as.start_decl.body);
+            context->current_boot_context = saved_boot_context;
+        }
         if (!hir_decl->as.start.body) {
             hr_free_parameter_list(&hir_decl->as.start.parameters);
             free(hir_decl);

@@ -143,7 +143,9 @@ static void test_bytecode_dump_lowers_union_new_instructions(void) {
         "union Option<T> { Some(T), None };\n"
         "Option<int32> x = Option.Some(42);\n"
         "Option<int32> y = Option.None;\n"
-        "start(string[] args) -> 0;\n";
+        "start(string[] args) -> {\n"
+        "    return x.tag + y.tag;\n"
+        "};\n";
     char *dump;
 
     REQUIRE_TRUE(build_bytecode_from_source(source, &dump), "build union bytecode dump text");
@@ -240,7 +242,7 @@ static void test_bytecode_dump_lowers_type_query_builtins(void) {
                     "isarray lowers to a dedicated bytecode opcode");
     ASSERT_CONTAINS("BC_ISSAMETYPE", dump,
                     "issametype lowers to a dedicated bytecode opcode");
-    ASSERT_CONTAINS("literal kind=string text=\"int32[]\"", dump,
+    ASSERT_CONTAINS("literal kind=string text=\"int32[3]\"", dump,
                     "type query helpers intern canonical static type metadata");
     free(dump);
 }

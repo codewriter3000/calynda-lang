@@ -8,6 +8,9 @@ typedef struct {
     const AstProgram   *ast_program;
     const SymbolTable  *symbols;
     const TypeChecker  *checker;
+    bool                current_boot_context;
+    bool                current_manual_context;
+    bool                current_size_focus;
     const AstParameterList *inline_parameters;
     const Symbol      **inline_parameter_symbols;
     const AstExpression *const *inline_argument_sources;
@@ -79,6 +82,9 @@ bool hr_lower_inline_asm_statement(HirBuildContext *context,
 /* hir_lower_expr.c */
 HirExpression *hr_lower_expression(HirBuildContext *context,
                                    const AstExpression *expression);
+HirExpression *hr_make_default_initializer_expression(HirBuildContext *context,
+                                                      CheckedType type,
+                                                      AstSourceSpan source_span);
 HirExpression *hr_lower_memory_expression(HirBuildContext *context,
                                           const AstExpression *expression,
                                           const TypeCheckInfo *info);

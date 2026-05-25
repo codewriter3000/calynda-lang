@@ -1,5 +1,37 @@
 #include "type_checker_internal.h"
 
+static void tc_append_notice(TypeCheckNotice **items,
+                             size_t *count,
+                             size_t *capacity,
+                             AstSourceSpan primary_span,
+                             const AstSourceSpan *related_span,
+                             bool is_performance,
+                             const char *format,
+                             va_list args) {
+    TypeCheckNotice *notice;
+
+    if (!items || !count || !capacity) {
+        return;
+    }
+
+    if (!tc_reserve_items((void **)items,
+                          capacity,
+                          *count + 1,
+                          sizeof(**items))) {
+        return;
+    }
+
+    notice = &(*items)[(*count)++];
+    memset(notice, 0, sizeof(*notice));
+    notice->error.primary_span = primary_span;
+    if (related_span && tc_source_span_is_valid(*related_span)) {
+        notice->error.related_span = *related_span;
+        notice->error.has_related_span = true;
+    }
+    notice->is_performance = is_performance;
+    vsnprintf(notice->error.message, sizeof(notice->error.message), format, args);
+}
+
 void tc_set_error(TypeChecker *checker, const char *format, ...) {
     va_list args;
 
@@ -41,29 +73,75 @@ void tc_set_warning_at(TypeChecker *checker,
                        const char *format, ...) {
     va_list args;
 
-    if (!checker || checker->has_warning) {
+    if (!checker) {
         return;
     }
 
-    checker->has_warning = true;
-    checker->warning.primary_span = primary_span;
-    if (related_span && tc_source_span_is_valid(*related_span)) {
-        checker->warning.related_span = *related_span;
-        checker->warning.has_related_span = true;
+    va_start(args, format);
+    tc_append_notice(&checker->warnings,
+                     &checker->warning_count,
+                     &checker->warning_capacity,
+                     primary_span,
+                     related_span,
+                     false,
+                     format,
+                     args);
+    va_end(args);
+}
+
+void tc_set_performance_warning_at(TypeChecker *checker,
+                                   AstSourceSpan primary_span,
+                                   const AstSourceSpan *related_span,
+                                   const char *format, ...) {
+    va_list args;
+
+    if (!checker || !type_checker_get_global_performance_warnings()) {
+        return;
     }
 
     va_start(args, format);
-    vsnprintf(checker->warning.message, sizeof(checker->warning.message), format, args);
+    tc_append_notice(&checker->warnings,
+                     &checker->warning_count,
+                     &checker->warning_capacity,
+                     primary_span,
+                     related_span,
+                     true,
+                     format,
+                     args);
+    va_end(args);
+}
+
+void tc_set_performance_advisory_at(TypeChecker *checker,
+                                    AstSourceSpan primary_span,
+                                    const AstSourceSpan *related_span,
+                                    const char *format, ...) {
+    va_list args;
+
+    if (!checker || !type_checker_get_global_performance_advisories()) {
+        return;
+    }
+
+    va_start(args, format);
+    tc_append_notice(&checker->advisories,
+                     &checker->advisory_count,
+                     &checker->advisory_capacity,
+                     primary_span,
+                     related_span,
+                     true,
+                     format,
+                     args);
     va_end(args);
 }
 
 TypeCheckExpressionEntry *tc_ensure_expression_entry(TypeChecker *checker,
                                                      const AstExpression *expression) {
     size_t i;
+    TypeCheckExpressionEntry *entry;
 
     for (i = 0; i < checker->expression_count; i++) {
-        if (checker->expression_entries[i].expression == expression) {
-            return &checker->expression_entries[i];
+        if (checker->expression_entries[i] &&
+            checker->expression_entries[i]->expression == expression) {
+            return checker->expression_entries[i];
         }
     }
 
@@ -76,20 +154,28 @@ TypeCheckExpressionEntry *tc_ensure_expression_entry(TypeChecker *checker,
         return NULL;
     }
 
-    checker->expression_entries[checker->expression_count].expression = expression;
-    memset(&checker->expression_entries[checker->expression_count].info, 0,
-           sizeof(checker->expression_entries[checker->expression_count].info));
+    entry = calloc(1, sizeof(*entry));
+    if (!entry) {
+        tc_set_error(checker,
+                     "Out of memory while storing expression type information.");
+        return NULL;
+    }
+
+    entry->expression = expression;
+    checker->expression_entries[checker->expression_count] = entry;
     checker->expression_count++;
-    return &checker->expression_entries[checker->expression_count - 1];
+    return entry;
 }
 
 TypeCheckSymbolEntry *tc_ensure_symbol_entry(TypeChecker *checker,
                                              const Symbol *symbol) {
     size_t i;
+    TypeCheckSymbolEntry *entry;
 
     for (i = 0; i < checker->symbol_count; i++) {
-        if (checker->symbol_entries[i].symbol == symbol) {
-            return &checker->symbol_entries[i];
+        if (checker->symbol_entries[i] &&
+            checker->symbol_entries[i]->symbol == symbol) {
+            return checker->symbol_entries[i];
         }
     }
 
@@ -102,13 +188,17 @@ TypeCheckSymbolEntry *tc_ensure_symbol_entry(TypeChecker *checker,
         return NULL;
     }
 
-    checker->symbol_entries[checker->symbol_count].symbol = symbol;
-    memset(&checker->symbol_entries[checker->symbol_count].info, 0,
-           sizeof(checker->symbol_entries[checker->symbol_count].info));
-    checker->symbol_entries[checker->symbol_count].is_resolved = false;
-    checker->symbol_entries[checker->symbol_count].is_resolving = false;
+    entry = calloc(1, sizeof(*entry));
+    if (!entry) {
+        tc_set_error(checker,
+                     "Out of memory while storing symbol type information.");
+        return NULL;
+    }
+
+    entry->symbol = symbol;
+    checker->symbol_entries[checker->symbol_count] = entry;
     checker->symbol_count++;
-    return &checker->symbol_entries[checker->symbol_count - 1];
+    return entry;
 }
 
 const TypeCheckInfo *tc_store_expression_info(TypeChecker *checker,

@@ -143,6 +143,103 @@ bool tc_checked_type_prepend_array_extent(TypeChecker *checker,
     return true;
 }
 
+bool tc_checked_type_fill_missing_array_extents(TypeChecker *checker,
+                                                CheckedType target,
+                                                CheckedType source,
+                                                CheckedType *merged_out) {
+    ArrayExtent *array_extents;
+    CheckedType merged_type;
+    size_t i;
+    bool needs_merge = false;
+
+    if (!checker || !merged_out) {
+        return false;
+    }
+
+    *merged_out = target;
+    if (target.array_depth == 0 || target.array_depth != source.array_depth) {
+        return true;
+    }
+
+    for (i = 0; i < target.array_depth; i++) {
+        bool target_has_size = false;
+        bool source_has_size = false;
+        unsigned long long ignored_size = 0;
+
+        if (!tc_checked_type_array_extent(target, i, &target_has_size, &ignored_size) ||
+            !tc_checked_type_array_extent(source, i, &source_has_size, &ignored_size)) {
+            tc_set_error(checker,
+                         "Internal error: invalid checked array extent metadata.");
+            return false;
+        }
+
+        if (!target_has_size && source_has_size) {
+            needs_merge = true;
+            break;
+        }
+    }
+
+    if (!needs_merge) {
+        return true;
+    }
+
+    if (!tc_allocate_owned_array_extents(checker,
+                                         target.array_depth,
+                                         &array_extents)) {
+        return false;
+    }
+
+    for (i = 0; i < target.array_depth; i++) {
+        bool target_has_size = false;
+        bool source_has_size = false;
+        unsigned long long target_size = 0;
+        unsigned long long source_size = 0;
+
+        if (!tc_checked_type_array_extent(target, i, &target_has_size, &target_size) ||
+            !tc_checked_type_array_extent(source, i, &source_has_size, &source_size)) {
+            tc_set_error(checker,
+                         "Internal error: invalid checked array extent metadata.");
+            return false;
+        }
+
+        array_extents[i].has_size = target_has_size || source_has_size;
+        array_extents[i].size = target_has_size ? target_size : source_size;
+    }
+
+    merged_type = target;
+    merged_type.array_extents = array_extents;
+    *merged_out = merged_type;
+    return true;
+}
+
+bool tc_checked_type_has_runtime_omitted_array_extent(const AstType *declared_type,
+                                                      CheckedType resolved_type) {
+    size_t i;
+
+    if (!declared_type || declared_type->dimension_count == 0) {
+        return false;
+    }
+
+    for (i = 0; i < declared_type->dimension_count; i++) {
+        bool has_size = false;
+        unsigned long long size = 0;
+
+        if (declared_type->dimensions[i].has_size) {
+            continue;
+        }
+
+        if (!tc_checked_type_array_extent(resolved_type, i, &has_size, &size)) {
+            return false;
+        }
+
+        if (!has_size) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static bool tc_checked_type_array_extents_equal(CheckedType left, CheckedType right) {
     size_t i;
 

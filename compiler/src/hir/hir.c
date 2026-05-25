@@ -136,6 +136,7 @@ bool hir_build_program(HirProgram *program,
     context.ast_program = ast_program;
     context.symbols = symbols;
     context.checker = checker;
+    context.current_size_focus = type_checker_get_global_size_focus();
 
     checker_error = type_checker_get_error(checker);
     if (checker_error != NULL) {

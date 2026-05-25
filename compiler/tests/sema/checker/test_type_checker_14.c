@@ -241,3 +241,496 @@ void test_type_checker_warns_on_spawn_mutable_capture(void) {
     const TypeCheckError *warning;
 
 #include "test_type_checker_14_p2.inc"
+
+void test_type_checker_warns_on_external_callable_dispatch(void) {
+    static const char source[] =
+        "int32 apply = (var fn) -> int32(fn());\n"
+        "start(string[] args) -> {\n"
+        "    return apply(() -> 7);\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *warning;
+
+    type_checker_set_global_performance_warnings(true);
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse external callable dispatch source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols external callable dispatch");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "dynamic external callable dispatch still type checks");
+
+    ASSERT_EQ_INT(1, (int)type_checker_warning_count(&checker),
+                  "dynamic external callable dispatch records one warning");
+    warning = type_checker_get_warning(&checker);
+    REQUIRE_TRUE(warning != NULL, "external callable dispatch warning exists");
+    REQUIRE_TRUE(type_checker_format_error(warning, diagnostic, sizeof(diagnostic)),
+                 "format external callable dispatch warning");
+    ASSERT_CONTAINS("Dynamic callable dispatch", diagnostic,
+                    "warning explains runtime helper dispatch");
+
+    type_checker_free(&checker);
+    type_checker_init(&checker);
+    type_checker_set_global_performance_warnings(false);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "dynamic external callable dispatch still type checks when warnings disabled");
+    ASSERT_EQ_INT(0, (int)type_checker_warning_count(&checker),
+                  "disabling performance warnings suppresses the warning");
+
+    type_checker_set_global_performance_warnings(true);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_controls_template_literal_advisories(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    string text = `hello ${args[0]}`;\n"
+        "    return int32(text.length);\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *advisory;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse template advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols template advisory source");
+
+    type_checker_set_global_performance_advisories(false);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "template literal program type checks with advisories disabled");
+    ASSERT_EQ_INT(0, (int)type_checker_advisory_count(&checker),
+                  "template literal advisory is disabled by default");
+
+    type_checker_free(&checker);
+    type_checker_init(&checker);
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "template literal program type checks with advisories enabled");
+    ASSERT_EQ_INT(1, (int)type_checker_advisory_count(&checker),
+                  "template literal records one advisory when enabled");
+    advisory = type_checker_get_advisory(&checker);
+    REQUIRE_TRUE(advisory != NULL, "template advisory exists");
+    REQUIRE_TRUE(type_checker_format_error(advisory, diagnostic, sizeof(diagnostic)),
+                 "format template advisory");
+    ASSERT_CONTAINS("Complex template literals", diagnostic,
+                    "advisory explains hosted complex template helper cost");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_suppresses_simple_hosted_template_advisory(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    string text = `${args[0]}`;\n"
+        "    return int32(text.length);\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse simple hosted template advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for simple hosted template advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "simple hosted template still type checks with advisories enabled");
+    ASSERT_EQ_INT(0, (int)type_checker_advisory_count(&checker),
+                  "simple hosted single-expression template stays silent");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_emits_strong_template_advisory_in_manual_block(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        string text = `${42}`;\n"
+        "        _ = text.length;\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *advisory;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse manual template advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for manual template advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "manual template still type checks with advisories enabled");
+    ASSERT_EQ_INT(1, (int)type_checker_advisory_count(&checker),
+                  "manual template records one strong advisory");
+    advisory = type_checker_get_advisory(&checker);
+    REQUIRE_TRUE(advisory != NULL, "manual template advisory exists");
+    REQUIRE_TRUE(type_checker_format_error(advisory, diagnostic, sizeof(diagnostic)),
+                 "format manual template advisory");
+    ASSERT_CONTAINS("boot, manual, or size-focused code", diagnostic,
+                    "manual template advisory uses the strong context wording");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_emits_strong_template_advisory_in_boot(void) {
+    static const char source[] =
+        "boot -> {\n"
+        "    string text = `${42}`;\n"
+        "    _ = text.length;\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *advisory;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse boot template advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for boot template advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "boot template still type checks with advisories enabled");
+    ASSERT_EQ_INT(1, (int)type_checker_advisory_count(&checker),
+                  "boot template records one strong advisory");
+    advisory = type_checker_get_advisory(&checker);
+    REQUIRE_TRUE(advisory != NULL, "boot template advisory exists");
+    REQUIRE_TRUE(type_checker_format_error(advisory, diagnostic, sizeof(diagnostic)),
+                 "format boot template advisory");
+    ASSERT_CONTAINS("boot, manual, or size-focused code", diagnostic,
+                    "boot template advisory uses the strong context wording");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_emits_strong_template_advisory_in_size_focus_mode(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    string text = `${42}`;\n"
+        "    return int32(text.length);\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *advisory;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse size-focus template advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for size-focus template advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    type_checker_set_global_size_focus(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "size-focus template still type checks with advisories enabled");
+    ASSERT_EQ_INT(1, (int)type_checker_advisory_count(&checker),
+                  "size-focus template records one strong advisory");
+    advisory = type_checker_get_advisory(&checker);
+    REQUIRE_TRUE(advisory != NULL, "size-focus template advisory exists");
+    REQUIRE_TRUE(type_checker_format_error(advisory, diagnostic, sizeof(diagnostic)),
+                 "format size-focus template advisory");
+    ASSERT_CONTAINS("boot, manual, or size-focused code", diagnostic,
+                    "size-focus template advisory uses the strong context wording");
+
+    type_checker_set_global_size_focus(false);
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_omitted_static_array_extent_stays_silent(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    return values[0];\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse static omitted-array-extent advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for static omitted-array-extent advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "static omitted array extent program type checks");
+    ASSERT_EQ_INT(0, (int)type_checker_advisory_count(&checker),
+                  "statically inferred omitted array extent stays silent");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_omitted_runtime_array_extent_emits_advisory(void) {
+    static const char source[] =
+        "var passthrough = (int32[] input) -> input;\n"
+        "start(string[] args) -> {\n"
+        "    int32[] values = [1, 2, 3];\n"
+        "    int32[] copy = passthrough(values);\n"
+        "    return int32(copy.length);\n"
+        "};\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *advisory;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse runtime omitted-array-extent advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for runtime omitted-array-extent advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "runtime omitted array extent program type checks");
+    ASSERT_EQ_INT(1, (int)type_checker_advisory_count(&checker),
+                  "runtime-derived omitted array extent records one advisory");
+    advisory = type_checker_get_advisory(&checker);
+    REQUIRE_TRUE(advisory != NULL, "runtime omitted array extent advisory exists");
+    REQUIRE_TRUE(type_checker_format_error(advisory, diagnostic, sizeof(diagnostic)),
+                 "format runtime omitted array extent advisory");
+    ASSERT_CONTAINS("length will be determined at runtime", diagnostic,
+                    "advisory explains runtime-derived array length");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_omitted_static_array_return_stays_silent(void) {
+    static const char source[] =
+        "int32[] make_values = () -> [1, 2, 3];\n"
+        "start(string[] args) -> int32(make_values().length);\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse static omitted-array-return advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for static omitted-array-return advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "static omitted array return program type checks");
+    ASSERT_EQ_INT(0, (int)type_checker_advisory_count(&checker),
+                  "statically inferred omitted array return stays silent");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_omitted_runtime_array_return_emits_advisory(void) {
+    static const char source[] =
+        "var passthrough = (int32[] input) -> input;\n"
+        "int32[] make_values = () -> passthrough([1, 2, 3]);\n"
+        "start(string[] args) -> int32(make_values().length);\n";
+    char diagnostic[256];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *advisory;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse runtime omitted-array-return advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for runtime omitted-array-return advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "runtime omitted array return program type checks");
+    ASSERT_EQ_INT(1, (int)type_checker_advisory_count(&checker),
+                  "runtime-derived omitted array return records one advisory");
+    advisory = type_checker_get_advisory(&checker);
+    REQUIRE_TRUE(advisory != NULL, "runtime omitted array return advisory exists");
+    REQUIRE_TRUE(type_checker_format_error(advisory, diagnostic, sizeof(diagnostic)),
+                 "format runtime omitted array return advisory");
+    ASSERT_CONTAINS("Return type for lambda body omits an array length", diagnostic,
+                    "advisory identifies the return boundary");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_omitted_static_default_array_extent_stays_silent(void) {
+    static const char source[] =
+        "int32 consume = (int32[] values = [1, 2, 3]) -> int32(values.length);\n"
+        "start(string[] args) -> consume();\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse static omitted-default-array-extent advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for static omitted-default-array-extent advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "static omitted default array extent program type checks");
+    ASSERT_EQ_INT(0, (int)type_checker_advisory_count(&checker),
+                  "statically inferred omitted default array extent stays silent");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_omitted_runtime_default_array_extent_emits_advisory(void) {
+    static const char source[] =
+        "var passthrough = (int32[] input) -> input;\n"
+        "int32 consume = (int32[] values = passthrough([1, 2, 3])) -> int32(values.length);\n"
+        "start(string[] args) -> consume();\n";
+    char diagnostic[512];
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+    const TypeCheckError *advisory;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse runtime omitted-default-array-extent advisory source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for runtime omitted-default-array-extent advisory source");
+
+    type_checker_set_global_performance_advisories(true);
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "runtime omitted default array extent program type checks");
+    ASSERT_EQ_INT(1, (int)type_checker_advisory_count(&checker),
+                  "runtime-derived omitted default array extent records one advisory");
+    advisory = type_checker_get_advisory(&checker);
+    REQUIRE_TRUE(advisory != NULL, "runtime omitted default array extent advisory exists");
+    REQUIRE_TRUE(type_checker_format_error(advisory, diagnostic, sizeof(diagnostic)),
+                 "format runtime omitted default array extent advisory");
+    ASSERT_CONTAINS("Default value for parameter 'values' omits an array length", diagnostic,
+                    "advisory identifies the default-value boundary");
+
+    type_checker_set_global_performance_advisories(false);
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}
+
+void test_type_checker_preserves_static_extent_across_declared_array_return_boundary(void) {
+    static const char source[] =
+        "int32[] make_values = () -> [1, 2, 3];\n"
+        "start(string[] args) -> {\n"
+        "    int32[3] values = make_values();\n"
+        "    return values[0];\n"
+        "};\n";
+    Parser parser;
+    AstProgram program;
+    SymbolTable symbols;
+    TypeChecker checker;
+
+    symbol_table_init(&symbols);
+    type_checker_init(&checker);
+    parser_init(&parser, source);
+    REQUIRE_TRUE(parser_parse_program(&parser, &program),
+                 "parse declared array return boundary source");
+    REQUIRE_TRUE(symbol_table_build(&symbols, &program),
+                 "build symbols for declared array return boundary source");
+    ASSERT_TRUE(type_checker_check_program(&checker, &program, &symbols),
+                "declared omitted array return preserves static extent for callers");
+
+    type_checker_free(&checker);
+    symbol_table_free(&symbols);
+    ast_program_free(&program);
+    parser_free(&parser);
+}

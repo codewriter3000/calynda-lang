@@ -1,3 +1,22 @@
+static void tc_maybe_emit_runtime_array_extent_advisory(TypeChecker *checker,
+                                                        const Symbol *symbol,
+                                                        const AstType *declared_type,
+                                                        CheckedType resolved_type) {
+    if (!checker || !symbol || !declared_type || declared_type->dimension_count == 0) {
+        return;
+    }
+
+    if (tc_checked_type_has_runtime_omitted_array_extent(declared_type, resolved_type)) {
+        tc_set_performance_advisory_at(
+            checker,
+            symbol->declaration_span,
+            NULL,
+            "%s '%s' omits an array length that cannot be inferred statically; length will be determined at runtime. Prefer an explicit extent or a statically sized source when size-focused optimizations matter.",
+            symbol_kind_name(symbol->kind),
+            symbol->name ? symbol->name : "<anonymous>");
+    }
+}
+
 bool tc_resolve_binding_symbol(TypeChecker *checker,
                                const Symbol *symbol,
                                const AstType *declared_type,
@@ -15,6 +34,16 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
     bool has_source_generic_arg = false;
 
     if (is_inferred_type) {
+        if (!initializer) {
+            tc_set_error_at(checker,
+                            symbol->declaration_span,
+                            NULL,
+                            "%s '%s' declared with 'var' requires an initializer.",
+                            symbol_kind_name(symbol->kind),
+                            symbol->name ? symbol->name : "<anonymous>");
+            return false;
+        }
+
         initializer_info = tc_check_expression(checker, initializer);
         if (!initializer_info) {
             return false;
@@ -49,6 +78,38 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
                                                                   &target_generic_arg);
     if (checker->has_error) {
         return false;
+    }
+
+    if (!initializer) {
+        if (symbol->is_final) {
+            tc_set_error_at(checker,
+                            symbol->declaration_span,
+                            NULL,
+                            "final %s '%s' requires an initializer.",
+                            symbol_kind_name(symbol->kind),
+                            symbol->name ? symbol->name : "<anonymous>");
+            return false;
+        }
+
+        if (target_type.kind == CHECKED_TYPE_VOID) {
+            tc_set_error_at(checker,
+                            symbol->declaration_span,
+                            NULL,
+                            "%s '%s' cannot have type void.",
+                            symbol_kind_name(symbol->kind),
+                            symbol->name ? symbol->name : "<anonymous>");
+            return false;
+        }
+
+        *info = tc_type_check_info_make(target_type);
+        if (declared_type->dimension_count > 0) {
+            info->array_shape_type = declared_type;
+            info->array_shape_consumed_dimensions = 0;
+        }
+        if (has_target_generic_arg) {
+            tc_type_check_info_set_first_generic_arg(info, target_generic_arg);
+        }
+        return true;
     }
 
     if (initializer && initializer->kind == AST_EXPR_LAMBDA) {
@@ -133,6 +194,20 @@ bool tc_resolve_binding_symbol(TypeChecker *checker,
                         symbol->name ? symbol->name : "<anonymous>",
                         target_generic_text);
         return false;
+    }
+
+    if (!tc_checked_type_fill_missing_array_extents(checker,
+                                                    target_type,
+                                                    source_type,
+                                                    &target_type)) {
+        return false;
+    }
+
+    if (!initializer_info->is_callable) {
+        tc_maybe_emit_runtime_array_extent_advisory(checker,
+                                                    symbol,
+                                                    declared_type,
+                                                    target_type);
     }
 
     *info = *initializer_info;

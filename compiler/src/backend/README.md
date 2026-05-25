@@ -197,6 +197,11 @@ gcc output.o -L./runtime -lcalynda_rt -o program
 - The backend relies on external assembler (GNU as, LLVM)
 - Runtime library is linked separately
 - Future targets can be added by implementing target descriptors
+## Changes in 1.0.0-alpha.8
+
+- Native asm emission now follows the same reachability picture as MIR: unreachable machine units, dead closure wrappers, and dead static-array roots are skipped instead of being emitted conservatively.
+- Hosted single-expression templates keep the cheap cast-based helper path when possible, while `boot`, `manual`, and `--size-focus` stay on the stronger template-builder path for predictability.
+
 ## Changes in 1.0.0-alpha.7
 
 - Hosted native linking now defaults to the mark-and-sweep runtime archive (`calynda_runtime_ms.a`) while preserving `calynda_runtime.a` for `--gc legacy` and custom archives for `--gc-plugin`.

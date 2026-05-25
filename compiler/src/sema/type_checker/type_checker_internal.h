@@ -57,6 +57,12 @@ bool tc_checked_type_prepend_array_extent(TypeChecker *checker,
                                           bool has_size,
                                           unsigned long long size,
                                           CheckedType *array_type_out);
+bool tc_checked_type_fill_missing_array_extents(TypeChecker *checker,
+                                                CheckedType target,
+                                                CheckedType source,
+                                                CheckedType *merged_out);
+bool tc_checked_type_has_runtime_omitted_array_extent(const AstType *declared_type,
+                                                      CheckedType resolved_type);
 bool tc_checked_type_is_hetero_array(CheckedType type);
 bool tc_checked_type_is_num(CheckedType type);
 bool tc_checked_type_equals(CheckedType left, CheckedType right);
@@ -148,6 +154,14 @@ void tc_set_warning_at(TypeChecker *checker,
                        AstSourceSpan primary_span,
                        const AstSourceSpan *related_span,
                        const char *format, ...);
+void tc_set_performance_warning_at(TypeChecker *checker,
+                                   AstSourceSpan primary_span,
+                                   const AstSourceSpan *related_span,
+                                   const char *format, ...);
+void tc_set_performance_advisory_at(TypeChecker *checker,
+                                    AstSourceSpan primary_span,
+                                    const AstSourceSpan *related_span,
+                                    const char *format, ...);
 TypeCheckExpressionEntry *tc_ensure_expression_entry(TypeChecker *checker,
                                                      const AstExpression *expression);
 TypeCheckSymbolEntry *tc_ensure_symbol_entry(TypeChecker *checker,

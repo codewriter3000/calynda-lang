@@ -54,6 +54,75 @@ void test_asm_emit_riscv64_runtime_backed_program(void) {
     free(assembly);
 }
 
+static bool build_large_riscv64_frame_source(char **source_out) {
+    const size_t local_count = 320;
+    const size_t capacity = 16384;
+    char *source;
+    size_t length = 0;
+    size_t index;
+
+    if (!source_out) {
+        return false;
+    }
+
+    source = malloc(capacity);
+    if (!source) {
+        return false;
+    }
+
+    length = (size_t)snprintf(source, capacity, "start(string[] args) -> {\n");
+    if (length >= capacity) {
+        free(source);
+        return false;
+    }
+
+    for (index = 0; index < local_count; index++) {
+        int written = snprintf(source + length,
+                               capacity - length,
+                               "    int64 v%03zu = %zu;\n",
+                               index,
+                               index);
+
+        if (written < 0 || (size_t)written >= capacity - length) {
+            free(source);
+            return false;
+        }
+        length += (size_t)written;
+    }
+
+    if ((size_t)snprintf(source + length,
+                         capacity - length,
+                         "    return int32(v000 + v319);\n};\n") >=
+        capacity - length) {
+        free(source);
+        return false;
+    }
+
+    *source_out = source;
+    return true;
+}
+
+void test_asm_emit_riscv64_large_frame_uses_legal_stack_addressing(void) {
+    char *source;
+    char *assembly;
+
+    REQUIRE_TRUE(build_large_riscv64_frame_source(&source),
+                 "build rv64 large-frame regression source");
+    REQUIRE_TRUE(build_riscv64_assembly(source, &assembly),
+                 "emit rv64 large-frame assembly text");
+    ASSERT_CONTAINS("add sp, sp, t6",
+                    assembly,
+                    "rv64 large frames materialize stack adjustments through a scratch register");
+    ASSERT_CONTAINS("0(t6)",
+                    assembly,
+                    "rv64 large frames materialize out-of-range stack slots through a scratch address register");
+    ASSERT_TRUE(strstr(assembly, "-2400(s0)") == NULL,
+                "rv64 large frames avoid raw out-of-range s0 offsets");
+
+    free(assembly);
+    free(source);
+}
+
 void test_asm_emit_boot_riscv64_emits_start_label(void) {
     static const char source[] = "boot -> 42;\n";
     char *assembly;

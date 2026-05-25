@@ -82,6 +82,7 @@ typedef struct {
     AsmUnitSymbol        *unit_symbols;
     size_t                unit_symbol_count;
     size_t                unit_symbol_capacity;
+    bool                 *reachable_units;
     AsmGlobalSymbol      *global_symbols;
     size_t                global_symbol_count;
     size_t                global_symbol_capacity;
@@ -115,6 +116,10 @@ bool ae_decode_quoted_text(const char *quoted, char **decoded, size_t *decoded_l
 AsmUnitSymbol *ae_ensure_unit_symbol(AsmEmitContext *context, const char *name);
 AsmGlobalSymbol *ae_ensure_global_symbol(AsmEmitContext *context, const char *name, bool has_store);
 const MachineUnit *ae_find_program_unit(const AsmEmitContext *context, const char *name);
+bool ae_is_unit_reachable(const AsmEmitContext *context, size_t unit_index);
+bool ae_has_global_symbol(const AsmEmitContext *context, const char *name);
+bool ae_is_static_array_binding_reachable(const AsmEmitContext *context,
+                                          const MachineStaticArrayBinding *binding);
 AsmByteLiteral *ae_ensure_byte_literal(AsmEmitContext *context, const char *text, size_t length, const char *prefix);
 AsmStringObjectLiteral *ae_ensure_string_literal(AsmEmitContext *context, const char *text, size_t length);
 bool ae_parse_variant_spec(char *spec, char **name_out, CalyndaRtTypeTag *tag_out);
@@ -161,6 +166,10 @@ bool ae_emit_program_entry_glue_aarch64(AsmEmitContext *context, FILE *out);
 
 /* asm_emit_instr_riscv64.c */
 bool ae_emit_machine_instruction_riscv64(AsmEmitContext *context, FILE *out, const MachineUnit *unit, const AsmUnitLayout *layout, size_t unit_index, size_t block_index, size_t instruction_index, const char *instruction_text);
+bool ae_rv64_emit_address(FILE *out, const char *dest_reg, const char *memory_text);
+bool ae_rv64_emit_load(FILE *out, const char *dest_reg, const char *memory_text);
+bool ae_rv64_emit_store(FILE *out, const char *src_reg, const char *memory_text);
+bool ae_rv64_emit_stack_adjust(FILE *out, long long delta);
 
 /* asm_emit_operand_riscv64.c */
 AsmUnitLayout ae_compute_unit_layout_riscv64(const MachineUnit *unit);

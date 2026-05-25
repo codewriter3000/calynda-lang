@@ -130,9 +130,12 @@ void test_type_checker_rejects_arr_wildcard_from_multi_dimensional_array(void) {
                                            diagnostic,
                                            sizeof(diagnostic)),
                  "format arr wildcard multidimensional diagnostic");
-    ASSERT_CONTAINS("Cannot assign expression of type int32[][]",
+    ASSERT_CONTAINS("Cannot assign expression of type int32[",
                     diagnostic,
                     "arr<?> diagnostics report the rejected multidimensional source type");
+    ASSERT_CONTAINS("to local 'mixed' of type arr<?>.",
+                    diagnostic,
+                    "arr<?> diagnostics keep the rejected target context");
 
     type_checker_free(&checker);
     symbol_table_free(&symbols);

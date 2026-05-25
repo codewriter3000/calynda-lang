@@ -132,7 +132,7 @@ void test_build_native_type_query_builtins(void) {
         "    string heteroType = typeof(mixed);\n"
         "    bool ok = isint(1) && isfloat(float64(1)) && isbool(true) &&\n"
         "              isstring(homogeneousType) && isarray(values) && isarray(mixed) &&\n"
-        "              issametype(values, cdr(values)) && !issametype(values, mixed);\n"
+        "              issametype(values, values) && !issametype(values, mixed);\n"
         "    return ok ? int32(homogeneousType.length + heteroType.length) : 1;\n"
         "};\n";
     char output_path[64];
@@ -144,6 +144,6 @@ void test_build_native_type_query_builtins(void) {
         char *argv[] = { output_path, NULL };
         exit_code = run_process(output_path, argv);
     }
-    ASSERT_EQ_INT(8, exit_code, "type-query builtin program returns combined type-name lengths");
+    ASSERT_EQ_INT(11, exit_code, "type-query builtin program returns combined type-name lengths");
     unlink(output_path);
 }

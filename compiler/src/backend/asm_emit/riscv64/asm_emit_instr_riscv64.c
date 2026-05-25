@@ -69,9 +69,16 @@ bool ae_emit_machine_instruction_riscv64(AsmEmitContext *context,
         int pi = ae_rv64_preserve_index(reg);
 
         if (pi >= 0) {
-            return ae_emit_line(out, "    sd %s, -%zu(s0)\n",
-                                reg,
-                                ae_call_preserve_offset(layout, unit, (size_t)pi));
+            char *slot = ae_copy_format("-%zu(s0)",
+                                        ae_call_preserve_offset(layout, unit, (size_t)pi));
+            bool ok;
+
+            if (!slot) {
+                return false;
+            }
+            ok = ae_rv64_emit_store(out, reg, slot);
+            free(slot);
+            return ok;
         }
         return true;
     }
@@ -80,16 +87,23 @@ bool ae_emit_machine_instruction_riscv64(AsmEmitContext *context,
         int pi = ae_rv64_preserve_index(reg);
 
         if (pi >= 0) {
-            return ae_emit_line(out, "    ld %s, -%zu(s0)\n",
-                                reg,
-                                ae_call_preserve_offset(layout, unit, (size_t)pi));
+            char *slot = ae_copy_format("-%zu(s0)",
+                                        ae_call_preserve_offset(layout, unit, (size_t)pi));
+            bool ok;
+
+            if (!slot) {
+                return false;
+            }
+            ok = ae_rv64_emit_load(out, reg, slot);
+            free(slot);
+            return ok;
         }
         return true;
     }
 
     /* ret → full epilogue */
     if (strcmp(instruction_text, "ret") == 0) {
-        if (frame_size > 0 && !ae_emit_line(out, "    addi sp, sp, %zu\n", frame_size))
+        if (frame_size > 0 && !ae_rv64_emit_stack_adjust(out, (long long)frame_size))
             return false;
         return ae_emit_line(out, "    ld t0, -24(s0)\n    ld s1, -32(s0)\n"
                        "    ld s0, 0(sp)\n    ld ra, 8(sp)\n"

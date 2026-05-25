@@ -42,6 +42,9 @@
 
 cleanup:
     type_checker_set_global_strict_race_check(false);
+    type_checker_set_global_performance_warnings(true);
+    type_checker_set_global_performance_advisories(false);
+    type_checker_set_global_size_focus(false);
     codegen_program_free(&codegen_program);
     lir_program_free(&lir_program);
     mir_program_free(&mir_program);
@@ -119,6 +122,9 @@ int calynda_compile_to_bytecode_program(const char *path,
         goto cleanup;
     }
     type_checker_set_global_strict_race_check(g_global_strict_race_check);
+    type_checker_set_global_performance_warnings(g_global_performance_warnings);
+    type_checker_set_global_performance_advisories(g_global_performance_advisories);
+    type_checker_set_global_size_focus(g_global_size_focus);
     if (!type_checker_check_program(&checker, &program, &symbols)) {
         type_error = type_checker_get_error(&checker);
         if (type_error) {
@@ -137,6 +143,7 @@ int calynda_compile_to_bytecode_program(const char *path,
         exit_code = 1;
         goto cleanup;
     }
+    calynda_print_type_checker_notices(path, source, &checker);
     if (!hir_build_program(&hir_program, &program, &symbols, &checker)) {
         const HirBuildError *hir_error = hir_get_error(&hir_program);
 
@@ -192,6 +199,9 @@ int calynda_compile_to_bytecode_program(const char *path,
 
 cleanup:
     type_checker_set_global_strict_race_check(false);
+    type_checker_set_global_performance_warnings(true);
+    type_checker_set_global_performance_advisories(false);
+    type_checker_set_global_size_focus(false);
     mir_program_free(&mir_program);
     hir_program_free(&hir_program);
     type_checker_free(&checker);

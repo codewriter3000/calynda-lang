@@ -274,6 +274,11 @@ bool calynda_rt_dump_layout(FILE *out);
 - Runtime is linked as static archives (`calynda_runtime.a`, `calynda_runtime_ms.a`, `calynda_runtime_boot.a`)
 - Runtime functions are prefixed with `__calynda_rt_` or `calynda_rt_`
 - Public API uses `calynda_rt_`, private uses `__calynda_rt_`
+## Changes in 1.0.0-alpha.8
+
+- No new runtime archive split or public helper family was required for alpha.8. The existing string-cast and template-build helpers continue to back the hosted fast path versus strong-context template lowering.
+- The new dynamic-call warnings, template advisories, omitted-array advisories, and size-focus mode are compile-time/tooling changes; the runtime ABI itself remains stable.
+
 ## Changes in 1.0.0-alpha.7
 
 - Hosted runtime delivery now includes two GC backends: legacy `calynda_runtime.a` and default mark-and-sweep `calynda_runtime_ms.a`, plus a stable plugin surface for `--gc-plugin`.

@@ -168,6 +168,9 @@ bool run_capture(const char *path,
 }
 
 void test_calynda_cli_help_and_emitters(void);
+void test_calynda_cli_asm_surfaces_nonfatal_warning(void);
+void test_calynda_cli_controls_performance_diagnostics(void);
+void test_calynda_cli_size_focus_strengthens_simple_template_advisory(void);
 void test_calynda_cli_builds_native_executable(void);
 void test_calynda_cli_asm_accepts_car_archive(void);
 void test_calynda_cli_missing_source_file(void);
@@ -183,6 +186,9 @@ int main(void) {
     printf("Running calynda CLI tests...\n\n");
 
     RUN_TEST(test_calynda_cli_help_and_emitters);
+    RUN_TEST(test_calynda_cli_asm_surfaces_nonfatal_warning);
+    RUN_TEST(test_calynda_cli_controls_performance_diagnostics);
+    RUN_TEST(test_calynda_cli_size_focus_strengthens_simple_template_advisory);
     RUN_TEST(test_calynda_cli_builds_native_executable);
     RUN_TEST(test_calynda_cli_asm_accepts_car_archive);
     RUN_TEST(test_calynda_cli_missing_source_file);

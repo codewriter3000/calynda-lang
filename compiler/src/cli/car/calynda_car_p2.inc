@@ -38,6 +38,10 @@
         exit_code = 1;
         goto cleanup_pipeline;
     }
+    type_checker_set_global_strict_race_check(calynda_get_global_strict_race_check());
+    type_checker_set_global_performance_warnings(calynda_get_global_performance_warnings());
+    type_checker_set_global_performance_advisories(calynda_get_global_performance_advisories());
+    type_checker_set_global_size_focus(calynda_get_global_size_focus());
     if (!type_checker_check_program(&checker, &merged, &symbols)) {
         type_error = type_checker_get_error(&checker);
         if (type_error) {
@@ -67,6 +71,7 @@
         exit_code = 1;
         goto cleanup_pipeline;
     }
+    car_print_type_checker_notices(source_archive, sources, file_count, &checker);
     if (!hir_build_program(&hir_program, &merged, &symbols, &checker)) {
         const HirBuildError *hir_error = hir_get_error(&hir_program);
         if (hir_error) {
@@ -91,7 +96,8 @@
         exit_code = 1;
         goto cleanup_pipeline;
     }
-    if (!mir_build_program(&mir_program, &hir_program, false)) {
+    if (!mir_build_program(&mir_program, &hir_program,
+                           calynda_get_global_bounds_check())) {
         const MirBuildError *mir_error = mir_get_error(&mir_program);
         if (mir_error) {
             const char *err_path;
@@ -188,6 +194,10 @@
     }
 
 cleanup_pipeline:
+    type_checker_set_global_strict_race_check(false);
+    type_checker_set_global_performance_warnings(true);
+    type_checker_set_global_performance_advisories(false);
+    type_checker_set_global_size_focus(false);
     codegen_program_free(&codegen_program);
     lir_program_free(&lir_program);
     mir_program_free(&mir_program);

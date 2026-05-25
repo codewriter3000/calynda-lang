@@ -2,7 +2,7 @@
 #define CALYNDA_METADATA_H
 
 #define CALYNDA_CLI_NAME "calynda"
-#define CALYNDA_CLI_VERSION "1.0.0-alpha.7"
+#define CALYNDA_CLI_VERSION "1.0.0-alpha.8"
 #define CALYNDA_CLI_VERSION_LINE CALYNDA_CLI_NAME " " CALYNDA_CLI_VERSION
 
 static inline const char *calynda_cli_name(void) {

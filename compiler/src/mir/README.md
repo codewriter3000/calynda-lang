@@ -133,6 +133,11 @@ mir_program_free(&mir);
 - MIR uses a flat array of locals + temporaries (not full SSA)
 - MIR is target-independent; no machine-specific details yet
 - MIR captures all semantic information needed for code generation
+## Changes in 1.0.0-alpha.8
+
+- MIR reachability analysis now prunes unreachable top-level callable units after lowering instead of carrying dead helpers through later stages.
+- `__mir$module_init` gets a conservative second prune pass: pure dead global-initializer segments are dropped, including branching and short-circuit-only segments, and `start` stops calling module init if nothing reachable remains.
+
 ## Changes in 1.0.0-alpha.7
 
 - MIR lowering routes `mmio<T>` loads/stores and `.value` operations through dedicated volatile helpers; `fence`, `cacheclean`, and `cachefinal` lower as runtime-backed builtins.

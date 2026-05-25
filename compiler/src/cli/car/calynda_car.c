@@ -84,6 +84,63 @@ static const char *car_find_source_for_span(const CarArchive *archive,
     return best_src;
 }
 
+static void car_print_type_checker_notices(const CarArchive *archive,
+                                           char * const *sources,
+                                           size_t source_count,
+                                           const TypeChecker *checker) {
+    size_t i;
+
+    if (!archive || !checker) {
+        return;
+    }
+
+    for (i = 0; i < type_checker_warning_count(checker); i++) {
+        const TypeCheckError *warning = type_checker_get_warning_at(checker, i);
+        const char *err_path;
+        const char *err_src;
+
+        if (!warning) {
+            continue;
+        }
+        err_src = car_find_source_for_span(archive, sources, source_count,
+                                           warning->primary_span.start_line,
+                                           warning->primary_span.start_column,
+                                           &err_path);
+        calynda_print_diagnostic(err_path ? err_path : "car", err_src,
+                                 warning->primary_span.start_line,
+                                 warning->primary_span.start_column,
+                                 warning->primary_span.end_column,
+                                 "warning", warning->message);
+        if (warning->has_related_span)
+            fprintf(stderr, "   note: related location at %d:%d.\n",
+                    warning->related_span.start_line,
+                    warning->related_span.start_column);
+    }
+
+    for (i = 0; i < type_checker_advisory_count(checker); i++) {
+        const TypeCheckError *advisory = type_checker_get_advisory_at(checker, i);
+        const char *err_path;
+        const char *err_src;
+
+        if (!advisory) {
+            continue;
+        }
+        err_src = car_find_source_for_span(archive, sources, source_count,
+                                           advisory->primary_span.start_line,
+                                           advisory->primary_span.start_column,
+                                           &err_path);
+        calynda_print_diagnostic(err_path ? err_path : "car", err_src,
+                                 advisory->primary_span.start_line,
+                                 advisory->primary_span.start_column,
+                                 advisory->primary_span.end_column,
+                                 "advisory", advisory->message);
+        if (advisory->has_related_span)
+            fprintf(stderr, "   note: related location at %d:%d.\n",
+                    advisory->related_span.start_line,
+                    advisory->related_span.start_column);
+    }
+}
+
 /* ----------------------------------------------------------------
  *  Public API
  * ---------------------------------------------------------------- */

@@ -56,6 +56,21 @@ static bool tc_assignment_target_declared_array_shape(TypeChecker *checker,
     }
 }
 
+static bool tc_template_part_has_non_empty_text(const AstTemplatePart *part) {
+    return part && part->kind == AST_TEMPLATE_PART_TEXT &&
+           part->as.text && part->as.text[0] != '\0';
+}
+
+static bool tc_template_part_is_zero_arg_callable(const TypeCheckInfo *info) {
+    return info && info->is_callable && info->parameters && info->parameters->count == 0;
+}
+
+static bool tc_in_strong_template_context(const TypeChecker *checker) {
+    return checker && (checker->current_boot_context ||
+                       checker->manual_context_depth > 0 ||
+                       type_checker_get_global_size_focus());
+}
+
 const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
                                          const AstExpression *expression) {
     TypeCheckInfo info;
@@ -90,16 +105,25 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
         case AST_LITERAL_STRING:
         case AST_LITERAL_TEMPLATE:
             if (expression->as.literal.kind == AST_LITERAL_TEMPLATE) {
+                size_t expression_part_count = 0;
+                bool has_non_empty_text = false;
+                bool single_expression_auto_call = false;
+                bool strong_context;
                 size_t i;
 
                 for (i = 0; i < expression->as.literal.as.template_parts.count; i++) {
                     const AstTemplatePart *part =
                         &expression->as.literal.as.template_parts.items[i];
 
+                    if (tc_template_part_has_non_empty_text(part)) {
+                        has_non_empty_text = true;
+                    }
+
                     if (part->kind == AST_TEMPLATE_PART_EXPRESSION) {
                         const TypeCheckInfo *part_info = tc_check_expression(checker,
                                                                              part->as.expression);
 
+                        expression_part_count++;
                         if (!part_info) {
                             return NULL;
                         }
@@ -121,6 +145,33 @@ const TypeCheckInfo *tc_check_expression(TypeChecker *checker,
                                             "Template interpolation cannot use a void expression.");
                             return NULL;
                         }
+
+                        if (expression_part_count == 1) {
+                            single_expression_auto_call =
+                                tc_template_part_is_zero_arg_callable(part_info);
+                        }
+                    }
+                }
+                strong_context = tc_in_strong_template_context(checker);
+                if (expression_part_count > 0) {
+                    bool is_simple_hosted_single_expression =
+                        expression_part_count == 1 &&
+                        !has_non_empty_text &&
+                        !single_expression_auto_call &&
+                        !strong_context;
+
+                    if (strong_context) {
+                        tc_set_performance_advisory_at(
+                            checker,
+                            expression->source_span,
+                            NULL,
+                            "Template literals in boot, manual, or size-focused code build strings through runtime helpers and may allocate. Prefer plain strings, explicit casts, or cached values on this path.");
+                    } else if (!is_simple_hosted_single_expression) {
+                        tc_set_performance_advisory_at(
+                            checker,
+                            expression->source_span,
+                            NULL,
+                            "Complex template literals may still build strings through runtime helpers and may allocate. Prefer plain strings or simple `${value}` forms in hot code.");
                     }
                 }
             }

@@ -108,6 +108,11 @@ ast_dump_program(stdout, &program);
 - All strings are dynamically allocated and owned by the AST
 - The AST preserves all information from the source, including comments (future work)
 - Generic type arguments are represented as lists for flexibility
+## Changes in 1.0.0-alpha.8
+
+- Top-level and local binding declarations may now omit their initializer in the AST (`Type name;`). The AST preserves that omission by storing a null initializer rather than inventing a value early.
+- No new AST node kinds were required. The narrower acceptance rules for omitted initializers (`var` and `final` still require one) remain a semantic-layer responsibility.
+
 ## Changes in 1.0.0-alpha.7
 
 - AST statement coverage now includes block-level `asm { ... };` bodies with preserved raw text for later lowering.

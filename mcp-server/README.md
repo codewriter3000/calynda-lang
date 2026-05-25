@@ -2,28 +2,20 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that enables AI assistants to deeply understand and work with the [Calynda](../README.md) programming language.
 
-This server tracks the **1.0.0-alpha.7** language/help surface. In addition to the previously documented features (`spawn`, `Thread`, `Future<T>`, `Mutex`, `Atomic<T>`, `thread_local`, strict race-check help text, freestanding `boot` contract, native + bytecode backend split, recursive top-level lambdas, operator overloading, default parameter values, swap operator `><`, self tail-call elimination, type-query intrinsics, wildcard imports, external `.car` archives, `string` indexing, `car`/`cdr` on arrays, manual-block return propagation, version reporting via `--version`), it now covers the current alpha.6 and alpha.7 additions:
+This server tracks the **1.0.0-alpha.8** language/help surface. It continues to cover the earlier concurrency, manual-memory, archive, standard-library, MMIO, GC, and statement-level asm features, and now also documents the current alpha.8 additions:
 
-- Untyped `var` parameters (with `typeof`/`is*` runtime queries)
-- `|var` early-return parameters (non-local return)
-- The `num` generic numeric primitive type
-- The `arr<?>` wildcard array type
-- Capture-by-reference closures
-- `car(s)` / `cdr(s)` accepting `string`
-- User-input runtime helpers
-- The bundled standard library (`conditional`, `loop`, `math`, `string_utils`, `structure/`)
-- The hosted/freestanding runtime archive split (`calynda_runtime.a` + `calynda_runtime_boot.a`)
-- `mmio<T>` plus the `mmio<T>.value` access surface
-- `fence()`, `cacheclean(address)`, and `cachefinal()`
-- Fixed-size array extent checking in the documented semantic surface
-- Hosted GC/tooling controls: `--manual-bounds-check`, `--gc marksweep|legacy`, `--gc-plugin path.a`, and the default `calynda_runtime_ms.a` archive
-- Statement-level `asm { ... };` in resources, examples, and syntax explanations
+- Typed omitted binding initializers (`Type name;`) and their narrower semantic acceptance rules
+- Compiler warning/advisory families for dynamic callable dispatch, template literals, and runtime-derived omitted array extents
+- CLI guidance for `--no-performance-warnings`, `--performance-advisories`, and `--size-focus`
+- The shared diagnostics catalog resource (`calynda://diagnostics`) and the `explain_calynda_diagnostic` tool
+- Structured warning/advisory detail payloads with attached catalog matches in analyzer and validator responses
 
 ## Overview
 
 This MCP server provides AI assistants with comprehensive knowledge of Calynda, including:
 
 - **Code analysis** — syntax checking, semantic validation, and diagnostics
+- **Diagnostic explanation** — direct explanations for current warning and advisory families
 - **Type validation** — type checking and type information
 - **Code completion** — context-aware suggestions
 - **Syntax explanation** — detailed explanations of language features
@@ -101,7 +93,7 @@ Analyze Calynda source code for syntax errors, type issues, and provide suggesti
 - `code` (string, required) — The Calynda source code to analyze
 - `filename` (string, optional) — Filename for better diagnostic messages
 
-**Output:** Diagnostics list with errors, warnings, and suggestions including line/column information.
+**Output:** Parsed AST, inferred symbols, formatted diagnostics, and structured `diagnosticDetails` / `parseErrorDetails` entries. Matching warnings or advisories automatically include attached catalog explanations in `catalogMatches`.
 
 **Example:**
 ```json
@@ -130,6 +122,27 @@ Explain Calynda language features and syntax with examples.
   "tool": "explain_calynda_syntax",
   "arguments": {
     "topic": "template literal"
+  }
+}
+```
+
+---
+
+### `explain_calynda_diagnostic`
+
+Explain a current Calynda warning or advisory by name, partial text, or message fragment.
+
+**Input:**
+- `diagnostic` (string, required) — Warning/advisory text, name, or partial message
+
+**Output:** Explanation of when the diagnostic appears, why it is discouraged, and preferred alternatives.
+
+**Example:**
+```json
+{
+  "tool": "explain_calynda_diagnostic",
+  "arguments": {
+    "diagnostic": "length will be determined at runtime"
   }
 }
 ```
@@ -166,7 +179,7 @@ Type check Calynda code and return type information and errors.
 **Input:**
 - `code` (string, required) — The Calynda source code to type-check
 
-**Output:** Type information, symbol table, and type errors.
+**Output:** Validation status plus formatted `errors`, `warnings`, `info`, and parallel structured `errorDetails` / `warningDetails` / `infoDetails` entries. Matching diagnostics automatically include attached catalog explanations in `catalogMatches`.
 
 **Example:**
 ```json
@@ -231,6 +244,9 @@ Resources provide reference documentation accessible to the AI assistant.
 | `calynda://types` | Type system documentation for all built-in types |
 | `calynda://keywords` | All reserved words and keywords |
 | `calynda://examples` | Code examples for common patterns |
+| `calynda://architecture` | Compiler pipeline, source tree, and build target reference |
+| `calynda://bytecode` | Portable bytecode ISA reference |
+| `calynda://diagnostics` | Current warning/advisory catalog with explanations |
 
 ## Available Prompts
 

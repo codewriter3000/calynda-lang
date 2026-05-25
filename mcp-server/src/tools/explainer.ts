@@ -5,6 +5,7 @@ import {
   BACKEND_STRATEGY, SOURCE_TREE, ERROR_PATTERN, BUILD_TARGETS,
 } from '../knowledge/architecture';
 import { BYTECODE_ISA } from '../knowledge/bytecode';
+import { findDiagnosticDocs, formatDiagnosticDoc } from '../knowledge/diagnostics';
 
 export interface ExplainInput {
   topic: string;
@@ -17,6 +18,15 @@ export interface ExplainResult {
 
 export function explainTopic(input: ExplainInput): ExplainResult {
   const topic = input.topic.toLowerCase().trim();
+
+  if (topic.includes('warning') || topic.includes('advisory') || topic.includes('diagnostic')) {
+    const diagnosticMatches = findDiagnosticDocs(topic);
+    if (diagnosticMatches.length > 0) {
+      return {
+        explanation: diagnosticMatches.map(doc => formatDiagnosticDoc(doc)).join('\n\n---\n\n'),
+      };
+    }
+  }
 
   // Type documentation
   if (TYPE_DOCS[topic]) {

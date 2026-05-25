@@ -66,6 +66,60 @@ bool run_capture(const char *path,
                         size_t buffer_size,
                         int *exit_code);
 
+static bool run_capture_with_stderr(const char *path,
+                                    char *const argv[],
+                                    char *buffer,
+                                    size_t buffer_size,
+                                    int *exit_code) {
+    int pipe_fds[2];
+    pid_t child;
+    int status;
+    size_t length = 0;
+
+    if (!path || !argv || !buffer || buffer_size == 0 || !exit_code) {
+        return false;
+    }
+
+    buffer[0] = '\0';
+    if (pipe(pipe_fds) != 0) {
+        return false;
+    }
+
+    child = fork();
+    if (child < 0) {
+        close(pipe_fds[0]);
+        close(pipe_fds[1]);
+        return false;
+    }
+
+    if (child == 0) {
+        close(pipe_fds[0]);
+        dup2(pipe_fds[1], STDOUT_FILENO);
+        dup2(pipe_fds[1], STDERR_FILENO);
+        close(pipe_fds[1]);
+        execv(path, argv);
+        _exit(127);
+    }
+
+    close(pipe_fds[1]);
+    while (length + 1 < buffer_size) {
+        ssize_t read_size = read(pipe_fds[0], buffer + length, buffer_size - length - 1);
+
+        if (read_size <= 0) {
+            break;
+        }
+        length += (size_t)read_size;
+    }
+    buffer[length] = '\0';
+    close(pipe_fds[0]);
+
+    if (waitpid(child, &status, 0) < 0 || !WIFEXITED(status)) {
+        return false;
+    }
+    *exit_code = WEXITSTATUS(status);
+    return true;
+}
+
 static bool write_text_file(const char *path, const char *contents) {
     FILE *file;
 
@@ -103,6 +157,14 @@ void test_calynda_cli_help_and_emitters(void) {
         source_path,
         NULL
     };
+    char *perf_asm_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        (char *)"--performance-advisories",
+        (char *)"--no-performance-warnings",
+        source_path,
+        NULL
+    };
     char *bytecode_argv[] = { (char *)"./build/calynda", (char *)"bytecode", source_path, NULL };
     int exit_code;
 
@@ -116,13 +178,19 @@ void test_calynda_cli_help_and_emitters(void) {
     ASSERT_CONTAINS("build", captured_output, "help text lists build command");
     ASSERT_CONTAINS("--version", captured_output, "help text lists version flag");
     ASSERT_CONTAINS("--strict-race-check", captured_output, "help text lists strict race flag");
+    ASSERT_CONTAINS("--performance-advisories", captured_output,
+                    "help text lists performance advisory flag");
+    ASSERT_CONTAINS("--size-focus", captured_output,
+                    "help text lists size-focus flag");
+    ASSERT_CONTAINS("--no-performance-warnings", captured_output,
+                    "help text lists performance warning flag");
     ASSERT_CONTAINS("Compiler options", captured_output, "help text includes compiler options");
 
     REQUIRE_TRUE(run_capture("./build/calynda", version_argv, output, sizeof(output), &exit_code),
                  "run calynda version");
     captured_output = output;
     ASSERT_EQ_INT(0, exit_code, "calynda version exits successfully");
-    ASSERT_CONTAINS("1.0.0-alpha.7", captured_output, "version text prints alpha.7 metadata");
+    ASSERT_CONTAINS("1.0.0-alpha.8", captured_output, "version text prints alpha.8 metadata");
 
     REQUIRE_TRUE(run_capture("./build/calynda", asm_argv, output, sizeof(output), &exit_code),
                  "run calynda asm");
@@ -136,11 +204,199 @@ void test_calynda_cli_help_and_emitters(void) {
     ASSERT_EQ_INT(0, exit_code, "calynda asm with strict race flag exits successfully");
     ASSERT_CONTAINS(".globl main", captured_output, "strict race flag preserves asm emission");
 
+    REQUIRE_TRUE(run_capture("./build/calynda", perf_asm_argv, output, sizeof(output), &exit_code),
+                 "run calynda asm with performance diagnostic flags");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "calynda asm with performance flags exits successfully");
+    ASSERT_CONTAINS(".globl main", captured_output,
+                    "performance diagnostic flags preserve asm emission");
+
     REQUIRE_TRUE(run_capture("./build/calynda", bytecode_argv, output, sizeof(output), &exit_code),
                  "run calynda bytecode");
     captured_output = output;
     ASSERT_EQ_INT(0, exit_code, "calynda bytecode exits successfully");
     ASSERT_CONTAINS("BytecodeProgram target=portable-v1", captured_output, "calynda bytecode emits bytecode text");
+
+    unlink(source_path);
+}
+
+void test_calynda_cli_asm_surfaces_nonfatal_warning(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    int32 shared = 1;\n"
+        "    Thread worker = spawn () -> {\n"
+        "        int32 copy = shared;\n"
+        "        _ = copy;\n"
+        "        exit;\n"
+        "    };\n"
+        "    worker.join();\n"
+        "    return 0;\n"
+        "};\n";
+    char source_path[64];
+    char output[8192];
+    const char *captured_output;
+    char *asm_argv[] = { (char *)"./build/calynda", (char *)"asm", source_path, NULL };
+    int exit_code;
+
+    REQUIRE_TRUE(write_temp_source(source, source_path, sizeof(source_path)),
+                 "write CLI warning source file");
+    REQUIRE_TRUE(run_capture_with_stderr("./build/calynda", asm_argv,
+                                         output, sizeof(output), &exit_code),
+                 "run calynda asm with non-fatal warning");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "calynda asm with warning exits successfully");
+    ASSERT_CONTAINS("Possible data race", captured_output,
+                    "non-fatal warning is printed");
+    ASSERT_CONTAINS("warning", captured_output,
+                    "warning output includes severity");
+    ASSERT_CONTAINS(".globl main", captured_output,
+                    "assembly still emits after warning");
+
+    unlink(source_path);
+}
+
+void test_calynda_cli_controls_performance_diagnostics(void) {
+    static const char warning_source[] =
+        "int32 apply = (var fn) -> int32(fn());\n"
+        "start(string[] args) -> {\n"
+        "    return apply(() -> 7);\n"
+        "};\n";
+    static const char advisory_source[] =
+        "start(string[] args) -> {\n"
+        "    string text = `hello ${args[0]}`;\n"
+        "    return int32(text.length);\n"
+        "};\n";
+    char warning_path[64];
+    char advisory_path[64];
+    char output[8192];
+    const char *captured_output;
+    char *warning_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        warning_path,
+        NULL
+    };
+    char *warning_suppressed_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        (char *)"--no-performance-warnings",
+        warning_path,
+        NULL
+    };
+    char *advisory_default_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        advisory_path,
+        NULL
+    };
+    char *advisory_enabled_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        (char *)"--performance-advisories",
+        advisory_path,
+        NULL
+    };
+    int exit_code;
+
+    REQUIRE_TRUE(write_temp_source(warning_source, warning_path, sizeof(warning_path)),
+                 "write performance warning source file");
+    REQUIRE_TRUE(write_temp_source(advisory_source, advisory_path, sizeof(advisory_path)),
+                 "write performance advisory source file");
+
+    REQUIRE_TRUE(run_capture_with_stderr("./build/calynda", warning_argv,
+                                         output, sizeof(output), &exit_code),
+                 "run calynda asm with performance warning enabled");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "default performance warning run exits successfully");
+    ASSERT_CONTAINS("Dynamic callable dispatch", captured_output,
+                    "performance warning is printed by default");
+    ASSERT_CONTAINS(".globl main", captured_output,
+                    "assembly still emits with performance warning");
+
+    REQUIRE_TRUE(run_capture_with_stderr("./build/calynda", warning_suppressed_argv,
+                                         output, sizeof(output), &exit_code),
+                 "run calynda asm with performance warnings disabled");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "disabled performance warning run exits successfully");
+    ASSERT_TRUE(strstr(captured_output, "Dynamic callable dispatch") == NULL,
+                "performance warning is suppressed when disabled");
+    ASSERT_CONTAINS(".globl main", captured_output,
+                    "assembly still emits with performance warnings disabled");
+
+    REQUIRE_TRUE(run_capture_with_stderr("./build/calynda", advisory_default_argv,
+                                         output, sizeof(output), &exit_code),
+                 "run calynda asm with performance advisories disabled");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "default advisory run exits successfully");
+    ASSERT_TRUE(strstr(captured_output, "Complex template literals") == NULL,
+                "performance advisory is not printed by default");
+    ASSERT_CONTAINS(".globl main", captured_output,
+                    "assembly still emits without performance advisories");
+
+    REQUIRE_TRUE(run_capture_with_stderr("./build/calynda", advisory_enabled_argv,
+                                         output, sizeof(output), &exit_code),
+                 "run calynda asm with performance advisories enabled");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "enabled advisory run exits successfully");
+    ASSERT_CONTAINS("Complex template literals", captured_output,
+                    "performance advisory is printed when enabled");
+    ASSERT_CONTAINS(".globl main", captured_output,
+                    "assembly still emits with performance advisories enabled");
+
+    unlink(warning_path);
+    unlink(advisory_path);
+}
+
+void test_calynda_cli_size_focus_strengthens_simple_template_advisory(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    string text = `${42}`;\n"
+        "    return int32(text.length);\n"
+        "};\n";
+    char source_path[64];
+    char output[8192];
+    const char *captured_output;
+    char *hosted_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        (char *)"--performance-advisories",
+        source_path,
+        NULL
+    };
+    char *size_focus_argv[] = {
+        (char *)"./build/calynda",
+        (char *)"asm",
+        (char *)"--performance-advisories",
+        (char *)"--size-focus",
+        source_path,
+        NULL
+    };
+    int exit_code;
+
+    REQUIRE_TRUE(write_temp_source(source, source_path, sizeof(source_path)),
+                 "write size-focus template source file");
+
+    REQUIRE_TRUE(run_capture_with_stderr("./build/calynda", hosted_argv,
+                                         output, sizeof(output), &exit_code),
+                 "run calynda asm for hosted simple template advisory");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "hosted simple template advisory run exits successfully");
+    ASSERT_TRUE(strstr(captured_output, "Complex template literals") == NULL,
+                "hosted simple template stays silent even with advisories enabled");
+    ASSERT_TRUE(strstr(captured_output, "boot, manual, or size-focused code") == NULL,
+                "hosted simple template does not use the strong advisory wording");
+    ASSERT_CONTAINS("call __calynda_rt_cast_value", captured_output,
+                    "hosted simple template still takes the cheap cast path");
+
+    REQUIRE_TRUE(run_capture_with_stderr("./build/calynda", size_focus_argv,
+                                         output, sizeof(output), &exit_code),
+                 "run calynda asm for size-focused simple template advisory");
+    captured_output = output;
+    ASSERT_EQ_INT(0, exit_code, "size-focused simple template advisory run exits successfully");
+    ASSERT_CONTAINS("boot, manual, or size-focused code", captured_output,
+                    "size-focus enables the strong template advisory wording");
+    ASSERT_CONTAINS("call __calynda_rt_template_build", captured_output,
+                    "size-focus disables the hosted single-value template fast path");
 
     unlink(source_path);
 }

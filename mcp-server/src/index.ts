@@ -12,6 +12,7 @@ import {
 import { validateCode } from './tools/validator';
 import { analyzeCode } from './tools/analyzer';
 import { explainTopic } from './tools/explainer';
+import { explainDiagnostic } from './tools/diagnostics';
 import { getCompletions } from './tools/completer';
 import { searchExamples } from './tools/examples';
 import { formatCode } from './tools/formatter';
@@ -22,13 +23,66 @@ import { getKeywordsResource } from './resources/keywords';
 import { getExamplesResource } from './resources/examples';
 import { getArchitectureResource } from './resources/architecture';
 import { getBytecodeResource } from './resources/bytecode';
+import { getDiagnosticsResource } from './resources/diagnostics';
 
 import { PROMPTS, getPromptMessages } from './prompts/index';
 
 const server = new Server(
-  { name: 'calynda-mcp-server', version: '1.0.0-alpha.7' },
+  { name: 'calynda-mcp-server', version: '1.0.0-alpha.8' },
   { capabilities: { tools: {}, resources: {}, prompts: {} } }
 );
+
+export async function handleToolCall(name: string,
+                                     args: Record<string, unknown> = {}) {
+  try {
+    switch (name) {
+      case 'analyze_calynda_code': {
+        const result = analyzeCode({ code: args['code'] as string });
+        return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+      }
+      case 'explain_calynda_syntax': {
+        const result = explainTopic({ topic: args['topic'] as string });
+        let text = result.explanation;
+        if (result.examples && result.examples.length > 0) {
+          text += '\n\n**Examples:**\n' + result.examples.map(e => '```cal\n' + e + '\n```').join('\n');
+        }
+        return { content: [{ type: 'text' as const, text }] };
+      }
+      case 'explain_calynda_diagnostic': {
+        const result = explainDiagnostic({ diagnostic: args['diagnostic'] as string });
+        return { content: [{ type: 'text' as const, text: result.explanation }] };
+      }
+      case 'complete_calynda_code': {
+        const result = getCompletions({ code: args['code'] as string, cursorOffset: args['cursorOffset'] as number });
+        return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+      }
+      case 'validate_calynda_types': {
+        const result = validateCode({ code: args['code'] as string, filename: args['filename'] as string | undefined });
+        return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
+      }
+      case 'get_calynda_examples': {
+        const result = searchExamples({ tags: args['tags'] as string[] | undefined, query: args['feature'] as string | undefined });
+        const text = result.examples.map(e => `### ${e.name}\n${e.description}\n\`\`\`cal\n${e.code}\n\`\`\``).join('\n\n');
+        return { content: [{ type: 'text' as const, text: `Found ${result.total} examples:\n\n${text}` }] };
+      }
+      case 'format_calynda_code': {
+        const result = formatCode({ code: args['code'] as string });
+        return { content: [{ type: 'text' as const, text: result.formatted }] };
+      }
+      case 'explain_compiler_architecture': {
+        const result = explainTopic({ topic: args['topic'] as string });
+        return { content: [{ type: 'text' as const, text: result.explanation }] };
+      }
+      default:
+        throw new Error(`Unknown tool: ${name}`);
+    }
+  } catch (err) {
+    return {
+      content: [{ type: 'text' as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
+      isError: true,
+    };
+  }
+}
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -53,6 +107,17 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           topic: { type: 'string', description: 'The feature, syntax, or pipeline stage to explain (e.g., "lambda", "union", "generics", "HIR", "MIR", "bytecode", "pipeline")' },
         },
         required: ['topic'],
+      },
+    },
+    {
+      name: 'explain_calynda_diagnostic',
+      description: 'Explain a Calynda warning or advisory directly from the diagnostics catalog',
+      inputSchema: {
+        type: 'object' as const,
+        properties: {
+          diagnostic: { type: 'string', description: 'The warning/advisory text, name, or partial message to explain' },
+        },
+        required: ['diagnostic'],
       },
     },
     {
@@ -116,68 +181,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
-
-  try {
-    switch (name) {
-      case 'analyze_calynda_code': {
-        const a = args as Record<string, unknown>;
-        const result = validateCode({ code: a['code'] as string, filename: a['filename'] as string | undefined });
-        return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
-      }
-      case 'explain_calynda_syntax': {
-        const a = args as Record<string, unknown>;
-        const result = explainTopic({ topic: a['topic'] as string });
-        let text = result.explanation;
-        if (result.examples && result.examples.length > 0) {
-          text += '\n\n**Examples:**\n' + result.examples.map(e => '```cal\n' + e + '\n```').join('\n');
-        }
-        return { content: [{ type: 'text' as const, text }] };
-      }
-      case 'complete_calynda_code': {
-        const a = args as Record<string, unknown>;
-        const result = getCompletions({ code: a['code'] as string, cursorOffset: a['cursorOffset'] as number });
-        return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
-      }
-      case 'validate_calynda_types': {
-        const a = args as Record<string, unknown>;
-        const result = analyzeCode({ code: a['code'] as string });
-        return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }] };
-      }
-      case 'get_calynda_examples': {
-        const a = args as Record<string, unknown>;
-        const result = searchExamples({ tags: a['tags'] as string[] | undefined, query: a['feature'] as string | undefined });
-        const text = result.examples.map(e => `### ${e.name}\n${e.description}\n\`\`\`cal\n${e.code}\n\`\`\``).join('\n\n');
-        return { content: [{ type: 'text' as const, text: `Found ${result.total} examples:\n\n${text}` }] };
-      }
-      case 'format_calynda_code': {
-        const a = args as Record<string, unknown>;
-        const result = formatCode({ code: a['code'] as string });
-        return { content: [{ type: 'text' as const, text: result.formatted }] };
-      }
-      case 'explain_compiler_architecture': {
-        const a = args as Record<string, unknown>;
-        const result = explainTopic({ topic: a['topic'] as string });
-        return { content: [{ type: 'text' as const, text: result.explanation }] };
-      }
-      default:
-        throw new Error(`Unknown tool: ${name}`);
-    }
-  } catch (err) {
-    return {
-      content: [{ type: 'text' as const, text: `Error: ${err instanceof Error ? err.message : String(err)}` }],
-      isError: true,
-    };
-  }
+  return handleToolCall(name, (args as Record<string, unknown>) || {});
 });
 
 server.setRequestHandler(ListResourcesRequestSchema, async () => ({
   resources: [
-    { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The shipped Calynda grammar snapshot (1.0.0-alpha.7); includes `mmio<T>`, statement-level `asm { ... };`, `fence()` / `cacheclean()` / `cachefinal()`, sized-array checking, untyped `var` parameters, `|var` early-return parameters, `num`, `arr<?>`, capture-by-reference closures, and `car` / `cdr` on `string`.', mimeType: 'text/plain' },
+    { uri: 'calynda://grammar', name: 'Calynda Grammar (EBNF)', description: 'The shipped Calynda grammar snapshot (1.0.0-alpha.8); includes typed omitted binding initializers, `mmio<T>`, statement-level `asm { ... };`, `fence()` / `cacheclean()` / `cachefinal()`, sized-array checking, untyped `var` parameters, `|var` early-return parameters, `num`, `arr<?>`, capture-by-reference closures, and `car` / `cdr` on `string`.', mimeType: 'text/plain' },
     { uri: 'calynda://types', name: 'Calynda Types', description: 'Documentation for all built-in types', mimeType: 'text/markdown' },
     { uri: 'calynda://keywords', name: 'Calynda Keywords', description: 'All keywords and reserved words', mimeType: 'text/markdown' },
     { uri: 'calynda://examples', name: 'Calynda Examples', description: 'Code examples for common patterns', mimeType: 'text/markdown' },
     { uri: 'calynda://architecture', name: 'Compiler Architecture', description: 'Full compiler pipeline, source tree, build targets, and stage descriptions', mimeType: 'text/markdown' },
     { uri: 'calynda://bytecode', name: 'Bytecode ISA', description: 'Portable-v1 bytecode instruction set architecture', mimeType: 'text/markdown' },
+    { uri: 'calynda://diagnostics', name: 'Warnings And Advisories', description: 'Catalog of current warning and advisory families, when they appear, and preferred alternatives', mimeType: 'text/markdown' },
   ],
 }));
 
@@ -196,6 +211,8 @@ server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
       return { contents: [{ uri, mimeType: 'text/markdown', text: getArchitectureResource() }] };
     case 'calynda://bytecode':
       return { contents: [{ uri, mimeType: 'text/markdown', text: getBytecodeResource() }] };
+    case 'calynda://diagnostics':
+      return { contents: [{ uri, mimeType: 'text/markdown', text: getDiagnosticsResource() }] };
     default:
       throw new Error(`Unknown resource: ${uri}`);
   }
@@ -226,7 +243,9 @@ async function main() {
   console.error('Calynda MCP server running on stdio');
 }
 
-main().catch((err) => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });
+}

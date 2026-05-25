@@ -93,6 +93,33 @@ static bool calynda_option_enable_strict_race(const char *value,
     return true;
 }
 
+static bool calynda_option_disable_performance_warnings(const char *value,
+                                                        CalyndaCompileOptions *options,
+                                                        FILE *err) {
+    (void)value;
+    (void)err;
+    options->performance_warnings = false;
+    return true;
+}
+
+static bool calynda_option_enable_performance_advisories(const char *value,
+                                                         CalyndaCompileOptions *options,
+                                                         FILE *err) {
+    (void)value;
+    (void)err;
+    options->performance_advisories = true;
+    return true;
+}
+
+static bool calynda_option_enable_size_focus(const char *value,
+                                             CalyndaCompileOptions *options,
+                                             FILE *err) {
+    (void)value;
+    (void)err;
+    options->size_focus = true;
+    return true;
+}
+
 static bool calynda_option_set_target(const char *value,
                                       CalyndaCompileOptions *options,
                                       FILE *err) {

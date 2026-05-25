@@ -119,6 +119,83 @@ void test_asm_emit_compiles_runtime_backed_program(void) {
     free(assembly);
 }
 
+void test_asm_emit_fast_paths_simple_hosted_templates(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    string plain = `hello`;\n"
+        "    string echo = `${42}`;\n"
+        "    return plain.length == 5 ? (echo.length == 2 ? 0 : 2) : 1;\n"
+        "};\n";
+    char *assembly;
+
+    REQUIRE_TRUE(build_assembly_from_source(source, &assembly),
+                 "emit assembly text for simple hosted template fast paths");
+    ASSERT_TRUE(strstr(assembly, "call __calynda_rt_template_build") == NULL,
+                "pure-text and single-value hosted templates avoid the template helper");
+    ASSERT_CONTAINS("call __calynda_rt_cast_value", assembly,
+                    "single-value hosted templates lower through the cheaper cast path");
+    ASSERT_TRUE(compile_assembly_text(assembly),
+                "assembly with simple hosted template fast paths assembles");
+    free(assembly);
+}
+
+void test_asm_emit_manual_templates_keep_runtime_builder(void) {
+    static const char source[] =
+        "start(string[] args) -> {\n"
+        "    manual {\n"
+        "        string echo = `${42}`;\n"
+        "        _ = echo.length;\n"
+        "    };\n"
+        "    return 0;\n"
+        "};\n";
+    char *assembly;
+
+    REQUIRE_TRUE(build_assembly_from_source(source, &assembly),
+                 "emit assembly text for manual template path");
+    ASSERT_CONTAINS("call __calynda_rt_template_build", assembly,
+                    "manual single-value templates keep the runtime template builder");
+    ASSERT_TRUE(compile_assembly_text(assembly),
+                "assembly with manual template builder path assembles");
+    free(assembly);
+}
+
+void test_asm_emit_prunes_unreachable_top_level_callable_unit(void) {
+    static const char source[] =
+        "int32 used = () -> 7;\n"
+        "int32 unused = () -> 9;\n"
+        "start(string[] args) -> used();\n";
+    char *assembly;
+
+    REQUIRE_TRUE(build_assembly_from_source(source, &assembly),
+                 "emit assembly text with unreachable top-level callable");
+    ASSERT_CONTAINS(".globl calynda_unit_used", assembly,
+                    "reachable callable unit is still emitted");
+    ASSERT_TRUE(strstr(assembly, "calynda_unit_unused") == NULL,
+                "unreachable top-level callable unit is pruned from assembly");
+    ASSERT_TRUE(compile_assembly_text(assembly),
+                "assembly with pruned unreachable callable still assembles");
+    free(assembly);
+}
+
+void test_asm_emit_prunes_unreachable_static_array_root(void) {
+    static const char source[] =
+        "final int32[3] values = [1, 2, 4];\n"
+        "start -> 0;\n";
+    char *assembly;
+
+    REQUIRE_TRUE(build_assembly_from_source(source, &assembly),
+                 "emit assembly text with unreachable static array root");
+    ASSERT_TRUE(strstr(assembly, "calynda_global_values:") == NULL,
+                "unreachable static array root does not emit a global slot symbol");
+    ASSERT_TRUE(strstr(assembly, ".Larr_obj_") == NULL,
+                "unreachable static array object is pruned from rodata/data");
+    ASSERT_TRUE(strstr(assembly, "call calynda_rt_register_static_object") == NULL,
+                "startup glue skips registration for unreachable static arrays");
+    ASSERT_TRUE(compile_assembly_text(assembly),
+                "assembly with pruned unreachable static array still assembles");
+    free(assembly);
+}
+
 void test_asm_emit_lowers_final_global_arrays_into_static_rodata(void) {
     static const char source[] =
         "final int32[3] values = [1, 2, 4];\n"

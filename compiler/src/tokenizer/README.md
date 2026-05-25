@@ -86,6 +86,11 @@ while ((tok = tokenizer_next(&t)).type != TOK_EOF) {
 - Source positions are tracked for error reporting
 - The tokenizer is designed to be fast and memory-efficient
 - It operates directly on the source string without copying (zero-copy design)
+## Changes in 1.0.0-alpha.8
+
+- No tokenizer changes were required for alpha.8. Typed omitted initializers such as `int32 value;` reuse the existing type/identifier/semicolon token stream.
+- The new warning/advisory and size-focus surface is introduced later in semantic analysis and CLI tooling, not at tokenization time.
+
 ## Changes in 1.0.0-alpha.7
 
 - `mmio` is now tokenized as a dedicated keyword alongside the existing manual-memory / low-level surface.

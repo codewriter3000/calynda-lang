@@ -82,6 +82,37 @@ const MachineUnit *ae_find_program_unit(const AsmEmitContext *context, const cha
     return NULL;
 }
 
+bool ae_is_unit_reachable(const AsmEmitContext *context, size_t unit_index) {
+    if (!context || !context->program || unit_index >= context->program->unit_count) {
+        return false;
+    }
+
+    return !context->reachable_units || context->reachable_units[unit_index];
+}
+
+bool ae_has_global_symbol(const AsmEmitContext *context, const char *name) {
+    size_t i;
+
+    if (!context || !name) {
+        return false;
+    }
+
+    for (i = 0; i < context->global_symbol_count; i++) {
+        if (context->global_symbols[i].name &&
+            strcmp(context->global_symbols[i].name, name) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool ae_is_static_array_binding_reachable(const AsmEmitContext *context,
+                                          const MachineStaticArrayBinding *binding) {
+    return binding && binding->global_name &&
+           ae_has_global_symbol(context, binding->global_name);
+}
+
 AsmByteLiteral *ae_ensure_byte_literal(AsmEmitContext *context,
                                            const char *text,
                                            size_t length,

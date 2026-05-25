@@ -113,7 +113,8 @@ bool type_resolver_resolve_program(TypeResolver *resolver, const AstProgram *pro
 
         if (decl->kind == AST_TOP_LEVEL_BINDING) {
             if (!tr_resolve_binding_decl(resolver, &decl->as.binding_decl) ||
-                !tr_resolve_expression(resolver, decl->as.binding_decl.initializer)) {
+                (decl->as.binding_decl.initializer != NULL &&
+                 !tr_resolve_expression(resolver, decl->as.binding_decl.initializer))) {
                 return false;
             }
         } else if (decl->kind == AST_TOP_LEVEL_TYPE_ALIAS) {
